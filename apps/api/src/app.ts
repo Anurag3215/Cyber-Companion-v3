@@ -2,6 +2,7 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import { healthRouter } from './routes/health.js';
+import { threatRouter } from './routes/threat.js';
 import { rateLimiterMiddleware } from './middleware/rateLimiter.js';
 import { structuredLogger } from './middleware/logger.js';
 
@@ -27,6 +28,7 @@ export function createApp(): Express {
 
   // Routes
   app.use('/v1/health', healthRouter);
+  app.use('/v1/threat', threatRouter);
 
   // 404 handler
   app.use((_req: Request, res: Response) => {
