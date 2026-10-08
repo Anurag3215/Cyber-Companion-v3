@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { ssrfGuardMiddleware } from '../middleware/ssrfGuard.js';
+import { promptInjectionGuardMiddleware } from '../middleware/promptInjectionGuard.js';
 import { VerdictService } from '../services/verdictService.js';
 import { evaluateWifiRisk, WifiEncryption } from '../services/wifiRiskService.js';
 import { aiExplainerService } from '../services/aiExplainerService.js';
@@ -38,20 +39,24 @@ threatRouter.post('/wifi/assess', (req: Request, res: Response) => {
   return res.status(200).json(assessment);
 });
 
-// RAG AI Threat Explainer Endpoint (Phase 9)
-threatRouter.post('/explain', (req: Request, res: Response) => {
-  try {
-    const { query, immutableVerdict, detectedFlags } = req.body;
-    const explanation = aiExplainerService.explainThreat({
-      query: query || 'Threat summary',
-      immutableVerdict: immutableVerdict || 'UNKNOWN',
-      detectedFlags: Array.isArray(detectedFlags) ? detectedFlags : [],
-    });
-    return res.status(200).json(explanation);
-  } catch (err: any) {
-    return res.status(400).json({
-      error: 'Invalid Request',
-      message: err.message || 'Validation error in explainer payload',
-    });
+// RAG AI Threat Explainer Endpoint protected by Prompt Injection Guard
+threatRouter.post(
+  '/explain',
+  promptInjectionGuardMiddleware,
+  (req: Request, res: Response) => {
+    try {
+      const { query, immutableVerdict, detectedFlags } = req.body;
+      const explanation = aiExplainerService.explainThreat({
+        query: query || 'Threat summary',
+        immutableVerdict: immutableVerdict || 'UNKNOWN',
+        detectedFlags: Array.isArray(detectedFlags) ? detectedFlags : [],
+      });
+      return res.status(200).json(explanation);
+    } catch (err: any) {
+      return res.status(400).json({
+        error: 'Invalid Request',
+        message: err.message || 'Validation error in explainer payload',
+      });
+    }
   }
-});
+);
