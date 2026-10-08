@@ -2,11 +2,15 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import { healthRouter } from './routes/health.js';
+import { threatRouter } from './routes/threat.js';
+import { rateLimiterMiddleware } from './middleware/rateLimiter.js';
+import { structuredLogger } from './middleware/logger.js';
 
 export function createApp(): Express {
   const app = express();
 
-  // Security headers & CORS
+  // Structured logging & Security headers
+  app.use(structuredLogger);
   app.use(helmet());
   app.use(
     cors({
@@ -15,12 +19,16 @@ export function createApp(): Express {
     }),
   );
 
-  // Body parser with size limit to prevent resource exhaustion attacks
+  // Rate Limiting
+  app.use(rateLimiterMiddleware);
+
+  // Body parser with size limits
   app.use(express.json({ limit: '100kb' }));
   app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
   // Routes
   app.use('/v1/health', healthRouter);
+  app.use('/v1/threat', threatRouter);
 
   // 404 handler
   app.use((_req: Request, res: Response) => {
@@ -30,7 +38,7 @@ export function createApp(): Express {
     });
   });
 
-  // Global error handler (redacts stack traces in production)
+  // Global error handler
   app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     res.status(500).json({
       error: 'Internal Server Error',
