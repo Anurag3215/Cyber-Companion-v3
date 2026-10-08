@@ -13,7 +13,7 @@
     "@cyber-companion/shared-types": "*",
     "@cyber-companion/scoring-core": "*",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
+    "dotenv": "^18.0.5",
     "express": "^4.19.2",
     "helmet": "^7.1.0",
     "pino": "^9.1.2",
