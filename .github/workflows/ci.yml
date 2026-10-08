@@ -1,0 +1,23 @@
+name: ci
+on:
+  pull_request:
+    branches: [develop, main]
+jobs:
+  lint-typecheck-test:   # must match the required check name in branch protection
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm ci --if-present
+      - run: npm run lint --if-present
+      - run: npm run typecheck --if-present
+      - run: npm test --if-present
+  branch-name:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce branch naming
+        env:
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          echo "$BRANCH" | grep -Eq '^(feature|update|fix|chore|docs|security|release|hotfix)/' || { echo "Bad branch name: $BRANCH"; exit 1; }
