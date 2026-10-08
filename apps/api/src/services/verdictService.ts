@@ -5,6 +5,7 @@ export interface VerdictResponse {
   target: string;
   verdict: 'SAFE' | 'SUSPICIOUS' | 'MALICIOUS' | 'UNKNOWN';
   confidenceScore: number;
+  riskScore?: number;
   primaryCategory: string;
   heuristicsTriggered: string[];
   plainLanguageExplanation: string;
@@ -88,6 +89,7 @@ export class VerdictService {
       target: url,
       verdict,
       confidenceScore,
+      riskScore: confidenceScore,
       primaryCategory,
       heuristicsTriggered: heuristics.flags,
       plainLanguageExplanation,

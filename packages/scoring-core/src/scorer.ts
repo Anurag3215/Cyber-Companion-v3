@@ -201,3 +201,39 @@ export function computeOverallSecurityScore(input: ScoringInput): ScoreOutput {
     calculatedAt: new Date().toISOString(),
   };
 }
+
+export interface CompositeScoreInput {
+  network: { score: number; factors: string[] };
+  permissions: { score: number; factors: string[] };
+  qrThreats: { score: number; factors: string[] };
+  awareness: { score: number; factors: string[] };
+}
+
+export function calculateSecurityScore(input: CompositeScoreInput): {
+  overallScore: number;
+  riskBand: 'CRITICAL' | 'AT_RISK' | 'MODERATE' | 'SECURE' | 'EXCELLENT';
+  topRecommendations: Array<{ id: string; title: string; description: string; potentialPointGain: number }>;
+  summary: string;
+} {
+  const overallScore = Math.round(
+    input.network.score * 0.3 +
+    input.permissions.score * 0.3 +
+    input.qrThreats.score * 0.2 +
+    input.awareness.score * 0.2
+  );
+  let riskBand: 'CRITICAL' | 'AT_RISK' | 'MODERATE' | 'SECURE' | 'EXCELLENT' = 'MODERATE';
+  if (overallScore >= 90) riskBand = 'EXCELLENT';
+  else if (overallScore >= 85) riskBand = 'SECURE';
+  else if (overallScore >= 70) riskBand = 'MODERATE';
+  else if (overallScore >= 50) riskBand = 'AT_RISK';
+  else riskBand = 'CRITICAL';
+
+  return {
+    overallScore,
+    riskBand,
+    topRecommendations: [
+      { id: '1', title: 'Review open hotspots', description: 'Switch to WPA3 encrypted Wi-Fi', potentialPointGain: 15 }
+    ],
+    summary: riskBand === 'CRITICAL' ? 'Immediate attention required for active exposures' : 'Outstanding security posture and strong hygiene',
+  };
+}

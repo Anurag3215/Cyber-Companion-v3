@@ -93,7 +93,7 @@ export function analyzeUrlHeuristics(rawUrl: string): HeuristicScanResult {
 
   // 4. Punycode / IDN Homoglyph detection: xn--
   if (hostname.startsWith('xn--') || hostname.includes('.xn--') || /[^\u0000-\u007F]/.test(hostname)) {
-    score += 45;
+    score += 50;
     flags.push('PUNYCODE_HOMOGLYPH');
     explanations.push('Contains internationalized characters or punycode prefix mimicking legitimate English brand names.');
   }

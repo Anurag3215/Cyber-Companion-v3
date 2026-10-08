@@ -54,6 +54,17 @@ export function isPrivateOrLoopbackHost(hostname: string): boolean {
     if (isPrivateOrLoopbackHost(mappedPart)) {
       return true;
     }
+    const parts = mappedPart.split(':');
+    if (parts.length === 2) {
+      const h1 = parseInt(parts[0], 16);
+      const h2 = parseInt(parts[1], 16);
+      if (!isNaN(h1) && !isNaN(h2)) {
+        const hexIp = `${(h1 >> 8) & 255}.${h1 & 255}.${(h2 >> 8) & 255}.${h2 & 255}`;
+        if (isPrivateOrLoopbackHost(hexIp)) {
+          return true;
+        }
+      }
+    }
   }
 
   // Handle DWord or Hex converted IPs

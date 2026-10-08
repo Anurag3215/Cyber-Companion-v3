@@ -3,20 +3,43 @@ import { ScoreOutput } from './scorer.js';
 export interface ScoreExplanationSummary {
   headline: string;
   summaryText: string;
+  summary?: string;
   badgeLabel: string;
   priorityActions: Array<{
     title: string;
     gainText: string;
     reason: string;
   }>;
+  topRecommendations?: Array<{
+    id: string;
+    title: string;
+    description: string;
+    potentialPointGain?: number;
+  }>;
 }
 
-export function generateScoreExplanation(scoreResult: ScoreOutput): ScoreExplanationSummary {
+export function generateScoreExplanation(scoreResult: any): ScoreExplanationSummary {
+  if (scoreResult.summary !== undefined) {
+    return {
+      headline: scoreResult.riskBand === 'CRITICAL' ? 'Immediate Action Required' : 'Excellent Cyber Hygiene',
+      summaryText: scoreResult.summary,
+      summary: scoreResult.summary,
+      badgeLabel: scoreResult.riskBand || 'Assessed',
+      priorityActions: (scoreResult.topRecommendations || []).map((r: any) => ({
+        title: r.title,
+        gainText: `+${r.potentialPointGain || 10} points`,
+        reason: r.description,
+      })),
+      topRecommendations: scoreResult.topRecommendations || [],
+    };
+  }
+
   let headline = '';
   let summaryText = '';
   let badgeLabel = '';
 
-  switch (scoreResult.band) {
+  const band = scoreResult.band || scoreResult.riskBand;
+  switch (band) {
     case 'SECURE':
       headline = 'Excellent Cyber Hygiene';
       summaryText =

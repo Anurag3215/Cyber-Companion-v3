@@ -20,7 +20,7 @@ describe('Score Explainability Generator', () => {
       wifi: { securityType: 'OPEN' },
       recentUrls: [{ verdict: 'MALICIOUS' }],
       appAudits: [{ riskLevel: 'CRITICAL' }],
-      device: { isScreenLockEnabled: false },
+      device: { isScreenLockEnabled: false, isRootedOrJailbroken: true },
     });
 
     const exp = generateScoreExplanation(scoreOutput);

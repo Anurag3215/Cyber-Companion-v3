@@ -1,9 +1,11 @@
 import { GamificationService, INITIAL_BADGES } from '../src/services/gamificationService';
+import { Storage } from '../src/storage/StorageAdapter';
 
 describe('GamificationService', () => {
   let service: GamificationService;
 
   beforeEach(async () => {
+    await Storage.clear();
     service = new GamificationService();
     await service.init();
   });
