@@ -1,4 +1,25 @@
 {
+  "expo": {
+    "name": "Cyber Companion",
+    "slug": "cyber-companion",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#0D1117"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0D1117"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  },
   "name": "CyberCompanion",
   "displayName": "Cyber Companion"
 }
