@@ -21,6 +21,8 @@ export interface ScoringInput {
 export interface ScoreOutput {
   score: number;
   band: 'CRITICAL' | 'AT_RISK' | 'MODERATE' | 'SECURE';
+  isPartialScore: boolean;
+  unmeasuredVectors: string[];
   breakdown: {
     networkScore: number;
     urlSafetyScore: number;
@@ -47,7 +49,7 @@ export const SCORING_WEIGHTS = {
 } as const;
 
 export function calculateNetworkScore(wifi?: ScoringInput['wifi']): number {
-  if (!wifi) return 80; // Baseline assumption if unmeasured
+  if (!wifi) return 80;
   let score = 100;
   switch (wifi.securityType) {
     case 'OPEN':
@@ -77,7 +79,7 @@ export function calculateNetworkScore(wifi?: ScoringInput['wifi']): number {
 }
 
 export function calculateUrlSafetyScore(urls?: ScoringInput['recentUrls']): number {
-  if (!urls || urls.length === 0) return 95; // Clean history baseline
+  if (!urls || urls.length === 0) return 95;
   let deductions = 0;
   for (const url of urls) {
     if (url.verdict === 'MALICIOUS') deductions += 40;
@@ -115,6 +117,14 @@ export function determineScoreBand(score: number): 'CRITICAL' | 'AT_RISK' | 'MOD
 }
 
 export function computeOverallSecurityScore(input: ScoringInput): ScoreOutput {
+  const unmeasuredVectors: string[] = [];
+  if (!input.wifi) unmeasuredVectors.push('WIFI');
+  if (!input.recentUrls || input.recentUrls.length === 0) unmeasuredVectors.push('URLS');
+  if (!input.appAudits || input.appAudits.length === 0) unmeasuredVectors.push('PERMISSIONS');
+  if (!input.device) unmeasuredVectors.push('DEVICE');
+
+  const isPartialScore = unmeasuredVectors.length > 0;
+
   const networkScore = calculateNetworkScore(input.wifi);
   const urlSafetyScore = calculateUrlSafetyScore(input.recentUrls);
   const permissionScore = calculatePermissionScore(input.appAudits);
@@ -178,6 +188,8 @@ export function computeOverallSecurityScore(input: ScoringInput): ScoreOutput {
   return {
     score,
     band,
+    isPartialScore,
+    unmeasuredVectors,
     breakdown: {
       networkScore,
       urlSafetyScore,
