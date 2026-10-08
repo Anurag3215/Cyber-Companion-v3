@@ -1,0 +1,47 @@
+[
+  {
+    "id": "KB-001",
+    "topic": "quishing",
+    "title": "QR Code Phishing (Quishing) Explained",
+    "summary": "Quishing occurs when attackers place malicious QR codes over legitimate ones (e.g. at parking meters, restaurants, or in emails) to redirect victims to credential-harvesting websites.",
+    "threatVector": "PHYSICAL_AND_DIGITAL_QR",
+    "defenseGuidance": "Always preview the destination domain before opening links from QR codes. Check for tampering stickers on physical QR displays.",
+    "keywords": ["quishing", "qr code", "sticker", "parking", "restaurant", "fake qr"]
+  },
+  {
+    "id": "KB-002",
+    "topic": "punycode_homoglyph",
+    "title": "Internationalized Domain Name (IDN) Homoglyph Attacks",
+    "summary": "Attackers register domain names using lookalike characters from Cyrillic or Greek alphabets (prefixed by 'xn--' in ASCII) to spoof well-known brand names like apple.com or paypal.com.",
+    "threatVector": "DOMAIN_SPOOFING",
+    "defenseGuidance": "Inspect the raw Punycode domain. Look for unexpected character sets or slight font rendering variations in the browser address bar.",
+    "keywords": ["punycode", "homoglyph", "cyrillic", "idn", "lookalike", "typosquatting"]
+  },
+  {
+    "id": "KB-003",
+    "topic": "wifi_security",
+    "title": "Wi-Fi Encryption Standards & Rogue Access Points",
+    "summary": "Open networks transmit unencrypted frames that can be captured by local eavesdroppers. Evil Twin APs mimic trusted network names to conduct man-in-the-middle attacks.",
+    "threatVector": "NETWORK_EAVESDROPPING",
+    "defenseGuidance": "Prefer WPA3 or WPA2-Enterprise networks. Always use a trusted encrypted VPN when connecting to airport, hotel, or cafe Wi-Fi.",
+    "keywords": ["wifi", "wpa3", "wpa2", "open network", "evil twin", "rogue ap", "packet sniffing"]
+  },
+  {
+    "id": "KB-004",
+    "topic": "app_permissions",
+    "title": "Mobile App Permissions & Data Harvesting",
+    "summary": "Overprivileged mobile apps requesting background location, contacts, SMS, or microphone access can covertly track user behavior and sell location telemetry to data brokers.",
+    "threatVector": "ON_DEVICE_PRIVACY",
+    "defenseGuidance": "Grant sensitive permissions only 'While using the app'. Routinely audit and revoke permissions for apps that haven't been used recently.",
+    "keywords": ["permissions", "background location", "sms", "microphone", "tracking", "privacy audit"]
+  },
+  {
+    "id": "KB-005",
+    "topic": "url_shorteners",
+    "title": "URL Shortener Concealment",
+    "summary": "Shortener services (bit.ly, tinyurl.com) obscure the final destination URL, making it difficult for users to visually detect malicious domains.",
+    "threatVector": "LINK_OBSCURATION",
+    "defenseGuidance": "Use a link expander tool or automated scanner before clicking shortened links received from unknown senders.",
+    "keywords": ["shortener", "bitly", "tinyurl", "redirect", "short url", "obscuration"]
+  }
+]
