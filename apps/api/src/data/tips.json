@@ -1,0 +1,37 @@
+[
+  {
+    "id": "tip-001",
+    "title": "Public Wi-Fi Snooping",
+    "summary": "Free Wi-Fi networks in airports and coffee shops are rarely encrypted. Anyone nearby can use simple tools to read your unencrypted traffic. Always use a VPN or stick to mobile data when banking.",
+    "category": "WIFI_SAFETY",
+    "readingLevelGrade": 5
+  },
+  {
+    "id": "tip-002",
+    "title": "Spotting Fake Login Links",
+    "summary": "Scammers disguise links using lookalike letters, like replacing an English 'o' with a Cyrillic character. Always check the exact address bar carefully before typing your email and password.",
+    "category": "PHISHING_AWARENESS",
+    "readingLevelGrade": 6
+  },
+  {
+    "id": "tip-003",
+    "title": "Beware of Sticky QR Codes",
+    "summary": "Criminals paste malicious QR code stickers over authentic parking meter or restaurant codes. Always look closely for peeling edges and preview the link before opening it in your browser.",
+    "category": "QR_HYGIENE",
+    "readingLevelGrade": 5
+  },
+  {
+    "id": "tip-004",
+    "title": "Revoke Needless Permissions",
+    "summary": "Games and torch utilities rarely need access to your contact list, microphone, or SMS messages. Check your phone settings monthly to turn off permissions apps do not actually need.",
+    "category": "APP_PERMISSIONS",
+    "readingLevelGrade": 5
+  },
+  {
+    "id": "tip-005",
+    "title": "Juice Jacking at Charging Ports",
+    "summary": "Public USB charging stations can transfer data along with electricity. Criminals modify public ports to install malware. Use your own wall charger adapter or a USB data blocker.",
+    "category": "DEVICE_CARE",
+    "readingLevelGrade": 6
+  }
+]
