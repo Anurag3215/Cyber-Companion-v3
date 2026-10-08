@@ -1,35 +1,60 @@
-# Cyber Companion — Initial Threat Model (v0)
+# Cyber Companion — Comprehensive STRIDE Threat Model
 
-This threat model outlines initial trust boundaries, assets, and attacker vectors across the mobile client and backend threat intelligence gateway.
+> **Full Threat Modeling Specification (Phase 2 Baseline)**
 
 ---
 
-## 1. System Assets & Trust Boundaries
+## 1. System Boundary Diagram
 
 ```text
-[ Non-Technical User Device (Untrusted Host Environment) ]
-   ├── Apps/Mobile Client (Local Trust Zone)
-   │     ├── Telemetry Collector (Wi-Fi, QR, Manifest)
-   │     └── Local Heuristics & Storage
-   │
-[ NETWORK (Public Wi-Fi / Cellular Internet) ]
-   │
-   ▼ TLS 1.3
-[ Backend Threat Intel Gateway (Controlled Cloud Zone) ]
-   ├── Express REST API + Helmet + SSRF Guard
-   ├── Threat Intel Adapters (VirusTotal, Safe Browsing)
-   └── Mongo TTL Verdict Cache
+[ UNTRUSTED ZONE: Public Internet / Public Wi-Fi ]
+           │
+           │ TLS 1.3
+           ▼
+┌─────────────────────────────────────────────────────────────┐
+│ TRUST BOUNDARY 1: Mobile Client Sandbox (Android / iOS)    │
+│  - Vision Camera Frame Buffer                               │
+│  - WifiManager Telemetry Parser                             │
+│  - PackageManager In-Memory Manifest Audit                  │
+│  - MMKV AES-256-GCM Secure Storage                          │
+└─────────────────────────────────────────────────────────────┘
+           │
+           │ HTTPS / Zod Validated REST Payloads
+           ▼
+┌─────────────────────────────────────────────────────────────┐
+│ TRUST BOUNDARY 2: Cloud API Gateway (apps/api)              │
+│  - Helmet HTTP Response Header Hardening                    │
+│  - Strict SSRF / DNS-Rebinding Pre-Flight Guard             │
+│  - Pino Redacted Structured Logger (Zero PII)               │
+│  - MongoDB Atlas TTL Verdict Cache                          │
+└─────────────────────────────────────────────────────────────┘
+           │
+           │ Outbound Secure REST (API Keys via Environment)
+           ▼
+┌─────────────────────────────────────────────────────────────┐
+│ TRUST BOUNDARY 3: Third-Party Threat Intelligence Providers │
+│  - Google Safe Browsing API v4                              │
+│  - VirusTotal v3 API                                        │
+│  - URLScan.io REST API                                      │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. STRIDE Vector Analysis (Initial v0)
+## 2. Comprehensive STRIDE Matrix
 
-| Category | Vector | Risk Assessment | Mitigation |
-| :--- | :--- | :--- | :--- |
-| **Spoofing** | Attacker creates rogue Wi-Fi hotspot with cloned SSID ("Evil Twin") | High | Highlight lack of 802.11w Protected Management Frames, warn if encryption differs from known profile, suggest VPN. |
-| **Tampering** | Attacker modifies QR code sticker in public restaurant to point to phishing domain | High | Sandbox decoded destination URL, evaluate heuristics (punycode, shorteners), require user confirmation before navigation. |
-| **Repudiation** | User denies visiting malicious link | Low | Maintain local on-device scan history timestamped in encrypted MMKV storage. |
-| **Information Disclosure** | Leakage of user browsing habits via threat intelligence API lookups | High | Strip sensitive URL query params (`token`, `auth`, `id`) before upstream API query; hash URL paths. |
-| **Denial of Service** | Upstream threat intel provider rate limit exhaustion | Medium | Local heuristic engine acts as primary filter; 24-hour Mongo/Memory TTL cache for verified safe domains. |
-| **Elevation of Privilege** | Malicious mobile application abuses excessive permissions to extract SMS OTPs | High | Flag app permission combos: SMS + Background Network in Permission Analyzer; direct user to Android Settings to revoke. |
+| Threat Category | Component | Attack Scenario | Severity | Applied Countermeasures |
+| :--- | :--- | :--- | :--- | :--- |
+| **Spoofing** | Wi-Fi Telemetry | Rogue AP broadcasts known SSID ("Starbucks_Guest") with Open auth. | High | Detect missing encryption, flag disparity against known secure profile, recommend VPN. |
+| **Tampering** | QR Scanner | Attacker overlays malicious QR sticker pointing to homoglyph phishing URL. | High | Pre-execution sandbox halts automatic redirection; URL heuristics flag Cyrillic/Greek homoglyphs. |
+| **Repudiation** | Audit History | User denies scanning a phishing URL or connecting to an open network. | Low | Local encrypted scan log in MMKV with cryptographic hash verification. |
+| **Information Disclosure** | API Gateway | Attacker probes `/v1/threat/inspect` with internal cloud metadata URLs (`http://169.254.169.254/`). | Critical | SSRF Guard middleware resolves DNS, checks against RFC 1918 / link-local / loopback blacklists, and terminates request immediately with 400. |
+| **Denial of Service** | Upstream Intel APIs | Adversary floods scanning gateway to exhaust API quotas or trigger rate limits. | Medium | In-memory token bucket rate limiter (100 req / 15 min); 24-hour Mongo TTL verdict cache; fallback to local heuristic engine. |
+| **Elevation of Privilege** | Installed Apps | Rogue mobile app requests SMS permissions to steal two-factor authentication tokens. | High | Permission Analyzer cross-references `READ_SMS` + `INTERNET` and flags as Critical Risk with direct uninstall/revoke guidance. |
+
+---
+
+## 3. Residual Risk & Verification Gates
+
+- Regular dependency vulnerability scanning via CodeQL and Semgrep.
+- Continuous automated tests validating that SSRF guard correctly blocks `127.0.0.1`, `10.0.0.1`, `169.254.169.254`, and DNS rebinding simulations.
