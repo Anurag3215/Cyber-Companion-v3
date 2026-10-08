@@ -1,0 +1,255 @@
+openapi: 3.0.3
+info:
+  title: Cyber Companion Threat Intelligence Gateway API
+  description: Hardened REST API for proactive mobile and web cyber threat evaluation.
+  version: 1.0.0
+servers:
+  - url: http://localhost:5000/v1
+    description: Local development gateway
+
+paths:
+  /health:
+    get:
+      summary: Gateway Health Check
+      description: Returns operational status, uptime, and service build version.
+      responses:
+        '200':
+          description: Service is healthy.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  version:
+                    type: string
+                    example: 0.1.0
+                  service:
+                    type: string
+                    example: cyber-companion-api-gateway
+                  uptimeSeconds:
+                    type: integer
+                    example: 3600
+
+  /threat/inspect:
+    post:
+      summary: Inspect URL for Threats
+      description: Evaluates submitted URL against local heuristics and upstream Threat Intel providers (VirusTotal, Safe Browsing, URLScan.io).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - url
+              properties:
+                url:
+                  type: string
+                  format: uri
+                  example: https://secure-login.bank-update.xyz
+                source:
+                  type: string
+                  enum: [USER_INPUT, QR_SCAN, CLIPBOARD]
+                  default: USER_INPUT
+                forceRefresh:
+                  type: boolean
+                  default: false
+      responses:
+        '200':
+          description: Inspection result successfully computed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ThreatAnalysisResult'
+        '400':
+          description: Invalid URL parameter or blocked private/loopback IP (SSRF guard).
+
+  /threat/wifi/assess:
+    post:
+      summary: Assess Wi-Fi Risk
+      description: Analyzes Wi-Fi encryption metadata and generates risk level and actionable user guidance.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - securityType
+              properties:
+                ssid:
+                  type: string
+                  example: Public_Cafe_Free_WiFi
+                securityType:
+                  type: string
+                  enum: [OPEN, WEP, WPA, WPA2, WPA3, UNKNOWN]
+                signalStrengthDbm:
+                  type: number
+                  example: -65
+                isCaptivePortal:
+                  type: boolean
+                  default: false
+      responses:
+        '200':
+          description: Wi-Fi risk analysis response.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  riskLevel:
+                    type: string
+                    enum: [CRITICAL, HIGH, MODERATE, SAFE]
+                  isEncrypted:
+                    type: boolean
+                  plainExplanation:
+                    type: string
+                  recommendation:
+                    type: string
+
+  /score/calculate:
+    post:
+      summary: Calculate Overall Security Health Score
+      description: Deterministically aggregates network, URL history, app permissions, and device flags into a 0-100 score.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                wifi:
+                  type: object
+                  properties:
+                    securityType:
+                      type: string
+                      enum: [OPEN, WEP, WPA, WPA2, WPA3, UNKNOWN]
+                    isCaptivePortal:
+                      type: boolean
+                recentUrls:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      verdict:
+                        type: string
+                        enum: [SAFE, SUSPICIOUS, MALICIOUS, UNKNOWN]
+                appAudits:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      riskLevel:
+                        type: string
+                        enum: [SAFE, LOW, MODERATE, HIGH, CRITICAL]
+                device:
+                  type: object
+                  properties:
+                    isScreenLockEnabled:
+                      type: boolean
+                    isOsUpdated:
+                      type: boolean
+                    isDeveloperModeEnabled:
+                      type: boolean
+                    isRootedOrJailbroken:
+                      type: boolean
+      responses:
+        '200':
+          description: Deterministic security score computed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OverallSecurityScore'
+
+  /tips/daily:
+    get:
+      summary: Get Daily Cyber Awareness Tip
+      description: Returns a curated cybersecurity tip written at 6th-grade reading level (<= 60 words).
+      responses:
+        '200':
+          description: Daily tip payload.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CyberTip'
+
+components:
+  schemas:
+    ThreatAnalysisResult:
+      type: object
+      properties:
+        target:
+          type: string
+        verdict:
+          type: string
+          enum: [SAFE, SUSPICIOUS, MALICIOUS, UNKNOWN]
+        confidenceScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+        primaryCategory:
+          type: string
+        heuristicsTriggered:
+          type: array
+          items:
+            type: string
+        plainLanguageExplanation:
+          type: string
+        recommendation:
+          type: string
+        cached:
+          type: boolean
+
+    OverallSecurityScore:
+      type: object
+      properties:
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        band:
+          type: string
+          enum: [CRITICAL, AT_RISK, MODERATE, SECURE]
+        breakdown:
+          type: object
+          properties:
+            networkScore:
+              type: number
+            urlSafetyScore:
+              type: number
+            permissionScore:
+              type: number
+            deviceBaselineScore:
+              type: number
+        topRecommendations:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              title:
+                type: string
+              description:
+                type: string
+              potentialPointGain:
+                type: number
+              severity:
+                type: string
+
+    CyberTip:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        summary:
+          type: string
+        category:
+          type: string
+        readingLevelGrade:
+          type: integer
