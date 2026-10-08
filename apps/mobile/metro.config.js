@@ -1,11 +1,15 @@
-const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');
-const path = require('path');
+let getDefaultConfig;
+try {
+  getDefaultConfig = require('expo/metro-config').getDefaultConfig;
+} catch {
+  getDefaultConfig = require('@react-native/metro-config').getDefaultConfig;
+}
 
+const path = require('path');
 const projectRoot = __dirname;
 const monorepoRoot = path.resolve(projectRoot, '../..');
 
-const config = {
-  watchFolders: [monorepoRoot],
-};
+const config = getDefaultConfig(projectRoot);
+config.watchFolders = [monorepoRoot];
 
-module.exports = mergeConfig(getDefaultConfig(projectRoot), config);
+module.exports = config;
