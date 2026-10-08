@@ -19,7 +19,5 @@
     "web": {
       "bundler": "metro"
     }
-  },
-  "name": "CyberCompanion",
-  "displayName": "Cyber Companion"
+  }
 }
