@@ -14,9 +14,8 @@ permissions:
 
 jobs:
   codeql:
-    name: CodeQL Static Analysis
+    name: CodeQL Analysis
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -32,7 +31,6 @@ jobs:
   gitleaks:
     name: Gitleaks Secret Detection
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -48,20 +46,23 @@ jobs:
   semgrep:
     name: Semgrep SAST Scanner
     runs-on: ubuntu-latest
-    continue-on-error: true
-    container:
-      image: semgrep/semgrep
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run Semgrep Rules
-        run: semgrep scan --config "p/security-audit" --metrics=off || true
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-  dependency-audit:
-    name: Dependency Audit
+      - name: Install & Run Semgrep
+        run: |
+          pip install semgrep
+          semgrep scan --config "p/security-audit" --metrics=off || true
+
+  npm-audit:
+    name: NPM Dependency Audit
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
