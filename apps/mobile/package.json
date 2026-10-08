@@ -6,6 +6,8 @@
   "scripts": {
     "start": "expo start",
     "tunnel": "expo start --tunnel",
+    "tunnel:free": "concurrently --names \"EXPO,TUNNEL\" -c \"cyan,green\" \"npx expo start -c\" \"npx cloudflared tunnel --url http://localhost:8081\"",
+    "tunnel:cf": "npx cloudflared tunnel --url http://localhost:8081",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
@@ -30,6 +32,7 @@
   "devDependencies": {
     "@expo/ngrok": "^4.1.3",
     "@types/react": "~19.2.4",
+    "concurrently": "^10.0.6",
     "typescript": "^5.4.5"
   }
 }
