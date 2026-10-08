@@ -1,0 +1,55 @@
+# Node & Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Environment & Secrets
+.env
+.env*.local
+.env.development
+.env.test
+.env.production
+*.env
+
+# Build Artifacts & Caches
+dist/
+build/
+coverage/
+.turbo/
+.cache/
+.nyc_output/
+
+# React Native & Metro
+.expo/
+.expo-shared/
+web-build/
+.metro-health-check*
+
+# Android
+apps/mobile/android/.gradle/
+apps/mobile/android/app/build/
+apps/mobile/android/build/
+*.apk
+*.aab
+local.properties
+
+# iOS
+apps/mobile/ios/Pods/
+apps/mobile/ios/build/
+*.xcworkspace
+*.pbxuser
+
+# IDE & OS Caches
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
