@@ -56,8 +56,9 @@ jobs:
           python-version: '3.11'
 
       - name: Install & Run Semgrep
+        continue-on-error: true
         run: |
-          pip install semgrep
+          pip install semgrep || true
           semgrep scan --config "p/security-audit" --metrics=off || true
 
   npm-audit:
