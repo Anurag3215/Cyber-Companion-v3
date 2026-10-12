@@ -5,8 +5,6 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
-  StatusBar,
   Alert,
 } from 'react-native';
 import { CyberLogo } from '../components/CyberLogo';
@@ -24,12 +22,14 @@ interface DashboardScreenProps {
   onNavigateToScanners?: () => void;
   onNavigateToLearn?: () => void;
   isDark?: boolean;
+  toggleTheme?: () => void;
 }
 
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   onNavigateToScanners,
   onNavigateToLearn,
-  isDark = true,
+  isDark = false,
+  toggleTheme,
 }) => {
   const { user } = useAuth();
   const userName = user?.name || 'Arun';
@@ -45,12 +45,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   const hour = new Date().getHours();
   const greetingTime = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
-  // Strict adherence to existing color combinations
-  const bg = isDark ? '#090D16' : '#FFFFFF';
+  // Strict adherence to existing palette for both dark and light modes
+  const bg = isDark ? '#090D16' : '#F8FAFC';
   const textColor = isDark ? '#F8FAFC' : '#0F172A';
-  const subtextColor = isDark ? '#94A3B8' : '#64748B';
+  const subtextColor = isDark ? '#94A3B8' : '#475569';
   const cardBg = isDark ? '#1E293B' : '#FFFFFF';
-  const borderCol = isDark ? '#334155' : '#F1F5F9';
+  const borderCol = isDark ? '#334155' : '#E2E8F0';
   const tealAccent = isDark ? '#2DD4BF' : '#0D9488';
   const greenSafe = '#10B981';
 
@@ -67,9 +67,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: bg }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={bg} />
-
+    <View style={[styles.safeArea, { backgroundColor: bg }]}>
       {/* Subtle 3D floating ambient particles in background */}
       <FloatingParticles3D isDark={isDark} />
 
@@ -78,13 +76,29 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Top Header with App Logo & Live Status (Tightly fitted under camera bezel) */}
+        {/* Top Header with App Logo & Live Status */}
         <View style={styles.topHeaderBar}>
-          <CyberLogo size={38} isDark={isDark} animated={true} />
+          <CyberLogo size={36} isDark={isDark} animated={true} />
 
-          <View style={[styles.hudPill, { borderColor: borderCol, backgroundColor: cardBg }]}>
-            <View style={[styles.hudPulseDot, { backgroundColor: greenSafe }]} />
-            <Text style={[styles.hudPillText, { color: tealAccent }]}>ZERO-TRUST ACTIVE</Text>
+          <View style={styles.headerRightActions}>
+            {/* Quick 1-tap Light / Dark Mode Toggle */}
+            {toggleTheme && (
+              <TouchableOpacity
+                style={[styles.themePill, { backgroundColor: cardBg, borderColor: borderCol }]}
+                onPress={toggleTheme}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.themePillIcon}>{isDark ? '☀️' : '🌙'}</Text>
+                <Text style={[styles.themePillText, { color: textColor }]}>
+                  {isDark ? 'Light' : 'Dark'}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            <View style={[styles.hudPill, { borderColor: borderCol, backgroundColor: cardBg }]}>
+              <View style={[styles.hudPulseDot, { backgroundColor: greenSafe }]} />
+              <Text style={[styles.hudPillText, { color: tealAccent }]}>ZERO-TRUST</Text>
+            </View>
           </View>
         </View>
 
@@ -115,7 +129,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
           style={[
             styles.sweepButton,
             {
-              backgroundColor: isDeepScanning ? '#064E3B' : tealAccent,
+              backgroundColor: isDeepScanning ? (isDark ? '#064E3B' : '#0D9488') : tealAccent,
               borderColor: isDeepScanning ? greenSafe : tealAccent,
             },
           ]}
@@ -217,7 +231,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
         >
           <View style={styles.tipCardInner}>
             <View style={styles.tipHeaderRow}>
-              <View style={[styles.tipBadgeWrapper, { backgroundColor: isDark ? '#334155' : '#F1F5F9' }]}>
+              <View style={[styles.tipBadgeWrapper, { backgroundColor: isDark ? '#334155' : '#E2E8F0' }]}>
                 <Text style={[styles.tipBadgeText, { color: tealAccent }]}>TODAY'S INTEL</Text>
               </View>
               <Text style={[styles.tipArrow, { color: subtextColor }]}>Tap to learn →</Text>
@@ -253,7 +267,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
         onClose={() => setShowAppPrivacyModal(false)}
         isDark={isDark}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -266,20 +280,40 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 4, // Tightly fitted under the camera bezel / dynamic island
+    paddingTop: 6,
     paddingBottom: 40,
   },
   topHeaderBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
-    marginTop: 2,
+    marginBottom: 10,
+  },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  themePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 9999,
+    borderWidth: 1,
+    gap: 4,
+  },
+  themePillIcon: {
+    fontSize: 12,
+  },
+  themePillText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   hudPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
+    paddingHorizontal: 9,
     paddingVertical: 5,
     borderRadius: 9999,
     borderWidth: 1,

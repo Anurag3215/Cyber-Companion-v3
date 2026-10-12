@@ -7,7 +7,6 @@ import {
   Switch,
   TouchableOpacity,
   Alert,
-  SafeAreaView,
 } from 'react-native';
 import { useAuth } from '../services/AuthContext';
 import { AuthModal } from '../components/AuthModal';
@@ -16,12 +15,14 @@ interface ProfileScreenProps {
   isDark?: boolean;
   onNavigateToScanners?: () => void;
   onReplayIntro?: () => void;
+  toggleTheme?: () => void;
 }
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   isDark = false,
   onNavigateToScanners,
   onReplayIntro,
+  toggleTheme,
 }) => {
   const { user, isAuthenticated, signOut } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -30,11 +31,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const [quietHours, setQuietHours] = useState(true);
   const [fixApplied, setFixApplied] = useState<{ [key: string]: boolean }>({});
 
-  const bg = isDark ? '#090D16' : '#FFFFFF';
+  const bg = isDark ? '#090D16' : '#F8FAFC';
   const textColor = isDark ? '#F8FAFC' : '#0F172A';
-  const subtextColor = isDark ? '#94A3B8' : '#64748B';
+  const subtextColor = isDark ? '#94A3B8' : '#475569';
   const cardBg = isDark ? '#1E293B' : '#FFFFFF';
-  const borderCol = isDark ? '#334155' : '#F1F5F9';
+  const borderCol = isDark ? '#334155' : '#E2E8F0';
   const teal = isDark ? '#2DD4BF' : '#0D9488';
   const emerald = '#10B981';
 
@@ -72,7 +73,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const displayScore = user?.securityScore || 78;
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: bg }]}>
+    <View style={[styles.safeArea, { backgroundColor: bg }]}>
       <ScrollView
         style={[styles.container, { backgroundColor: bg }]}
         contentContainerStyle={styles.content}
@@ -99,7 +100,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           </View>
         </View>
 
-        {/* Authentication Actions */}
+        {/* Authentication & Theme Actions */}
         <View style={styles.authRow}>
           {isAuthenticated ? (
             <TouchableOpacity
@@ -116,6 +117,18 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               activeOpacity={0.8}
             >
               <Text style={[styles.authBtnText, { color: '#FFFFFF' }]}>🔐 Sign In / Authenticate</Text>
+            </TouchableOpacity>
+          )}
+
+          {toggleTheme && (
+            <TouchableOpacity
+              style={[styles.authBtn, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF', borderColor: borderCol }]}
+              onPress={toggleTheme}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.authBtnText, { color: textColor }]}>
+                {isDark ? '☀️ Switch to Light' : '🌙 Switch to Dark'}
+              </Text>
             </TouchableOpacity>
           )}
 
@@ -275,7 +288,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         onClose={() => setShowAuthModal(false)}
         isDark={isDark}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -351,11 +364,13 @@ const styles = StyleSheet.create({
   },
   authRow: {
     flexDirection: 'row',
-    gap: 10,
+    flexWrap: 'wrap',
+    gap: 8,
     marginBottom: 16,
   },
   authBtn: {
     flex: 1,
+    minWidth: '45%',
     borderWidth: 1,
     paddingVertical: 10,
     borderRadius: 14,

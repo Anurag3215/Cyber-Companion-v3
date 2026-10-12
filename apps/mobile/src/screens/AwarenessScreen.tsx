@@ -67,7 +67,7 @@ export const AwarenessScreen: React.FC<AwarenessScreenProps> = ({ isDark = false
   const bannerBorder = isDark ? '#115E59' : '#CCFBF1';
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: bg }]}>
+    <View style={[styles.safeArea, { backgroundColor: bg }]}>
       <ScrollView style={[styles.container, { backgroundColor: bg }]} contentContainerStyle={styles.content}>
         
         {/* Header */}
@@ -133,7 +133,7 @@ export const AwarenessScreen: React.FC<AwarenessScreenProps> = ({ isDark = false
           })}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
