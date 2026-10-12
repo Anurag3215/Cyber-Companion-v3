@@ -19,6 +19,7 @@
     "@expo/metro-runtime": "^57.0.16",
     "@types/three": "^0.186.0",
     "expo": "^57.0.0",
+    "expo-camera": "~57.0.6",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",

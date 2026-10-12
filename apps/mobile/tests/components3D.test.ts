@@ -20,6 +20,14 @@ jest.mock('three', () => ({
   Clock: jest.fn(() => ({ getElapsedTime: () => 0 })),
 }));
 
+jest.mock('expo-camera', () => {
+  const React = require('react');
+  return {
+    CameraView: (props: any) => React.createElement('div', props),
+    useCameraPermissions: () => [{ granted: true, canAskAgain: true }, jest.fn()],
+  };
+});
+
 jest.mock('react-native', () => {
   const React = require('react');
   return {

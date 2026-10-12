@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -8,8 +8,11 @@ import {
   Modal,
   SafeAreaView,
   ScrollView,
-  Alert,
+  Animated,
+  ActivityIndicator,
+  Platform,
 } from 'react-native';
+import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { classifyQrPayload } from '../services/qrScannerService';
 
 interface QrScannerModalProps {
@@ -31,8 +34,16 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
   onClose,
   isDark = true,
 }) => {
-  const [qrInput, setQrInput] = useState('WIFI:S:Starbucks_Guest_Open;T:nopass;P:;;');
+  const [permission, requestPermission] = useCameraPermissions();
+  const [scanned, setScanned] = useState(false);
+  const [facing, setFacing] = useState<'back' | 'front'>('back');
+  const [torch, setTorch] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+
+  const [qrInput, setQrInput] = useState('');
   const [analysis, setAnalysis] = useState<any>(null);
+
+  const laserAnim = useRef(new Animated.Value(0)).current;
 
   const bg = isDark ? '#090D16' : '#FFFFFF';
   const cardBg = isDark ? '#1E293B' : '#F8FAFC';
@@ -44,11 +55,37 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
   const danger = '#EF4444';
   const amber = '#F59E0B';
 
+  useEffect(() => {
+    if (visible) {
+      setScanned(false);
+      setCameraError(null);
+    }
+  }, [visible]);
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(laserAnim, {
+          toValue: 1,
+          duration: 1800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(laserAnim, {
+          toValue: 0,
+          duration: 1800,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [laserAnim]);
+
   const handleDecode = (payload: string) => {
     if (!payload.trim()) return;
-    const classified = classifyQrPayload(payload.trim());
+    const raw = payload.trim();
+    const classified = classifyQrPayload(raw);
 
-    // Enrich with deep security analysis
     let riskLevel: 'SAFE' | 'WARNING' | 'CRITICAL' = 'SAFE';
     let riskReason = 'Payload conforms to standard formats with zero malicious triggers.';
 
@@ -59,15 +96,29 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
         riskReason = 'Unencrypted Wi-Fi configuration. Anyone on this network can intercept your unencrypted traffic.';
       }
     } else if (classified.type === 'URL') {
-      const dest = classified.sanitizedDestination || '';
-      if (dest.includes('verify') || dest.includes('.cc') || dest.includes('login')) {
+      const dest = (classified.sanitizedDestination || raw).toLowerCase();
+      if (
+        dest.includes('verify') ||
+        dest.includes('.cc') ||
+        dest.includes('login') ||
+        dest.includes('security-update')
+      ) {
         riskLevel = 'CRITICAL';
-        riskReason = 'URL mimics a corporate login portal and uses an untrusted TLD.';
+        riskReason = 'URL mimics a corporate login portal or security alert using an untrusted TLD.';
+      } else if (dest.startsWith('http://')) {
+        riskLevel = 'WARNING';
+        riskReason = 'Unencrypted HTTP URL. Sensitive data transmitted will not be protected by TLS.';
       }
     } else if (classified.type === 'UNKNOWN') {
-      if (payload.startsWith('smsto:') || payload.startsWith('tel:')) {
+      if (raw.startsWith('smsto:') || raw.startsWith('tel:') || raw.startsWith('telprompt:')) {
         riskLevel = 'CRITICAL';
         riskReason = 'Premium rate SMS/Calling intent scheme. Opening this may bill unwanted charges to your phone.';
+      } else if (raw.startsWith('*#') || raw.startsWith('*21*')) {
+        riskLevel = 'CRITICAL';
+        riskReason = 'USSD MMI code detected. Could alter phone settings or enable unauthorized call forwarding.';
+      } else if (raw.startsWith('javascript:') || raw.startsWith('data:')) {
+        riskLevel = 'CRITICAL';
+        riskReason = 'Direct script injection or embedded data URI payload detected.';
       }
     }
 
@@ -77,6 +128,23 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
       riskReason,
     });
   };
+
+  const handleBarcodeScanned = (result: BarcodeScanningResult) => {
+    if (scanned || !result || !result.data) return;
+    setScanned(true);
+    setQrInput(result.data);
+    handleDecode(result.data);
+  };
+
+  const handleRescan = () => {
+    setScanned(false);
+    setAnalysis(null);
+  };
+
+  const laserTranslateY = laserAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-90, 90],
+  });
 
   return (
     <Modal
@@ -94,26 +162,133 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
             </View>
             <Text style={[styles.title, { color: textColor }]}>Sandboxed QR Analyzer</Text>
             <Text style={[styles.subtitle, { color: subtextColor }]}>
-              Zero-Execution Payload Preview & Intent Sanitizer
+              Real-Time Camera Scanner & Zero-Execution Intent Sanitizer
             </Text>
           </View>
 
-          {/* Scanner Viewfinder Simulator */}
-          <View style={[styles.viewfinderCard, { backgroundColor: isDark ? '#090D16' : '#F1F5F9', borderColor: teal }]}>
-            <View style={[styles.cornerTL, { borderColor: teal }]} />
-            <View style={[styles.cornerTR, { borderColor: teal }]} />
-            <View style={[styles.cornerBL, { borderColor: teal }]} />
-            <View style={[styles.cornerBR, { borderColor: teal }]} />
-            <View style={[styles.laserLine, { backgroundColor: danger }]} />
-            <Text style={[styles.reticleText, { color: teal }]}>SCANNER RETICLE ARMED</Text>
+          {/* Physical Camera Viewfinder */}
+          <View style={[styles.viewfinderCard, { borderColor: teal, backgroundColor: '#000000' }]}>
+            {!permission ? (
+              <View style={styles.centerContainer}>
+                <ActivityIndicator size="small" color={teal} />
+                <Text style={[styles.permissionInfo, { color: subtextColor }]}>
+                  Initializing camera sensor...
+                </Text>
+              </View>
+            ) : !permission.granted ? (
+              <View style={styles.permissionBox}>
+                <Text style={styles.lockIcon}>🛡️</Text>
+                <Text style={[styles.permTitle, { color: '#FFFFFF' }]}>Camera Access Required</Text>
+                <Text style={[styles.permDesc, { color: '#94A3B8' }]}>
+                  Enable camera permissions to scan real-world QR codes with physical optical tracking.
+                </Text>
+                <TouchableOpacity
+                  style={[styles.grantBtn, { backgroundColor: teal }]}
+                  onPress={requestPermission}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.grantBtnText}>🔓 Grant Camera Access</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <>
+                <CameraView
+                  style={StyleSheet.absoluteFill}
+                  facing={facing}
+                  enableTorch={torch}
+                  barcodeScannerSettings={{
+                    barcodeTypes: ['qr'],
+                  }}
+                  onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
+                  onMountError={(e) => setCameraError(e.message)}
+                />
+
+                {/* Cyber Reticle Overlay */}
+                <View style={styles.reticleOverlay} pointerEvents="none">
+                  <View style={[styles.cornerTL, { borderColor: teal }]} />
+                  <View style={[styles.cornerTR, { borderColor: teal }]} />
+                  <View style={[styles.cornerBL, { borderColor: teal }]} />
+                  <View style={[styles.cornerBR, { borderColor: teal }]} />
+
+                  {/* Animated Oscillating Laser */}
+                  {!scanned && (
+                    <Animated.View
+                      style={[
+                        styles.laserLine,
+                        {
+                          backgroundColor: danger,
+                          transform: [{ translateY: laserTranslateY }],
+                        },
+                      ]}
+                    />
+                  )}
+                </View>
+
+                {/* Controls Bar: Flashlight & Camera Flip */}
+                <View style={styles.cameraControlsRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.cameraToolBtn,
+                      { backgroundColor: torch ? teal : 'rgba(15, 23, 42, 0.75)' },
+                    ]}
+                    onPress={() => setTorch(!torch)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.cameraToolText, { color: torch ? '#090D16' : '#F8FAFC' }]}>
+                      {torch ? '🔦 Torch ON' : '💡 Flash'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.cameraToolBtn, { backgroundColor: 'rgba(15, 23, 42, 0.75)' }]}
+                    onPress={() => setFacing(facing === 'back' ? 'front' : 'back')}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.cameraToolText, { color: '#F8FAFC' }]}>🔄 Flip</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Status Indicator */}
+                {scanned ? (
+                  <TouchableOpacity
+                    style={[styles.scannedBanner, { backgroundColor: 'rgba(16, 185, 129, 0.92)' }]}
+                    onPress={handleRescan}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.scannedBannerText}>🎯 CODE ACQUIRED • TAP TO SCAN AGAIN</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={styles.statusPill}>
+                    <Text style={[styles.reticleText, { color: teal }]}>
+                      OPTICAL RADAR ACTIVE • ALIGN CODE
+                    </Text>
+                  </View>
+                )}
+              </>
+            )}
           </View>
 
-          {/* Input Box */}
+          {cameraError && (
+            <View style={styles.cameraErrBanner}>
+              <Text style={styles.cameraErrText}>Camera status: {cameraError}</Text>
+            </View>
+          )}
+
+          {/* Manual Input Box (Universal fallback for emulators or manual entry) */}
           <View style={[styles.inputCard, { backgroundColor: cardBg, borderColor: borderCol }]}>
-            <Text style={[styles.inputHeader, { color: subtextColor }]}>OR PASTE QR PAYLOAD / BARCODE</Text>
+            <Text style={[styles.inputHeader, { color: subtextColor }]}>
+              MANUAL / CLIPBOARD PAYLOAD INPUT
+            </Text>
             <TextInput
-              style={[styles.input, { backgroundColor: isDark ? '#090D16' : '#FFFFFF', borderColor: borderCol, color: textColor }]}
-              placeholder="WIFI:S:MyNet;T:WPA;P:pass;;"
+              style={[
+                styles.input,
+                {
+                  backgroundColor: isDark ? '#090D16' : '#FFFFFF',
+                  borderColor: borderCol,
+                  color: textColor,
+                },
+              ]}
+              placeholder="Paste raw QR data or URL here..."
               placeholderTextColor="#64748B"
               value={qrInput}
               onChangeText={setQrInput}
@@ -132,7 +307,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
 
           {/* Preset Test Samples */}
           <View style={styles.samplesSection}>
-            <Text style={[styles.samplesLabel, { color: subtextColor }]}>TEST VECTORS PRESETS:</Text>
+            <Text style={[styles.samplesLabel, { color: subtextColor }]}>QUICK TEST VECTORS:</Text>
             <View style={styles.chipsRow}>
               {SAMPLE_QR_PAYLOADS.map((sample, idx) => (
                 <TouchableOpacity
@@ -228,7 +403,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                 {analysis.sanitizedDestination && (
                   <>
                     <Text style={[styles.detailKey, { color: subtextColor, marginTop: 8 }]}>
-                      Sanitized Execution Target:
+                      Sanitized Target:
                     </Text>
                     <Text style={[styles.detailVal, { color: teal }]}>
                       {analysis.sanitizedDestination}
@@ -246,6 +421,17 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                     </Text>
                   </>
                 )}
+              </View>
+
+              {/* Action Buttons */}
+              <View style={styles.actionRow}>
+                <TouchableOpacity
+                  style={[styles.actionBtn, { borderColor: teal, backgroundColor: 'rgba(45, 212, 191, 0.1)' }]}
+                  onPress={handleRescan}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.actionBtnText, { color: teal }]}>🔄 Scan Another QR</Text>
+                </TouchableOpacity>
               </View>
             </View>
           )}
@@ -294,62 +480,164 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   viewfinderCard: {
-    height: 140,
-    borderRadius: 18,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    height: 260,
+    borderRadius: 20,
+    borderWidth: 2,
     position: 'relative',
     marginBottom: 16,
     overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  centerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  permissionInfo: {
+    fontSize: 12,
+    marginTop: 8,
+  },
+  permissionBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  lockIcon: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  permTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  permDesc: {
+    fontSize: 12,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  grantBtn: {
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  grantBtnText: {
+    color: '#090D16',
+    fontWeight: '800',
+    fontSize: 13,
+  },
+  reticleOverlay: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cornerTL: {
     position: 'absolute',
-    top: 12,
-    left: 12,
-    width: 24,
-    height: 24,
-    borderTopWidth: 3,
-    borderLeftWidth: 3,
+    top: 24,
+    left: 24,
+    width: 32,
+    height: 32,
+    borderTopWidth: 3.5,
+    borderLeftWidth: 3.5,
   },
   cornerTR: {
     position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 24,
-    height: 24,
-    borderTopWidth: 3,
-    borderRightWidth: 3,
+    top: 24,
+    right: 24,
+    width: 32,
+    height: 32,
+    borderTopWidth: 3.5,
+    borderRightWidth: 3.5,
   },
   cornerBL: {
     position: 'absolute',
-    bottom: 12,
-    left: 12,
-    width: 24,
-    height: 24,
-    borderBottomWidth: 3,
-    borderLeftWidth: 3,
+    bottom: 24,
+    left: 24,
+    width: 32,
+    height: 32,
+    borderBottomWidth: 3.5,
+    borderLeftWidth: 3.5,
   },
   cornerBR: {
     position: 'absolute',
-    bottom: 12,
-    right: 12,
-    width: 24,
-    height: 24,
-    borderBottomWidth: 3,
-    borderRightWidth: 3,
+    bottom: 24,
+    right: 24,
+    width: 32,
+    height: 32,
+    borderBottomWidth: 3.5,
+    borderRightWidth: 3.5,
   },
   laserLine: {
-    width: '80%',
-    height: 2,
-    opacity: 0.8,
+    width: '75%',
+    height: 2.5,
+    borderRadius: 2,
+    shadowColor: '#EF4444',
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
+  },
+  cameraControlsRow: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    flexDirection: 'row',
+    gap: 8,
+    zIndex: 10,
+  },
+  cameraToolBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  cameraToolText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  statusPill: {
+    position: 'absolute',
+    bottom: 12,
+    backgroundColor: 'rgba(9, 13, 22, 0.8)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(45, 212, 191, 0.3)',
   },
   reticleText: {
-    position: 'absolute',
-    bottom: 14,
     fontSize: 9,
     fontWeight: '800',
     letterSpacing: 1,
+  },
+  scannedBanner: {
+    position: 'absolute',
+    bottom: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    borderRadius: 16,
+    zIndex: 10,
+  },
+  scannedBannerText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+  },
+  cameraErrBanner: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderColor: '#EF4444',
+    borderWidth: 1,
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  cameraErrText: {
+    color: '#EF4444',
+    fontSize: 11,
+    textAlign: 'center',
   },
   inputCard: {
     borderRadius: 18,
@@ -446,6 +734,7 @@ const styles = StyleSheet.create({
   payloadDetailBox: {
     borderTopWidth: 1,
     paddingTop: 10,
+    marginBottom: 12,
   },
   detailKey: {
     fontSize: 10,
@@ -456,6 +745,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     fontFamily: 'monospace',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  actionBtn: {
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 14,
+  },
+  actionBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
   },
   closeBtn: {
     alignItems: 'center',
