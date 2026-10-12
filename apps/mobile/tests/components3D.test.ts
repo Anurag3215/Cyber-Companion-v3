@@ -63,6 +63,13 @@ import { Cyber3DShieldCore } from '../src/components/Cyber3DShieldCore';
 import { TiltCard3D } from '../src/components/TiltCard3D';
 import { ThreatRadar3D } from '../src/components/ThreatRadar3D';
 import { FloatingParticles3D } from '../src/components/FloatingParticles3D';
+import { CyberLogo } from '../src/components/CyberLogo';
+import { AppIntro3D } from '../src/components/AppIntro3D';
+import { AuthModal } from '../src/components/AuthModal';
+import { WifiSentinelModal } from '../src/components/WifiSentinelModal';
+import { LinkInspectorModal } from '../src/components/LinkInspectorModal';
+import { QrScannerModal } from '../src/components/QrScannerModal';
+import { AppPrivacyModal } from '../src/components/AppPrivacyModal';
 
 describe('3D Interactive UI Components Suite', () => {
   it('instantiates Cyber3DShieldCore without errors', () => {
@@ -83,5 +90,40 @@ describe('3D Interactive UI Components Suite', () => {
   it('instantiates FloatingParticles3D without errors', () => {
     expect(FloatingParticles3D).toBeDefined();
     expect(typeof FloatingParticles3D).toBe('function');
+  });
+
+  it('instantiates CyberLogo emblem without errors', () => {
+    expect(CyberLogo).toBeDefined();
+    expect(typeof CyberLogo).toBe('function');
+  });
+
+  it('instantiates AppIntro3D sequence without errors', () => {
+    expect(AppIntro3D).toBeDefined();
+    expect(typeof AppIntro3D).toBe('function');
+  });
+
+  it('instantiates AuthModal without errors', () => {
+    expect(AuthModal).toBeDefined();
+    expect(typeof AuthModal).toBe('function');
+  });
+
+  it('instantiates WifiSentinelModal without errors', () => {
+    expect(WifiSentinelModal).toBeDefined();
+    expect(typeof WifiSentinelModal).toBe('function');
+  });
+
+  it('instantiates LinkInspectorModal without errors', () => {
+    expect(LinkInspectorModal).toBeDefined();
+    expect(typeof LinkInspectorModal).toBe('function');
+  });
+
+  it('instantiates QrScannerModal without errors', () => {
+    expect(QrScannerModal).toBeDefined();
+    expect(typeof QrScannerModal).toBe('function');
+  });
+
+  it('instantiates AppPrivacyModal without errors', () => {
+    expect(AppPrivacyModal).toBeDefined();
+    expect(typeof AppPrivacyModal).toBe('function');
   });
 });

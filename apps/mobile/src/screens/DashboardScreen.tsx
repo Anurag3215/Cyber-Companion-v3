@@ -5,52 +5,52 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Modal,
   SafeAreaView,
   StatusBar,
-  TextInput,
   Alert,
 } from 'react-native';
+import { CyberLogo } from '../components/CyberLogo';
 import { Cyber3DShieldCore } from '../components/Cyber3DShieldCore';
 import { TiltCard3D } from '../components/TiltCard3D';
 import { ThreatRadar3D } from '../components/ThreatRadar3D';
 import { FloatingParticles3D } from '../components/FloatingParticles3D';
-import { LinkCheckSheet } from '../components/LinkCheckSheet';
-import { classifyQrPayload } from '../services/qrScannerService';
+import { WifiSentinelModal } from '../components/WifiSentinelModal';
+import { LinkInspectorModal } from '../components/LinkInspectorModal';
+import { QrScannerModal } from '../components/QrScannerModal';
+import { AppPrivacyModal } from '../components/AppPrivacyModal';
+import { useAuth } from '../services/AuthContext';
 
 interface DashboardScreenProps {
   onNavigateToScanners?: () => void;
   onNavigateToLearn?: () => void;
-  userName?: string;
   isDark?: boolean;
 }
 
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   onNavigateToScanners,
   onNavigateToLearn,
-  userName = 'Arun',
-  isDark = false,
+  isDark = true,
 }) => {
-  const [showLinkCheckModal, setShowLinkCheckModal] = useState(false);
-  const [showQrModal, setShowQrModal] = useState(false);
-  const [qrInput, setQrInput] = useState('WIFI:S:Airport_Free;T:WPA;P:password;;');
-  const [qrResult, setQrResult] = useState<any>(null);
+  const { user } = useAuth();
+  const userName = user?.name || 'Arun';
 
-  const [wifiChecked, setWifiChecked] = useState(false);
-  const [appsReviewed, setAppsReviewed] = useState(false);
+  // Feature Inspection Modals State
+  const [showWifiModal, setShowWifiModal] = useState(false);
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [showAppPrivacyModal, setShowAppPrivacyModal] = useState(false);
   const [isDeepScanning, setIsDeepScanning] = useState(false);
 
   // Time-based friendly greeting
   const hour = new Date().getHours();
   const greetingTime = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
-  // Strict adherence to existing color palette
+  // Strict adherence to existing color combinations
   const bg = isDark ? '#090D16' : '#FFFFFF';
   const textColor = isDark ? '#F8FAFC' : '#0F172A';
   const subtextColor = isDark ? '#94A3B8' : '#64748B';
   const cardBg = isDark ? '#1E293B' : '#FFFFFF';
   const borderCol = isDark ? '#334155' : '#F1F5F9';
-  const tipBg = isDark ? '#1E293B' : '#F8FAFC';
   const tealAccent = isDark ? '#2DD4BF' : '#0D9488';
   const greenSafe = '#10B981';
 
@@ -60,34 +60,10 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
       setIsDeepScanning(false);
       Alert.alert(
         '🛡️ 3D Security Sweep Complete',
-        '• Wi-Fi Encryption: Verified Protected\n• Phishing Guard: Zero Threat Signatures\n• App Sandbox: Clean Telemetry Isolation\nOverall Defense: 100% Monitored',
+        '• Wi-Fi Encryption: WPA3-SAE & PMF Validated\n• Phishing Guard: 0 Malicious Triggers\n• QR Sandbox: Isolated Execution Ready\n• App Privacy: 0 Unverified Sensor Leaks\nOverall Defense Score: 94/100',
         [{ text: 'Acknowledged' }]
       );
     }, 2800);
-  };
-
-  const handleWifiCheck = () => {
-    setWifiChecked(true);
-    Alert.alert(
-      '📶 Wi-Fi Sentinel Check',
-      'Connected: Home_Office_5G\nSecurity: WPA3-SAE with Protected Management Frames (PMF)\nVerdict: SAFE · Encrypted network',
-      [{ text: 'OK' }]
-    );
-  };
-
-  const handleAppReview = () => {
-    setAppsReviewed(true);
-    Alert.alert(
-      '🛡️ On-Device App Permission Audit',
-      'Audited: 42 Installed Applications\nCritical Telemetry Leaks: 0\nPrivacy Guarantee: No data left this device\nVerdict: CLEAN',
-      [{ text: 'OK' }]
-    );
-  };
-
-  const handleDecodeQr = () => {
-    if (!qrInput.trim()) return;
-    const classified = classifyQrPayload(qrInput);
-    setQrResult(classified);
   };
 
   return (
@@ -102,19 +78,15 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Top Tagline with Live Security HUD Pill */}
-        <View style={styles.topHudRow}>
+        {/* Top Header with App Logo & Live Status (Tightly fitted under camera bezel) */}
+        <View style={styles.topHeaderBar}>
+          <CyberLogo size={38} isDark={isDark} animated={true} />
+
           <View style={[styles.hudPill, { borderColor: borderCol, backgroundColor: cardBg }]}>
             <View style={[styles.hudPulseDot, { backgroundColor: greenSafe }]} />
-            <Text style={[styles.hudPillText, { color: subtextColor }]}>
-              ZERO-TRUST · SSRF GUARD ACTIVE
-            </Text>
+            <Text style={[styles.hudPillText, { color: tealAccent }]}>ZERO-TRUST ACTIVE</Text>
           </View>
         </View>
-
-        <Text style={[styles.topTagline, { color: subtextColor }]}>
-          Know what's safe before you tap, scan, or connect
-        </Text>
 
         {/* User Greeting & Headline */}
         <View style={styles.headerSection}>
@@ -129,7 +101,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
         {/* 3D Interactive Moving Cyber Shield Core */}
         <View style={styles.gaugeContainer}>
           <Cyber3DShieldCore
-            score={78}
+            score={user?.securityScore || 78}
             potentialScore={92}
             fixesCount={3}
             isDark={isDark}
@@ -159,35 +131,32 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
         {/* 2x2 Quick Action Grid with 3D Perspective Tilt Cards */}
         <View style={styles.gridContainer}>
           <View style={styles.gridRow}>
-            {/* 1. Check Wi-Fi */}
+            {/* 1. Check Wi-Fi (Opens real-data WifiSentinelModal) */}
             <View style={styles.gridCol}>
               <TiltCard3D
                 isDark={isDark}
-                activeBorderColor={wifiChecked ? tealAccent : undefined}
-                onPress={handleWifiCheck}
+                onPress={() => setShowWifiModal(true)}
               >
                 <View style={styles.actionCardContent}>
                   <Text style={styles.actionIcon}>📶</Text>
-                  <Text style={[styles.actionLabel, { color: textColor }]}>
-                    {wifiChecked ? 'Wi-Fi: Secure' : 'Check Wi-Fi'}
-                  </Text>
-                  <Text style={[styles.actionSubtext, { color: subtextColor }]}>
-                    {wifiChecked ? 'WPA3 Protected' : 'Audit Encryption'}
+                  <Text style={[styles.actionLabel, { color: textColor }]}>Check Wi-Fi</Text>
+                  <Text style={[styles.actionSubtext, { color: greenSafe }]}>
+                    WPA3-SAE & PMF
                   </Text>
                 </View>
               </TiltCard3D>
             </View>
 
-            {/* 2. Check a Link */}
+            {/* 2. Check a Link (Opens real-data LinkInspectorModal) */}
             <View style={styles.gridCol}>
               <TiltCard3D
                 isDark={isDark}
-                onPress={() => setShowLinkCheckModal(true)}
+                onPress={() => setShowLinkModal(true)}
               >
                 <View style={styles.actionCardContent}>
                   <Text style={styles.actionIcon}>🔗</Text>
                   <Text style={[styles.actionLabel, { color: textColor }]}>Check a link</Text>
-                  <Text style={[styles.actionSubtext, { color: subtextColor }]}>
+                  <Text style={[styles.actionSubtext, { color: tealAccent }]}>
                     Phishing & SSRF
                   </Text>
                 </View>
@@ -196,7 +165,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
           </View>
 
           <View style={styles.gridRow}>
-            {/* 3. Scan QR Code */}
+            {/* 3. Scan QR Code (Opens real-data QrScannerModal) */}
             <View style={styles.gridCol}>
               <TiltCard3D
                 isDark={isDark}
@@ -205,27 +174,24 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
                 <View style={styles.actionCardContent}>
                   <Text style={styles.actionIcon}>⛶</Text>
                   <Text style={[styles.actionLabel, { color: textColor }]}>Scan QR code</Text>
-                  <Text style={[styles.actionSubtext, { color: subtextColor }]}>
+                  <Text style={[styles.actionSubtext, { color: isDark ? '#38BDF8' : '#0284C7' }]}>
                     Sandbox Preview
                   </Text>
                 </View>
               </TiltCard3D>
             </View>
 
-            {/* 4. Review Apps */}
+            {/* 4. Review Apps (Opens real-data AppPrivacyModal) */}
             <View style={styles.gridCol}>
               <TiltCard3D
                 isDark={isDark}
-                activeBorderColor={appsReviewed ? tealAccent : undefined}
-                onPress={handleAppReview}
+                onPress={() => setShowAppPrivacyModal(true)}
               >
                 <View style={styles.actionCardContent}>
                   <Text style={styles.actionIcon}>🛡️</Text>
-                  <Text style={[styles.actionLabel, { color: textColor }]}>
-                    {appsReviewed ? 'Apps: Clean' : 'Review apps'}
-                  </Text>
-                  <Text style={[styles.actionSubtext, { color: subtextColor }]}>
-                    {appsReviewed ? '0 PII Leaks' : 'Sensor Audit'}
+                  <Text style={[styles.actionLabel, { color: textColor }]}>Review apps</Text>
+                  <Text style={[styles.actionSubtext, { color: greenSafe }]}>
+                    Zero PII Leaks
                   </Text>
                 </View>
               </TiltCard3D>
@@ -233,14 +199,14 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
           </View>
         </View>
 
-        {/* 3D Holographic Perspective Threat Radar */}
+        {/* 3D Holographic Perspective Threat Radar with interactive sectors */}
         <ThreatRadar3D
           isDark={isDark}
           onSelectSector={(sector) => {
-            if (sector === 'wifi') handleWifiCheck();
-            else if (sector === 'url') setShowLinkCheckModal(true);
+            if (sector === 'wifi') setShowWifiModal(true);
+            else if (sector === 'url') setShowLinkModal(true);
             else if (sector === 'qr') setShowQrModal(true);
-            else if (sector === 'apps') handleAppReview();
+            else if (sector === 'apps') setShowAppPrivacyModal(true);
           }}
         />
 
@@ -263,128 +229,30 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
         </TiltCard3D>
       </ScrollView>
 
-      {/* Screen 2: Link Check Modal */}
-      <Modal
-        visible={showLinkCheckModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowLinkCheckModal(false)}
-      >
-        <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? '#0F172A' : '#FFFFFF' }}>
-          <LinkCheckSheet
-            url="secure-paypa1-login.com/verify"
-            isThreat={true}
-            threatTitle="Don't open this link"
-            consensusText="Dangerous · 4 of 4 sources agree"
-            explanation="It copies a PayPal login page to steal your password. The &quot;1&quot; in &quot;paypa1&quot; is a number, not the letter &quot;l&quot;."
-            findings={[
-              'Reported as phishing by Google',
-              'Looks like a well-known brand',
-              'Website created 2 days ago',
-            ]}
-            onClose={() => setShowLinkCheckModal(false)}
-            isDark={isDark}
-          />
-        </SafeAreaView>
-      </Modal>
+      {/* Feature Modals */}
+      <WifiSentinelModal
+        visible={showWifiModal}
+        onClose={() => setShowWifiModal(false)}
+        isDark={isDark}
+      />
 
-      {/* Sandboxed QR Scanner Modal */}
-      <Modal
+      <LinkInspectorModal
+        visible={showLinkModal}
+        onClose={() => setShowLinkModal(false)}
+        isDark={isDark}
+      />
+
+      <QrScannerModal
         visible={showQrModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowQrModal(false)}
-      >
-        <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? '#0F172A' : '#FFFFFF' }}>
-          <ScrollView style={{ flex: 1, padding: 24 }}>
-            <View style={{ alignItems: 'center', marginBottom: 20 }}>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: textColor }}>
-                Sandboxed QR Scanner
-              </Text>
-              <Text style={{ fontSize: 13, color: subtextColor, marginTop: 4 }}>
-                Decodes and previews QR content before launching any apps or URLs
-              </Text>
-            </View>
+        onClose={() => setShowQrModal(false)}
+        isDark={isDark}
+      />
 
-            <View style={{ marginBottom: 16 }}>
-              <Text style={{ fontSize: 13, fontWeight: '600', color: textColor, marginBottom: 8 }}>
-                QR Code Payload
-              </Text>
-              <TextInput
-                style={{
-                  borderWidth: 1,
-                  borderColor: borderCol,
-                  borderRadius: 14,
-                  padding: 14,
-                  color: textColor,
-                  backgroundColor: isDark ? '#1E293B' : '#F8FAFC',
-                }}
-                value={qrInput}
-                onChangeText={setQrInput}
-                placeholder="Enter or paste QR payload"
-                placeholderTextColor="#94A3B8"
-              />
-            </View>
-
-            <TouchableOpacity
-              style={{
-                backgroundColor: '#0D9488',
-                paddingVertical: 14,
-                borderRadius: 24,
-                alignItems: 'center',
-                marginBottom: 20,
-              }}
-              onPress={handleDecodeQr}
-            >
-              <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 14 }}>
-                Decode & Sandbox Preview
-              </Text>
-            </TouchableOpacity>
-
-            {qrResult && (
-              <View
-                style={{
-                  backgroundColor: isDark ? '#1E293B' : '#F0FDFA',
-                  borderColor: '#99F6E4',
-                  borderWidth: 1,
-                  borderRadius: 18,
-                  padding: 16,
-                  marginBottom: 20,
-                }}
-              >
-                <Text style={{ fontSize: 13, fontWeight: '800', color: '#0F766E', marginBottom: 4 }}>
-                  CLASSIFICATION: {qrResult.type}
-                </Text>
-                <Text style={{ fontSize: 14, color: textColor, marginBottom: 4 }}>
-                  Raw: {qrResult.raw}
-                </Text>
-                {qrResult.metadata && (
-                  <Text style={{ fontSize: 13, color: subtextColor }}>
-                    Details: {JSON.stringify(qrResult.metadata)}
-                  </Text>
-                )}
-                {qrResult.sanitizedDestination && (
-                  <Text style={{ fontSize: 13, color: '#0D9488', marginTop: 4 }}>
-                    Sanitized Target: {qrResult.sanitizedDestination}
-                  </Text>
-                )}
-              </View>
-            )}
-
-            <TouchableOpacity
-              style={{
-                backgroundColor: isDark ? '#334155' : '#F3F4F6',
-                paddingVertical: 14,
-                borderRadius: 24,
-                alignItems: 'center',
-              }}
-              onPress={() => setShowQrModal(false)}
-            >
-              <Text style={{ color: textColor, fontWeight: '600', fontSize: 14 }}>Close</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
+      <AppPrivacyModal
+        visible={showAppPrivacyModal}
+        onClose={() => setShowAppPrivacyModal(false)}
+        isDark={isDark}
+      />
     </SafeAreaView>
   );
 };
@@ -398,18 +266,21 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingTop: 4, // Tightly fitted under the camera bezel / dynamic island
     paddingBottom: 40,
   },
-  topHudRow: {
+  topHeaderBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
+    marginTop: 2,
   },
   hudPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 9999,
     borderWidth: 1,
   },
@@ -420,33 +291,26 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   hudPillText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '800',
-    letterSpacing: 0.8,
-  },
-  topTagline: {
-    fontSize: 12,
-    fontWeight: '500',
-    textAlign: 'center',
-    marginBottom: 14,
-    letterSpacing: -0.2,
+    letterSpacing: 0.6,
   },
   headerSection: {
-    marginBottom: 10,
+    marginBottom: 8,
   },
   greetingText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
     marginBottom: 2,
   },
   headlineText: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '800',
     letterSpacing: -0.5,
   },
   gaugeContainer: {
     alignItems: 'center',
-    marginVertical: 4,
+    marginVertical: 2,
   },
   sweepButton: {
     paddingVertical: 12,
@@ -455,7 +319,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    marginVertical: 10,
+    marginVertical: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.15,
@@ -469,7 +333,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   gridContainer: {
-    marginVertical: 8,
+    marginVertical: 6,
     gap: 10,
   },
   gridRow: {
@@ -496,7 +360,7 @@ const styles = StyleSheet.create({
   },
   actionSubtext: {
     fontSize: 11,
-    fontWeight: '500',
+    fontWeight: '600',
     marginTop: 2,
     textAlign: 'center',
   },

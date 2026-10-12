@@ -9,18 +9,22 @@ import {
   Alert,
   SafeAreaView,
 } from 'react-native';
+import { useAuth } from '../services/AuthContext';
+import { AuthModal } from '../components/AuthModal';
 
 interface ProfileScreenProps {
-  userName?: string;
   isDark?: boolean;
   onNavigateToScanners?: () => void;
+  onReplayIntro?: () => void;
 }
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({
-  userName = 'Arun',
   isDark = false,
   onNavigateToScanners,
+  onReplayIntro,
 }) => {
+  const { user, isAuthenticated, signOut } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [wifiAlerts, setWifiAlerts] = useState(true);
   const [urlInterception, setUrlInterception] = useState(true);
   const [quietHours, setQuietHours] = useState(true);
@@ -31,6 +35,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const subtextColor = isDark ? '#94A3B8' : '#64748B';
   const cardBg = isDark ? '#1E293B' : '#FFFFFF';
   const borderCol = isDark ? '#334155' : '#F1F5F9';
+  const teal = isDark ? '#2DD4BF' : '#0D9488';
+  const emerald = '#10B981';
 
   const handleClearCache = () => {
     Alert.alert(
@@ -39,34 +45,102 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Clear', style: 'destructive', onPress: () => {} },
-      ],
+      ]
     );
+  };
+
+  const handleSignOut = () => {
+    Alert.alert('Sign Out Sentinel Session', 'Are you sure you want to end this authenticated session?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          await signOut();
+          Alert.alert('Signed Out', 'You are now operating in anonymous local mode.');
+        },
+      },
+    ]);
   };
 
   const toggleFix = (key: string) => {
     setFixApplied((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const displayName = user?.name || 'Arun V.';
+  const displayEmail = user?.email || 'arun@cybercompanion.io';
+  const displayScore = user?.securityScore || 78;
+
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: bg }]}>
-      <ScrollView style={[styles.container, { backgroundColor: bg }]} contentContainerStyle={styles.content}>
-        
-        {/* Profile Card */}
+      <ScrollView
+        style={[styles.container, { backgroundColor: bg }]}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Profile Operator Card */}
         <View style={[styles.profileCard, { backgroundColor: cardBg, borderColor: borderCol }]}>
-          <View style={styles.avatarCircle}>
-            <Text style={styles.avatarText}>{userName.charAt(0).toUpperCase()}</Text>
+          <View style={[styles.avatarCircle, { backgroundColor: teal }]}>
+            <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
           </View>
           <View style={styles.profileInfo}>
-            <Text style={[styles.profileName, { color: textColor }]}>{userName}</Text>
-            <Text style={[styles.profileStatus, { color: '#0D9488' }]}>
-              Mostly Protected · Score 78/100
+            <View style={styles.nameRow}>
+              <Text style={[styles.profileName, { color: textColor }]}>{displayName}</Text>
+              <View style={[styles.tierPill, { borderColor: emerald }]}>
+                <Text style={[styles.tierText, { color: emerald }]}>
+                  {user?.tier || 'PRO_SENTINEL'}
+                </Text>
+              </View>
+            </View>
+            <Text style={[styles.profileEmail, { color: subtextColor }]}>{displayEmail}</Text>
+            <Text style={[styles.profileStatus, { color: teal }]}>
+              Verified Sentinel · Security Score {displayScore}/100
             </Text>
           </View>
         </View>
 
+        {/* Authentication Actions */}
+        <View style={styles.authRow}>
+          {isAuthenticated ? (
+            <TouchableOpacity
+              style={[styles.authBtn, { backgroundColor: isDark ? '#334155' : '#F1F5F9', borderColor: borderCol }]}
+              onPress={handleSignOut}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.authBtnText, { color: '#EF4444' }]}>🚪 Sign Out Operator</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[styles.authBtn, { backgroundColor: teal }]}
+              onPress={() => setShowAuthModal(true)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.authBtnText, { color: '#FFFFFF' }]}>🔐 Sign In / Authenticate</Text>
+            </TouchableOpacity>
+          )}
+
+          {onReplayIntro && (
+            <TouchableOpacity
+              style={[styles.authBtn, { backgroundColor: isDark ? '#1E293B' : '#F0FDFA', borderColor: teal }]}
+              onPress={onReplayIntro}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.authBtnText, { color: teal }]}>🎬 Replay 3D Intro</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
         {/* Quick Fixes Recommendation Card */}
-        <View style={[styles.fixesSection, { backgroundColor: isDark ? '#1E293B' : '#F0FDFA', borderColor: '#CCFBF1' }]}>
-          <Text style={styles.fixesHeader}>RECOMMENDED ACTIONS</Text>
+        <View
+          style={[
+            styles.fixesSection,
+            {
+              backgroundColor: isDark ? '#1E293B' : '#F0FDFA',
+              borderColor: isDark ? '#334155' : '#CCFBF1',
+            },
+          ]}
+        >
+          <Text style={[styles.fixesHeader, { color: teal }]}>RECOMMENDED ACTIONS</Text>
           <Text style={[styles.fixesTitle, { color: textColor }]}>
             3 quick fixes lift your score to 92
           </Text>
@@ -77,9 +151,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               onPress={() => toggleFix('fix1')}
               activeOpacity={0.7}
             >
-              <Text style={styles.fixCheckIcon}>
-                {fixApplied['fix1'] ? '✅' : '⚪'}
-              </Text>
+              <Text style={styles.fixCheckIcon}>{fixApplied['fix1'] ? '✅' : '⚪'}</Text>
               <View style={styles.fixTextCol}>
                 <Text style={[styles.fixItemTitle, { color: textColor }]}>
                   Revoke background mic access
@@ -95,15 +167,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               onPress={() => toggleFix('fix2')}
               activeOpacity={0.7}
             >
-              <Text style={styles.fixCheckIcon}>
-                {fixApplied['fix2'] ? '✅' : '⚪'}
-              </Text>
+              <Text style={styles.fixCheckIcon}>{fixApplied['fix2'] ? '✅' : '⚪'}</Text>
               <View style={styles.fixTextCol}>
                 <Text style={[styles.fixItemTitle, { color: textColor }]}>
-                  Disconnect from open airport hotspot
+                  Disable auto-join to unencrypted Wi-Fi
                 </Text>
                 <Text style={[styles.fixItemSub, { color: subtextColor }]}>
-                  Switch to encrypted cellular data
+                  Prevents Evil Twin spoofing in public venues
                 </Text>
               </View>
             </TouchableOpacity>
@@ -113,85 +183,98 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               onPress={() => toggleFix('fix3')}
               activeOpacity={0.7}
             >
-              <Text style={styles.fixCheckIcon}>
-                {fixApplied['fix3'] ? '✅' : '⚪'}
-              </Text>
+              <Text style={styles.fixCheckIcon}>{fixApplied['fix3'] ? '✅' : '⚪'}</Text>
               <View style={styles.fixTextCol}>
                 <Text style={[styles.fixItemTitle, { color: textColor }]}>
-                  Enable DNS-over-HTTPS fallback
+                  Enable sandboxed QR link interception
                 </Text>
                 <Text style={[styles.fixItemSub, { color: subtextColor }]}>
-                  Prevents ISP and DNS snooping
+                  Inspects phishing targets before launching
                 </Text>
               </View>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Settings & Alert Controls */}
+        {/* Guardian Preferences Section */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: textColor }]}>Alert Preferences</Text>
+          <Text style={[styles.sectionTitle, { color: textColor }]}>Protection Settings</Text>
 
           <View style={[styles.settingRow, { borderBottomColor: borderCol }]}>
             <View style={styles.settingTextWrap}>
-              <Text style={[styles.settingLabel, { color: textColor }]}>Insecure Wi-Fi Banners</Text>
+              <Text style={[styles.settingLabel, { color: textColor }]}>Wi-Fi Sentinel Checks</Text>
               <Text style={[styles.settingDesc, { color: subtextColor }]}>
-                Warn immediately when connecting to open networks
+                Real-time alert on connecting to unencrypted networks
               </Text>
             </View>
             <Switch
               value={wifiAlerts}
               onValueChange={setWifiAlerts}
-              trackColor={{ true: '#0D9488', false: '#CBD5E1' }}
+              trackColor={{ false: '#334155', true: teal }}
+              thumbColor="#FFFFFF"
             />
           </View>
 
           <View style={[styles.settingRow, { borderBottomColor: borderCol }]}>
             <View style={styles.settingTextWrap}>
-              <Text style={[styles.settingLabel, { color: textColor }]}>Clipboard URL Scanning</Text>
+              <Text style={[styles.settingLabel, { color: textColor }]}>Link & SSRF Guard</Text>
               <Text style={[styles.settingDesc, { color: subtextColor }]}>
-                Prompt before opening newly copied links
+                Block private RFC1918 loopback routing & homoglyphs
               </Text>
             </View>
             <Switch
               value={urlInterception}
               onValueChange={setUrlInterception}
-              trackColor={{ true: '#0D9488', false: '#CBD5E1' }}
+              trackColor={{ false: '#334155', true: teal }}
+              thumbColor="#FFFFFF"
             />
           </View>
 
-          <View style={[styles.settingRow, { borderBottomWidth: 0 }]}>
+          <View style={[styles.settingRow, { borderBottomColor: borderCol }]}>
             <View style={styles.settingTextWrap}>
-              <Text style={[styles.settingLabel, { color: textColor }]}>Quiet Hours (22:00 - 08:00)</Text>
+              <Text style={[styles.settingLabel, { color: textColor }]}>Quiet Hours</Text>
               <Text style={[styles.settingDesc, { color: subtextColor }]}>
-                Only high-risk active threats trigger alarms at night
+                Mute non-critical threat tips between 22:00 – 07:00
               </Text>
             </View>
             <Switch
               value={quietHours}
               onValueChange={setQuietHours}
-              trackColor={{ true: '#0D9488', false: '#CBD5E1' }}
+              trackColor={{ false: '#334155', true: teal }}
+              thumbColor="#FFFFFF"
             />
           </View>
         </View>
 
-        {/* Privacy & Zero-Trust Pledge */}
+        {/* Privacy & Zero-Trust Pledge Box */}
         <View style={[styles.privacyBox, { backgroundColor: cardBg, borderColor: borderCol }]}>
-          <Text style={styles.privacyHeading}>🛡️ Zero-Trust & Privacy Guarantee</Text>
+          <Text style={[styles.privacyHeading, { color: teal }]}>🔒 Zero-Trust Privacy Pledge</Text>
           <Text style={[styles.privacyText, { color: subtextColor }]}>
-            Cyber Companion is strictly private. Your browsing URLs, Wi-Fi networks, and app data never leave your device. All threat scoring uses pure, deterministic algorithms without generative hallucination.
+            Cyber Companion operates with strict on-device isolation. No scanned QR payloads, user
+            URLs, Wi-Fi BSSIDs, or installed app catalogs are transmitted to external cloud systems.
           </Text>
 
-          <TouchableOpacity style={styles.clearBtn} onPress={handleClearCache} activeOpacity={0.7}>
-            <Text style={styles.clearBtnText}>Clear Local Cache & Scan History</Text>
+          <TouchableOpacity
+            style={styles.clearBtn}
+            onPress={handleClearCache}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.clearBtnText}>Clear Local Scan Cache & Telemetry</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Version info */}
+        {/* App Version Stamp */}
         <Text style={[styles.versionText, { color: subtextColor }]}>
-          Cyber Companion v3 · v1.0.0 Release
+          Cyber Companion v3.0.0 (Build 2026.10) · Final Release Candidate
         </Text>
       </ScrollView>
+
+      {/* Auth Modal */}
+      <AuthModal
+        visible={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        isDark={isDark}
+      />
     </SafeAreaView>
   );
 };
@@ -205,16 +288,16 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 8,
     paddingBottom: 40,
   },
   profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 18,
+    padding: 16,
     borderRadius: 20,
     borderWidth: 1,
-    marginBottom: 20,
+    marginBottom: 14,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -222,13 +305,12 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   avatarCircle: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: '#0D9488',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
+    marginRight: 14,
   },
   avatarText: {
     fontSize: 22,
@@ -238,37 +320,72 @@ const styles = StyleSheet.create({
   profileInfo: {
     flex: 1,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   profileName: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
     letterSpacing: -0.2,
   },
+  tierPill: {
+    borderWidth: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 6,
+  },
+  tierText: {
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  profileEmail: {
+    fontSize: 11,
+    marginTop: 1,
+  },
   profileStatus: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     marginTop: 4,
+  },
+  authRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16,
+  },
+  authBtn: {
+    flex: 1,
+    borderWidth: 1,
+    paddingVertical: 10,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  authBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   fixesSection: {
     borderRadius: 20,
     borderWidth: 1,
-    padding: 18,
-    marginBottom: 24,
+    padding: 16,
+    marginBottom: 20,
   },
   fixesHeader: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '800',
-    color: '#0F766E',
     letterSpacing: 0.8,
     marginBottom: 4,
   },
   fixesTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
-    marginBottom: 14,
+    marginBottom: 12,
     letterSpacing: -0.2,
   },
   fixList: {
-    gap: 12,
+    gap: 10,
   },
   fixItem: {
     flexDirection: 'row',
@@ -276,80 +393,79 @@ const styles = StyleSheet.create({
   },
   fixCheckIcon: {
     fontSize: 18,
-    marginRight: 12,
+    marginRight: 10,
   },
   fixTextCol: {
     flex: 1,
   },
   fixItemTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
   },
   fixItemSub: {
-    fontSize: 12,
+    fontSize: 11,
     marginTop: 1,
   },
   section: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
     letterSpacing: -0.2,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderBottomWidth: 1,
   },
   settingTextWrap: {
     flex: 1,
-    paddingRight: 16,
+    paddingRight: 14,
   },
   settingLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
   },
   settingDesc: {
-    fontSize: 12,
+    fontSize: 11,
     marginTop: 2,
   },
   privacyBox: {
     borderRadius: 20,
     borderWidth: 1,
-    padding: 18,
-    marginBottom: 20,
-  },
-  privacyHeading: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#0D9488',
-    marginBottom: 6,
-  },
-  privacyText: {
-    fontSize: 12,
-    lineHeight: 18,
+    padding: 16,
     marginBottom: 16,
   },
+  privacyHeading: {
+    fontSize: 13,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  privacyText: {
+    fontSize: 11,
+    lineHeight: 16,
+    marginBottom: 12,
+  },
   clearBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
     backgroundColor: '#FEE2E2',
     alignItems: 'center',
   },
   clearBtnText: {
     color: '#DC2626',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
   },
   versionText: {
     textAlign: 'center',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '500',
-    marginTop: 8,
+    marginTop: 4,
   },
 });

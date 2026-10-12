@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, SafeAreaView, TouchableOpacity, StatusBar } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, StatusBar } from 'react-native';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
 import { DashboardScreen } from '../screens/DashboardScreen';
 import { HistoryScreen } from '../screens/HistoryScreen';
@@ -9,12 +9,21 @@ import { ProfileScreen } from '../screens/ProfileScreen';
 type TabKey = 'home' | 'history' | 'learn' | 'me';
 
 export const RootNavigator: React.FC = () => {
-  const [hasOnboarded, setHasOnboarded] = useState(true); // default true for immediate interactive access
+  const [hasOnboarded, setHasOnboarded] = useState(true);
+  const [showIntro, setShowIntro] = useState(false);
   const [currentTab, setCurrentTab] = useState<TabKey>('home');
-  const [isDark, setIsDark] = useState(false);
+  const [isDark, setIsDark] = useState(true);
 
-  if (!hasOnboarded) {
-    return <OnboardingScreen onComplete={() => setHasOnboarded(true)} />;
+  if (!hasOnboarded || showIntro) {
+    return (
+      <OnboardingScreen
+        onComplete={() => {
+          setHasOnboarded(true);
+          setShowIntro(false);
+        }}
+        isDark={isDark}
+      />
+    );
   }
 
   const bg = isDark ? '#090D16' : '#FFFFFF';
@@ -24,7 +33,7 @@ export const RootNavigator: React.FC = () => {
   const inactiveColor = isDark ? '#64748B' : '#94A3B8';
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>
+    <View style={[styles.container, { backgroundColor: bg }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={bg} />
 
       {/* Main Tab Views */}
@@ -37,7 +46,12 @@ export const RootNavigator: React.FC = () => {
         )}
         {currentTab === 'history' && <HistoryScreen isDark={isDark} />}
         {currentTab === 'learn' && <AwarenessScreen isDark={isDark} />}
-        {currentTab === 'me' && <ProfileScreen isDark={isDark} />}
+        {currentTab === 'me' && (
+          <ProfileScreen
+            isDark={isDark}
+            onReplayIntro={() => setShowIntro(true)}
+          />
+        )}
       </View>
 
       {/* 4-Tab Bottom Navigation Bar (Home, History, Learn, Me) */}
@@ -130,7 +144,7 @@ export const RootNavigator: React.FC = () => {
           </Text>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
