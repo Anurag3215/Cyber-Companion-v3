@@ -17,6 +17,7 @@ module.exports = {
           allowJs: true,
           resolveJsonModule: true,
           isolatedModules: true,
+          jsx: 'react-jsx',
         },
         diagnostics: {
           ignoreCodes: [151002],

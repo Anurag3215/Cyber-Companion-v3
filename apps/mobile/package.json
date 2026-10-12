@@ -17,6 +17,7 @@
     "@cyber-companion/scoring-core": "*",
     "@cyber-companion/shared-types": "*",
     "@expo/metro-runtime": "^57.0.16",
+    "@types/three": "^0.186.0",
     "expo": "^57.0.0",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
@@ -27,6 +28,7 @@
     "react-native-screens": "~4.26.0",
     "react-native-vector-icons": "^10.1.0",
     "react-native-web": "^0.21.4",
+    "three": "^0.186.1",
     "zustand": "^4.5.2"
   },
   "devDependencies": {

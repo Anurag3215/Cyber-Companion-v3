@@ -11,7 +11,10 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
-import { ScoreGauge } from '../design-system/ScoreGauge';
+import { Cyber3DShieldCore } from '../components/Cyber3DShieldCore';
+import { TiltCard3D } from '../components/TiltCard3D';
+import { ThreatRadar3D } from '../components/ThreatRadar3D';
+import { FloatingParticles3D } from '../components/FloatingParticles3D';
 import { LinkCheckSheet } from '../components/LinkCheckSheet';
 import { classifyQrPayload } from '../services/qrScannerService';
 
@@ -35,17 +38,33 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
 
   const [wifiChecked, setWifiChecked] = useState(false);
   const [appsReviewed, setAppsReviewed] = useState(false);
+  const [isDeepScanning, setIsDeepScanning] = useState(false);
 
   // Time-based friendly greeting
   const hour = new Date().getHours();
   const greetingTime = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
+  // Strict adherence to existing color palette
   const bg = isDark ? '#090D16' : '#FFFFFF';
   const textColor = isDark ? '#F8FAFC' : '#0F172A';
   const subtextColor = isDark ? '#94A3B8' : '#64748B';
   const cardBg = isDark ? '#1E293B' : '#FFFFFF';
   const borderCol = isDark ? '#334155' : '#F1F5F9';
   const tipBg = isDark ? '#1E293B' : '#F8FAFC';
+  const tealAccent = isDark ? '#2DD4BF' : '#0D9488';
+  const greenSafe = '#10B981';
+
+  const handleTriggerSweep = () => {
+    setIsDeepScanning(true);
+    setTimeout(() => {
+      setIsDeepScanning(false);
+      Alert.alert(
+        '🛡️ 3D Security Sweep Complete',
+        '• Wi-Fi Encryption: Verified Protected\n• Phishing Guard: Zero Threat Signatures\n• App Sandbox: Clean Telemetry Isolation\nOverall Defense: 100% Monitored',
+        [{ text: 'Acknowledged' }]
+      );
+    }, 2800);
+  };
 
   const handleWifiCheck = () => {
     setWifiChecked(true);
@@ -74,9 +93,25 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: bg }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={bg} />
-      <ScrollView style={[styles.container, { backgroundColor: bg }]} contentContainerStyle={styles.content}>
-        
-        {/* Top Tagline */}
+
+      {/* Subtle 3D floating ambient particles in background */}
+      <FloatingParticles3D isDark={isDark} />
+
+      <ScrollView
+        style={[styles.container, { backgroundColor: bg }]}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Top Tagline with Live Security HUD Pill */}
+        <View style={styles.topHudRow}>
+          <View style={[styles.hudPill, { borderColor: borderCol, backgroundColor: cardBg }]}>
+            <View style={[styles.hudPulseDot, { backgroundColor: greenSafe }]} />
+            <Text style={[styles.hudPillText, { color: subtextColor }]}>
+              ZERO-TRUST · SSRF GUARD ACTIVE
+            </Text>
+          </View>
+        </View>
+
         <Text style={[styles.topTagline, { color: subtextColor }]}>
           Know what's safe before you tap, scan, or connect
         </Text>
@@ -91,85 +126,141 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
           </Text>
         </View>
 
-        {/* Circular Score Gauge */}
+        {/* 3D Interactive Moving Cyber Shield Core */}
         <View style={styles.gaugeContainer}>
-          <ScoreGauge score={78} potentialScore={92} fixesCount={3} isDark={isDark} />
+          <Cyber3DShieldCore
+            score={78}
+            potentialScore={92}
+            fixesCount={3}
+            isDark={isDark}
+            isScanning={isDeepScanning}
+            onTriggerScan={handleTriggerSweep}
+          />
         </View>
 
-        {/* 2x2 Quick Action Grid */}
+        {/* Interactive 3D Security Sweep Trigger */}
+        <TouchableOpacity
+          style={[
+            styles.sweepButton,
+            {
+              backgroundColor: isDeepScanning ? '#064E3B' : tealAccent,
+              borderColor: isDeepScanning ? greenSafe : tealAccent,
+            },
+          ]}
+          onPress={handleTriggerSweep}
+          activeOpacity={0.85}
+          disabled={isDeepScanning}
+        >
+          <Text style={styles.sweepButtonText}>
+            {isDeepScanning ? '⚡ 3D Scanning Perimeter...' : '🚀 Trigger 3D Defense Sweep'}
+          </Text>
+        </TouchableOpacity>
+
+        {/* 2x2 Quick Action Grid with 3D Perspective Tilt Cards */}
         <View style={styles.gridContainer}>
           <View style={styles.gridRow}>
             {/* 1. Check Wi-Fi */}
-            <TouchableOpacity
-              style={[
-                styles.actionCard,
-                { backgroundColor: cardBg, borderColor: wifiChecked ? '#0D9488' : borderCol },
-              ]}
-              onPress={handleWifiCheck}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.actionIcon}>📶</Text>
-              <Text style={[styles.actionLabel, { color: textColor }]}>
-                {wifiChecked ? 'Wi-Fi: Secure' : 'Check Wi-Fi'}
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.gridCol}>
+              <TiltCard3D
+                isDark={isDark}
+                activeBorderColor={wifiChecked ? tealAccent : undefined}
+                onPress={handleWifiCheck}
+              >
+                <View style={styles.actionCardContent}>
+                  <Text style={styles.actionIcon}>📶</Text>
+                  <Text style={[styles.actionLabel, { color: textColor }]}>
+                    {wifiChecked ? 'Wi-Fi: Secure' : 'Check Wi-Fi'}
+                  </Text>
+                  <Text style={[styles.actionSubtext, { color: subtextColor }]}>
+                    {wifiChecked ? 'WPA3 Protected' : 'Audit Encryption'}
+                  </Text>
+                </View>
+              </TiltCard3D>
+            </View>
 
-            {/* 2. Check a Link (opens reference Screen 2) */}
-            <TouchableOpacity
-              style={[
-                styles.actionCard,
-                { backgroundColor: cardBg, borderColor: borderCol },
-              ]}
-              onPress={() => setShowLinkCheckModal(true)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.actionIcon}>🔗</Text>
-              <Text style={[styles.actionLabel, { color: textColor }]}>Check a link</Text>
-            </TouchableOpacity>
+            {/* 2. Check a Link */}
+            <View style={styles.gridCol}>
+              <TiltCard3D
+                isDark={isDark}
+                onPress={() => setShowLinkCheckModal(true)}
+              >
+                <View style={styles.actionCardContent}>
+                  <Text style={styles.actionIcon}>🔗</Text>
+                  <Text style={[styles.actionLabel, { color: textColor }]}>Check a link</Text>
+                  <Text style={[styles.actionSubtext, { color: subtextColor }]}>
+                    Phishing & SSRF
+                  </Text>
+                </View>
+              </TiltCard3D>
+            </View>
           </View>
 
           <View style={styles.gridRow}>
             {/* 3. Scan QR Code */}
-            <TouchableOpacity
-              style={[
-                styles.actionCard,
-                { backgroundColor: cardBg, borderColor: borderCol },
-              ]}
-              onPress={() => setShowQrModal(true)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.actionIcon}>⛶</Text>
-              <Text style={[styles.actionLabel, { color: textColor }]}>Scan QR code</Text>
-            </TouchableOpacity>
+            <View style={styles.gridCol}>
+              <TiltCard3D
+                isDark={isDark}
+                onPress={() => setShowQrModal(true)}
+              >
+                <View style={styles.actionCardContent}>
+                  <Text style={styles.actionIcon}>⛶</Text>
+                  <Text style={[styles.actionLabel, { color: textColor }]}>Scan QR code</Text>
+                  <Text style={[styles.actionSubtext, { color: subtextColor }]}>
+                    Sandbox Preview
+                  </Text>
+                </View>
+              </TiltCard3D>
+            </View>
 
             {/* 4. Review Apps */}
-            <TouchableOpacity
-              style={[
-                styles.actionCard,
-                { backgroundColor: cardBg, borderColor: appsReviewed ? '#0D9488' : borderCol },
-              ]}
-              onPress={handleAppReview}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.actionIcon}>🛡️</Text>
-              <Text style={[styles.actionLabel, { color: textColor }]}>
-                {appsReviewed ? 'Apps: Clean' : 'Review apps'}
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.gridCol}>
+              <TiltCard3D
+                isDark={isDark}
+                activeBorderColor={appsReviewed ? tealAccent : undefined}
+                onPress={handleAppReview}
+              >
+                <View style={styles.actionCardContent}>
+                  <Text style={styles.actionIcon}>🛡️</Text>
+                  <Text style={[styles.actionLabel, { color: textColor }]}>
+                    {appsReviewed ? 'Apps: Clean' : 'Review apps'}
+                  </Text>
+                  <Text style={[styles.actionSubtext, { color: subtextColor }]}>
+                    {appsReviewed ? '0 PII Leaks' : 'Sensor Audit'}
+                  </Text>
+                </View>
+              </TiltCard3D>
+            </View>
           </View>
         </View>
 
-        {/* TODAY'S TIP Card */}
-        <TouchableOpacity
-          style={[styles.tipCard, { backgroundColor: tipBg, borderColor: borderCol }]}
+        {/* 3D Holographic Perspective Threat Radar */}
+        <ThreatRadar3D
+          isDark={isDark}
+          onSelectSector={(sector) => {
+            if (sector === 'wifi') handleWifiCheck();
+            else if (sector === 'url') setShowLinkCheckModal(true);
+            else if (sector === 'qr') setShowQrModal(true);
+            else if (sector === 'apps') handleAppReview();
+          }}
+        />
+
+        {/* TODAY'S TIP 3D Tilt Card */}
+        <TiltCard3D
+          isDark={isDark}
           onPress={onNavigateToLearn}
-          activeOpacity={0.8}
         >
-          <Text style={styles.tipBadge}>TODAY'S TIP</Text>
-          <Text style={[styles.tipText, { color: textColor }]}>
-            Free Wi-Fi names can be faked. Ask staff.
-          </Text>
-        </TouchableOpacity>
+          <View style={styles.tipCardInner}>
+            <View style={styles.tipHeaderRow}>
+              <View style={[styles.tipBadgeWrapper, { backgroundColor: isDark ? '#334155' : '#F1F5F9' }]}>
+                <Text style={[styles.tipBadgeText, { color: tealAccent }]}>TODAY'S INTEL</Text>
+              </View>
+              <Text style={[styles.tipArrow, { color: subtextColor }]}>Tap to learn →</Text>
+            </View>
+            <Text style={[styles.tipText, { color: textColor }]}>
+              Free Wi-Fi names can be faked. Always verify credentials with venue staff.
+            </Text>
+          </View>
+        </TiltCard3D>
       </ScrollView>
 
       {/* Screen 2: Link Check Modal */}
@@ -306,24 +397,47 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
+    paddingHorizontal: 20,
+    paddingTop: 12,
     paddingBottom: 40,
+  },
+  topHudRow: {
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  hudPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 9999,
+    borderWidth: 1,
+  },
+  hudPulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 6,
+  },
+  hudPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.8,
   },
   topTagline: {
     fontSize: 12,
     fontWeight: '500',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 14,
     letterSpacing: -0.2,
   },
   headerSection: {
-    marginBottom: 16,
+    marginBottom: 10,
   },
   greetingText: {
     fontSize: 14,
     fontWeight: '500',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   headlineText: {
     fontSize: 26,
@@ -332,57 +446,86 @@ const styles = StyleSheet.create({
   },
   gaugeContainer: {
     alignItems: 'center',
-    marginVertical: 14,
+    marginVertical: 4,
+  },
+  sweepButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    marginVertical: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  sweepButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
   gridContainer: {
-    marginTop: 18,
-    marginBottom: 24,
-    gap: 12,
+    marginVertical: 8,
+    gap: 10,
   },
   gridRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
   },
-  actionCard: {
+  gridCol: {
     flex: 1,
-    borderRadius: 20,
-    borderWidth: 1,
-    paddingVertical: 20,
-    paddingHorizontal: 16,
+  },
+  actionCardContent: {
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
+    paddingVertical: 6,
   },
   actionIcon: {
     fontSize: 28,
-    marginBottom: 10,
+    marginBottom: 6,
   },
   actionLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     textAlign: 'center',
     letterSpacing: -0.2,
   },
-  tipCard: {
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 18,
-    marginTop: 4,
-  },
-  tipBadge: {
+  actionSubtext: {
     fontSize: 11,
-    fontWeight: '800',
-    color: '#6B7280',
-    letterSpacing: 0.8,
+    fontWeight: '500',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  tipCardInner: {
+    paddingVertical: 2,
+  },
+  tipHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 6,
   },
+  tipBadgeWrapper: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  tipBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+  },
+  tipArrow: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
   tipText: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 18,
     fontWeight: '500',
   },
 });

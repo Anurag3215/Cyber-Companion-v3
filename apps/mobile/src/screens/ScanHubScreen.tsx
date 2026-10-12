@@ -3,6 +3,7 @@ import { StyleSheet, View, Text, ScrollView, TouchableOpacity, TextInput } from 
 import { Tokens } from '../design-system/tokens';
 import { RiskBadge } from '../design-system/RiskBadge';
 import { ScanResultSheet } from '../design-system/ScanResultSheet';
+import { TiltCard3D } from '../components/TiltCard3D';
 
 export const ScanHubScreen: React.FC = () => {
   const [urlInput, setUrlInput] = useState('');
@@ -36,16 +37,16 @@ export const ScanHubScreen: React.FC = () => {
         Analyze Wi-Fi encryption, scan URLs for phishing, or decode QR codes safely.
       </Text>
 
-      <View style={styles.card}>
+      <TiltCard3D isDark={true} style={{ marginBottom: Tokens.spacing.lg }}>
         <View style={styles.cardHeader}>
           <Text style={styles.cardTitle}>Current Wi-Fi Status</Text>
           <RiskBadge level="SAFE" label="WPA3 SECURE" />
         </View>
         <Text style={styles.networkName}>Connected: Office_Secure_5GHz</Text>
         <Text style={styles.networkDetail}>Signal: -58 dBm · Encryption: Protected Management Frames enabled</Text>
-      </View>
+      </TiltCard3D>
 
-      <View style={styles.card}>
+      <TiltCard3D isDark={true} style={{ marginBottom: Tokens.spacing.lg }}>
         <Text style={styles.cardTitle}>Live URL Threat Scanner</Text>
         <Text style={styles.cardDetail}>
           Inspect links before opening to prevent phishing and malware infections.
@@ -64,7 +65,7 @@ export const ScanHubScreen: React.FC = () => {
             <Text style={styles.scanBtnText}>Scan</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </TiltCard3D>
 
       {activeResult && (
         <ScanResultSheet
