@@ -6,9 +6,9 @@ import {
   ScrollView,
   TouchableOpacity,
   Modal,
-  SafeAreaView,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface AppPrivacyModalProps {
   visible: boolean;

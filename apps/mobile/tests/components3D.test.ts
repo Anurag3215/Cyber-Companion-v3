@@ -28,6 +28,15 @@ jest.mock('expo-camera', () => {
   };
 });
 
+jest.mock('react-native-safe-area-context', () => {
+  const React = require('react');
+  return {
+    SafeAreaView: (props: any) => React.createElement('div', props),
+    useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+    SafeAreaProvider: (props: any) => React.createElement('div', props),
+  };
+});
+
 jest.mock('react-native', () => {
   const React = require('react');
   return {

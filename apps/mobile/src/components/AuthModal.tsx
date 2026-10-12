@@ -6,10 +6,10 @@ import {
   TextInput,
   TouchableOpacity,
   Modal,
-  SafeAreaView,
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../services/AuthContext';
 import { CyberLogo } from './CyberLogo';
 

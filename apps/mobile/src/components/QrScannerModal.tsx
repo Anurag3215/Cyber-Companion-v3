@@ -6,12 +6,12 @@ import {
   TextInput,
   TouchableOpacity,
   Modal,
-  SafeAreaView,
   ScrollView,
   Animated,
   ActivityIndicator,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { classifyQrPayload } from '../services/qrScannerService';
 

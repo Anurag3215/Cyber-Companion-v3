@@ -6,10 +6,10 @@ import {
   TextInput,
   TouchableOpacity,
   Modal,
-  SafeAreaView,
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface LinkInspectorModalProps {
   visible: boolean;
