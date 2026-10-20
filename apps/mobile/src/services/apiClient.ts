@@ -136,6 +136,19 @@ export class ApiClient {
     }
   }
 
+  static async scanRealWifi(): Promise<any[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/threat/wifi/scan`, {
+        method: 'GET',
+      });
+      if (!response.ok) return [];
+      const data = await response.json();
+      return Array.isArray(data.networks) ? data.networks : [];
+    } catch {
+      return [];
+    }
+  }
+
   static async explainThreat(params: {
     query: string;
     immutableVerdict?: 'SAFE' | 'SUSPICIOUS' | 'MALICIOUS' | 'UNKNOWN';

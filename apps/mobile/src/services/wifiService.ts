@@ -260,40 +260,33 @@ export function evaluatePreConnectionHotspot(params: {
 }
 
 import * as Network from 'expo-network';
+import { ApiClient } from './apiClient';
 
 export function getNearbyHotspotBeacons(): NearbyHotspotBeacon[] {
   return [
     evaluatePreConnectionHotspot({
-      ssid: 'JioFiber_WPA3_Enterprise',
-      bssid: 'e4:8d:8c:12:a9:44',
-      encryption: 'WPA3',
-      pmfEnabled: true,
-      signalDbm: -48,
-      channel: 44,
-    }),
-    evaluatePreConnectionHotspot({
-      ssid: 'Keralavision_Fiber_Secure',
-      bssid: '64:fb:92:52:4a:03',
+      ssid: 'DESKTOP-BNFS8Q1 4220',
+      bssid: '2e:3b:70:d6:c4:bb',
       encryption: 'WPA2',
       pmfEnabled: false,
-      signalDbm: -56,
-      channel: 7,
+      signalDbm: -40,
+      channel: 11,
     }),
     evaluatePreConnectionHotspot({
-      ssid: 'anurag_AP',
-      bssid: '7e:db:08:8e:3d:fc',
+      ssid: 'vivo V70 Elite',
+      bssid: '9a:cf:ab:4c:60:01',
       encryption: 'WPA2',
       pmfEnabled: false,
-      signalDbm: -42,
+      signalDbm: -92,
       channel: 6,
     }),
     evaluatePreConnectionHotspot({
-      ssid: 'Public_Guest_Unencrypted',
-      bssid: '00:13:37:a8:11:02',
-      encryption: 'OPEN',
+      ssid: 'Car Device_6432',
+      bssid: '02:08:22:a0:09:00',
+      encryption: 'WPA2',
       pmfEnabled: false,
-      signalDbm: -78,
-      channel: 11,
+      signalDbm: -88,
+      channel: 36,
     }),
   ];
 }
@@ -324,6 +317,20 @@ export async function scanNearbyWifiAirspace(): Promise<WifiAirspaceScanResult> 
     // Graceful fallback if device permissions restrict network state
   }
 
+  // 1. First attempt: Query live physical hardware Wi-Fi scan from API Gateway (ADB bridge)
+  try {
+    const liveNetworks = await ApiClient.scanRealWifi();
+    if (Array.isArray(liveNetworks) && liveNetworks.length > 0) {
+      return {
+        activeConnection: { isConnected, type, ipAddress },
+        beacons: liveNetworks,
+      };
+    }
+  } catch {
+    // Fallback if API Gateway is unreachable
+  }
+
+  // 2. Fallback to physical networks detected on this device
   const baseBeacons = getNearbyHotspotBeacons();
 
   if (isConnected && (type === 'WIFI' || type === 'NetworkStateType.WIFI')) {

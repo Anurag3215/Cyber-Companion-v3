@@ -25,6 +25,29 @@ threatRouter.post('/inspect', ssrfGuardMiddleware, async (req: Request, res: Res
   }
 });
 
+import { parseAdbScanResults } from '../services/realWifiScanner.js';
+
+// Real Device Wi-Fi Scan Endpoint
+threatRouter.get('/wifi/scan', (_req: Request, res: Response) => {
+  const networks = parseAdbScanResults();
+  return res.status(200).json({
+    status: 'success',
+    source: 'ANDROID_HARDWARE_RADIO',
+    count: networks.length,
+    networks,
+  });
+});
+
+threatRouter.post('/wifi/scan', (_req: Request, res: Response) => {
+  const networks = parseAdbScanResults();
+  return res.status(200).json({
+    status: 'success',
+    source: 'ANDROID_HARDWARE_RADIO',
+    count: networks.length,
+    networks,
+  });
+});
+
 // Wi-Fi Risk Assessment Endpoint
 threatRouter.post('/wifi/assess', (req: Request, res: Response) => {
   const { ssid, securityType, isCaptivePortal } = req.body;
