@@ -1,55 +1,121 @@
 # Cyber Companion (v3)
 
-> **An Intelligent, Non-Intrusive Cybersecurity Awareness & Protection System**  
-> Cross-Platform Mobile (Android, iOS) & Web Client with Decoupled Cloud Threat Intelligence Gateway.
+[![Release](https://img.shields.io/badge/release-v1.1.0-blue.svg)](https://github.com/Anurag3215/Cyber-Companion-v3/releases/tag/v1.1.0)
+[![Tests](https://img.shields.io/badge/tests-25%20passed%20%7C%20116%20tests-brightgreen.svg)]()
+[![Benchmark](https://img.shields.io/badge/accuracy-100%25%20(FP%200%25%20%7C%20FN%200%25)-success.svg)]()
+[![License](https://img.shields.io/badge/license-MIT-green.svg)]()
+
+> **An Intelligent, Zero-Trust Cybersecurity Awareness & Protection System**  
+> Cross-Platform Mobile (Android, iOS) & Progressive Web Application (PWA) with Decoupled Threat Intelligence Gateway, Three.js 3D Interactive Core, and Curated RAG AI Explainer.
 
 ---
 
 ## 1. Project Overview
 
-**Cyber Companion** is designed to bridge the gap between complex cyber threat telemetry and everyday smartphone users. Unlike reactive antivirus tools, Cyber Companion focuses on:
-- **Proactive Threat Detection**: Intercepts phishing URLs, malicious QR codes ("Qishing"), insecure public Wi-Fi networks, and over-permissioned applications before engagement.
-- **Contextual Plain-Language Insights**: Explains *why* an action or network is dangerous without cryptic jargon.
-- **Holistic Security Scoring**: Aggregates device configurations, network safety, and permissions into a 0–100 Security Score.
-- **Micro-Learning Awareness**: Delivers bite-sized, actionable cybersecurity tips (60 words or less).
+**Cyber Companion** bridges the critical gap between complex cyber threat telemetry and everyday smartphone users. Unlike reactive antivirus utilities that rely on post-infection file scanning and confusing technical error codes, Cyber Companion provides proactive digital self-defense:
+- **3D Interactive Perimeter**: Three.js-powered animated Cyber Shield Core and 360° holographic radar visualizing your real-time security posture.
+- **Pre-Connection Wi-Fi Sentinel**: Evaluates 802.11 beacon ciphers, MAC/OUI profiles, and predicts cyber crime attack vectors (Evil Twin honeypots, packet sniffing, fake captive portals) *before* you connect.
+- **Optical Camera QR Scanner**: Decodes barcodes via hardware camera frames with an automated sandbox URL and intent preview to stop Quishing.
+- **Link & SSRF Guard**: Flags Punycode IDN homoglyphs, brand spoofing, and private RFC1918 loopback addresses.
+- **On-Device Permission Auditor**: Analyzes apps for high-risk sensor combinations (SMS + Internet OTP interception) strictly on-device.
+- **Deterministic 0–100 Security Score**: Pure mathematical score ($30/30/20/20$ weighting model) with monotonicity guarantees.
+- **Grounded RAG AI Explainer**: Plain-language explanations citing structured knowledge bases (`[KB-001]` to `[KB-005]`), protected by Prompt Injection Guards with full offline fallback.
 
 ---
 
-## 2. Core Functional Modules
+## 2. Quick Start for Evaluators & Reviewers
 
-| Module | Technical Vector | Description |
+### Prerequisites
+- Node.js (v20+ LTS)
+- npm (v10+)
+
+### Clone & Install
+```bash
+git clone https://github.com/Anurag3215/Cyber-Companion-v3.git
+cd Cyber-Companion-v3
+npm ci
+```
+
+### Run Automated Tests (25 Suites, 116 Tests)
+```bash
+npm test
+```
+
+### Launch the Application
+In separate terminal tabs:
+
+**Tab 1 — Start Threat Intelligence Gateway (Port 5000):**
+```bash
+npm run start:api
+# Health Check: curl http://localhost:5000/v1/health
+```
+
+**Tab 2 — Launch Mobile App (Web Browser Preview):**
+```bash
+npm --workspace=@cyber-companion/mobile run web
+```
+
+**Optional — Run on Physical Mobile Device (Expo Go):**
+```bash
+# Android
+npm --workspace=@cyber-companion/mobile run android
+
+# iOS
+npm --workspace=@cyber-companion/mobile run ios
+
+# Free Zero-Token Cloudflare Tunnel for Remote Mobile Testing
+npm --workspace=@cyber-companion/mobile run tunnel:free
+```
+
+---
+
+## 3. Core Functional Modules
+
+| Module | Technical Implementation | Security Capabilities |
 | :--- | :--- | :--- |
-| **Wi-Fi Risk Analyzer** | SSID, WPA2/WPA3/Open, Signal | Inspects public Wi-Fi encryption and flags open/unencrypted or rogue networks. |
-| **URL Scanner** | Heuristics + Cloud Threat Intel | Evaluates web links against VirusTotal, Google Safe Browsing, and URLScan.io. |
-| **QR Code Scanner** | Vision Camera + Sandboxing | Decodes QR payloads and inspects destination URLs before opening them. |
-| **Permission Analyzer** | Android Package Manager | Audits installed applications for risky or excessive permission combos. |
-| **Security Scoring Engine**| Deterministic Multi-Factor | Generates a 0–100 health score with top 3 actionable recommendations. |
-| **Cyber Awareness Hub** | Localized JSON KB + Push | Delivers daily security tips and contextual threat breakdowns. |
+| **3D Cyber Shield Core** | Three.js + React Native Web | Holographic perimeter radar, 3D tilt cards, real-time score visualization. |
+| **Wi-Fi Sentinel** | 802.11 Beacon Frame Parser | Pre-connection cipher audit, rogue OUI hardware detection, MitM crime predictor. |
+| **Optical QR Scanner** | `expo-camera` Barcode Scanner | Live camera preview, torch toggle, camera flip, sandboxed URL preview. |
+| **URL Threat Inspector**| Heuristics + Threat Intel API | Punycode IDN homoglyphs, brand spoofing, SSRF RFC1918 private IP defense. |
+| **Permission Auditor** | On-Device Manifest Auditor | Flags SMS + Internet OTP theft and background surveillance sensors. |
+| **Deterministic Scorer**| Pure Mathematical Function | Monotonic 0–100 health metric with top 3 actionable remediation steps. |
+| **RAG AI Explainer** | Grounded Knowledge Base | Structured citations (`[KB-001]`–`[KB-005]`), plain-language threat guides, offline fallback. |
 
 ---
 
-## 3. Monorepo Architecture
+## 4. Monorepo Architecture
 
 ```text
 cyber-companion-v3/
 ├── apps/
 │   ├── mobile/             # React Native (Android & iOS) + Web Client
-│   └── api/                # Node.js + Express Threat Intelligence Gateway
+│   │   ├── src/components/ # Three.js 3D Cores, Radars, Modals & Design System
+│   │   ├── src/screens/    # Dashboard, Scan Hub, History, Awareness, Profile
+│   │   ├── src/services/   # ApiClient, Wi-Fi Sentinel, QR Classifier, Notifications
+│   │   └── eas.json        # Expo Application Services APK / AAB / IPA profiles
+│   └── api/                # Hardened Express.js REST Threat Intelligence Gateway
+│       ├── src/middleware/ # SSRF Guard, Prompt Injection Guard, Rate Limiter
+│       └── src/services/   # Multi-Engine Consensus, Heuristics, RAG Explainer
 ├── packages/
-│   ├── shared-types/       # Shared TypeScript contracts and schemas (Zod)
+│   ├── shared-types/       # Shared TypeScript contracts and Zod schemas
 │   └── scoring-core/       # Deterministic scoring algorithm and calibration tests
 ├── docs/                   # Architecture, Threat Model, ADRs, and Specifications
-└── scripts/                # Git workflow, CI/CD, and phase automation scripts
+└── scripts/                # Git workflow, CI/CD, and release scripts
 ```
 
 ---
 
-## 4. Branching & Contribution Model
+## 5. Submission & Presentation Deliverables
 
-This repository adheres to strict Git branching and version control rules:
-- `main`: Production-ready, tagged releases only (`v0.1.0`, `v0.2.0`, etc.).
-- `develop`: Central integration branch. All features merge into `develop` via squash PRs.
-- Feature branches: `<type>/p<phase>-<kebab-description>` (e.g., `feature/p3-qr-scanner-decode`).
-- Conventional Commits: Enforced by `commitlint`.
+- **Final Submission Report**: [`docs/FINAL_SUBMISSION_REPORT.md`](docs/FINAL_SUBMISSION_REPORT.md)
+- **Live Presentation & Viva Guide**: [`docs/PROJECT_PRESENTATION_SCRIPT.md`](docs/PROJECT_PRESENTATION_SCRIPT.md)
+- **Heuristics Benchmark Report (100% Accuracy)**: [`docs/BENCHMARK_REPORT.md`](docs/BENCHMARK_REPORT.md)
+- **Architecture Specification & Threat Model**: [`ARCHITECTURE.md`](ARCHITECTURE.md) | [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md)
+- **App Store & Google Play Metadata**: [`docs/APP_STORE_METADATA.md`](docs/APP_STORE_METADATA.md)
+- **User Operations Manual**: [`docs/USER_MANUAL.md`](docs/USER_MANUAL.md)
 
-For full branching guidelines, refer to [`docs/BRANCHING.md`](docs/BRANCHING.md).
+---
+
+## 6. License & Ethics
+
+Distributed under the MIT License. Built with strict Zero-PII principles.
