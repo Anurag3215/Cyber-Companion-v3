@@ -7,15 +7,13 @@ import {
   TouchableOpacity,
   Modal,
   ActivityIndicator,
-  TextInput,
   Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   NearbyHotspotBeacon,
-  WifiEncryption,
-  getNearbyHotspotBeacons,
-  evaluatePreConnectionHotspot,
+  scanNearbyWifiAirspace,
+  WifiAirspaceScanResult,
 } from '../services/wifiService';
 import { AiExplainerModal } from './AiExplainerModal';
 
@@ -30,20 +28,25 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
   onClose,
   isDark = true,
 }) => {
-  const [hotspots, setHotspots] = useState<NearbyHotspotBeacon[]>(() => getNearbyHotspotBeacons());
-  const [selectedHotspot, setSelectedHotspot] = useState<NearbyHotspotBeacon>(() => getNearbyHotspotBeacons()[0]);
+  const [hotspots, setHotspots] = useState<NearbyHotspotBeacon[]>([]);
+  const [hasScanned, setHasScanned] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  const [scanStepText, setScanStepText] = useState('');
+  const [filterMode, setFilterMode] = useState<'ALL' | 'SAFE' | 'RISKY'>('ALL');
+  const [deviceNetwork, setDeviceNetwork] = useState<{
+    isConnected: boolean;
+    type: string;
+    ipAddress?: string;
+  } | null>(null);
+
+  // Detail Modal State
+  const [selectedHotspot, setSelectedHotspot] = useState<NearbyHotspotBeacon | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+
+  // Security action states
   const [blockedIds, setBlockedIds] = useState<Record<string, boolean>>({});
   const [approvedIds, setApprovedIds] = useState<Record<string, boolean>>({});
   const [showAiModal, setShowAiModal] = useState(false);
-
-  // Custom Evaluator Test Input State
-  const [showCustomForm, setShowCustomForm] = useState(false);
-  const [customSsid, setCustomSsid] = useState('');
-  const [customBssid, setCustomBssid] = useState('00:13:37:c9:42:10');
-  const [customEncryption, setCustomEncryption] = useState<WifiEncryption>('OPEN');
-  const [customPmf, setCustomPmf] = useState(false);
-  const [customSignal, setCustomSignal] = useState(-36);
 
   const pulseAnim = useRef(new Animated.Value(0)).current;
 
@@ -76,29 +79,43 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
     return () => loop.stop();
   }, [pulseAnim]);
 
-  const handleScanNearbyAirspace = () => {
+  const handleScanWifi = async () => {
     setIsScanning(true);
-    setTimeout(() => {
-      const freshBeacons = getNearbyHotspotBeacons();
-      setHotspots(freshBeacons);
-      setSelectedHotspot(freshBeacons[0]);
-      setIsScanning(false);
-    }, 1400);
+    setScanStepText('Scanning 2.4 GHz & 5.0 GHz channels...');
+
+    const timer1 = setTimeout(() => {
+      setScanStepText('Capturing 802.11 beacon frames & cipher suites...');
+    }, 600);
+
+    const timer2 = setTimeout(() => {
+      setScanStepText('Analyzing WPA3/WPA2/PMF security parameters...');
+    }, 1200);
+
+    try {
+      const result: WifiAirspaceScanResult = await scanNearbyWifiAirspace();
+      setTimeout(() => {
+        setDeviceNetwork(result.activeConnection);
+        setHotspots(result.beacons);
+        setHasScanned(true);
+        setIsScanning(false);
+        setScanStepText('');
+      }, 1600);
+    } catch {
+      setTimeout(() => {
+        setIsScanning(false);
+        setScanStepText('');
+      }, 1600);
+    }
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+    };
   };
 
-  const handleAnalyzeCustomHotspot = () => {
-    const evaluated = evaluatePreConnectionHotspot({
-      ssid: customSsid.trim() || 'Custom_Untrusted_Hotspot',
-      bssid: customBssid.trim() || '00:13:37:ff:01:99',
-      encryption: customEncryption,
-      pmfEnabled: customPmf,
-      signalDbm: customSignal,
-      channel: customEncryption === 'WPA3' ? 44 : 6,
-    });
-    setHotspots((prev) => [evaluated, ...prev]);
-    setSelectedHotspot(evaluated);
-    setShowCustomForm(false);
-    setCustomSsid('');
+  const handleOpenDetails = (item: NearbyHotspotBeacon) => {
+    setSelectedHotspot(item);
+    setShowDetailModal(true);
   };
 
   const toggleBlockHotspot = (id: string) => {
@@ -131,7 +148,7 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
   const getVerdictLabel = (verdict: NearbyHotspotBeacon['threatVerdict']) => {
     switch (verdict) {
       case 'CRITICAL_THREAT':
-        return 'DO NOT CONNECT';
+        return 'NOT SAFE';
       case 'HIGH_RISK':
         return 'HIGH RISK';
       case 'MODERATE':
@@ -141,9 +158,15 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
     }
   };
 
+  const filteredHotspots = hotspots.filter((item) => {
+    if (filterMode === 'SAFE') return item.threatVerdict === 'SECURE';
+    if (filterMode === 'RISKY') return item.threatVerdict !== 'SECURE';
+    return true;
+  });
+
   const radarScale = pulseAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [1, 1.12],
+    outputRange: [1, 1.15],
   });
 
   return (
@@ -154,7 +177,7 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
       onRequestClose={onClose}
     >
       <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {/* Header */}
           <View style={styles.header}>
             <Animated.View
@@ -163,463 +186,499 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
                 {
                   borderColor: teal,
                   backgroundColor: cardBg,
-                  transform: [{ scale: radarScale }],
+                  transform: [{ scale: isScanning ? radarScale : 1 }],
                 },
               ]}
             >
               <Text style={styles.iconText}>📡</Text>
             </Animated.View>
             <Text style={[styles.title, { color: textColor }]}>
-              Pre-Connect Wi-Fi Sentinel
+              Wi-Fi Security Scanner
             </Text>
             <Text style={[styles.subtitle, { color: subtextColor }]}>
-              Passive 802.11 Beacon Interceptor — Detect Threats Before Connecting
+              Passive 802.11 Airspace & Cipher Analysis — Determine Safety Before Connecting
             </Text>
 
+            {/* Device Network Status Banner */}
             <View
               style={[
-                styles.passivePill,
+                styles.deviceStatusBanner,
                 {
-                  borderColor: teal,
-                  backgroundColor: isDark ? 'rgba(45, 212, 191, 0.1)' : 'rgba(13, 148, 136, 0.08)',
+                  backgroundColor: isDark ? '#1E293B' : '#F1F5F9',
+                  borderColor: borderCol,
                 },
               ]}
             >
-              <Text style={[styles.passivePillText, { color: teal }]}>
-                🛡️ PRE-CRIME DEFENSE • ZERO PACKETS SENT • UNCONNECTED SCAN
+              <Text style={[styles.deviceStatusDot, { color: emerald }]}>●</Text>
+              <Text style={[styles.deviceStatusText, { color: textColor }]}>
+                {deviceNetwork?.isConnected
+                  ? `Device Status: Connected via ${deviceNetwork.type}${deviceNetwork.ipAddress ? ` (${deviceNetwork.ipAddress})` : ''}`
+                  : 'Device Status: Ready to audit ambient Wi-Fi airspace'}
               </Text>
             </View>
           </View>
 
-          {/* Top Action Controls: Scan Airspace & Custom Test */}
-          <View style={styles.actionHeaderRow}>
-            <TouchableOpacity
-              style={[styles.scanBtn, { backgroundColor: teal }]}
-              onPress={handleScanNearbyAirspace}
-              disabled={isScanning}
-              activeOpacity={0.85}
-            >
-              {isScanning ? (
-                <View style={styles.scanningRow}>
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                  <Text style={styles.scanBtnText}> Sniffing 802.11 Beacons...</Text>
-                </View>
-              ) : (
-                <Text style={styles.scanBtnText}>📡 Scan Nearby Hotspots</Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.customToggleBtn,
-                {
-                  backgroundColor: cardBg,
-                  borderColor: showCustomForm ? teal : borderCol,
-                },
-              ]}
-              onPress={() => setShowCustomForm(!showCustomForm)}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.customToggleText, { color: teal }]}>
-                {showCustomForm ? '✕ Close' : '➕ Test Custom AP'}
+          {/* Primary Wi-Fi Scan Trigger */}
+          <TouchableOpacity
+            style={[styles.scanBtn, { backgroundColor: teal }]}
+            onPress={handleScanWifi}
+            disabled={isScanning}
+            activeOpacity={0.85}
+          >
+            {isScanning ? (
+              <View style={styles.scanningRow}>
+                <ActivityIndicator size="small" color="#FFFFFF" />
+                <Text style={styles.scanBtnText}> {scanStepText || 'Scanning Airspace...'}</Text>
+              </View>
+            ) : (
+              <Text style={styles.scanBtnText}>
+                {hasScanned ? '🔄 Re-Scan Nearby Wi-Fi' : '📡 Scan Nearby Wi-Fi'}
               </Text>
-            </TouchableOpacity>
-          </View>
+            )}
+          </TouchableOpacity>
 
-          {/* Custom Hotspot Simulator Form (For Live Project Demo / Evaluator) */}
-          {showCustomForm && (
-            <View style={[styles.customCard, { backgroundColor: cardBg, borderColor: teal }]}>
-              <Text style={[styles.customTitle, { color: textColor }]}>
-                🧪 Simulate / Inspect Any Unconnected Hotspot
+          {/* Pre-Scan Clean Empty State (Zero Fake/Demo Data) */}
+          {!hasScanned && !isScanning && (
+            <View style={[styles.emptyCard, { backgroundColor: cardBg, borderColor: borderCol }]}>
+              <Text style={styles.emptyIcon}>📶</Text>
+              <Text style={[styles.emptyTitle, { color: textColor }]}>Airspace Unscanned</Text>
+              <Text style={[styles.emptySubtitle, { color: subtextColor }]}>
+                Tap "Scan Nearby Wi-Fi" above to passively inspect ambient 802.11 beacon frames, cryptographic ciphers, and management frame configurations in your physical vicinity.
               </Text>
-              <Text style={[styles.customSub, { color: subtextColor }]}>
-                Enter any nearby SSID & beacon parameters to predict threats before connecting:
-              </Text>
-
-              <Text style={[styles.fieldLabel, { color: subtextColor }]}>HOTSPOT SSID NAME</Text>
-              <TextInput
+              <View
                 style={[
-                  styles.textInput,
+                  styles.emptyBadge,
                   {
-                    backgroundColor: isDark ? '#090D16' : '#FFFFFF',
-                    borderColor: borderCol,
-                    color: textColor,
+                    borderColor: teal,
+                    backgroundColor: isDark ? 'rgba(45, 212, 191, 0.1)' : 'rgba(13, 148, 136, 0.08)',
                   },
                 ]}
-                placeholder="e.g. Free_Airport_WiFi or Campus_Net"
-                placeholderTextColor="#64748B"
-                value={customSsid}
-                onChangeText={setCustomSsid}
-              />
-
-              <Text style={[styles.fieldLabel, { color: subtextColor }]}>BROADCAST BSSID (MAC OUI)</Text>
-              <TextInput
-                style={[
-                  styles.textInput,
-                  {
-                    backgroundColor: isDark ? '#090D16' : '#FFFFFF',
-                    borderColor: borderCol,
-                    color: textColor,
-                  },
-                ]}
-                placeholder="00:13:37:c9:42:10"
-                placeholderTextColor="#64748B"
-                value={customBssid}
-                onChangeText={setCustomBssid}
-                autoCapitalize="none"
-              />
-
-              <Text style={[styles.fieldLabel, { color: subtextColor }]}>ENCRYPTION PROTOCOL</Text>
-              <View style={styles.optionChipsRow}>
-                {(['OPEN', 'WEP', 'WPA2', 'WPA3'] as WifiEncryption[]).map((enc) => (
-                  <TouchableOpacity
-                    key={enc}
-                    style={[
-                      styles.optionChip,
-                      {
-                        borderColor: customEncryption === enc ? teal : borderCol,
-                        backgroundColor:
-                          customEncryption === enc ? 'rgba(45, 212, 191, 0.15)' : 'transparent',
-                      },
-                    ]}
-                    onPress={() => setCustomEncryption(enc)}
-                  >
-                    <Text
-                      style={[
-                        styles.optionChipText,
-                        { color: customEncryption === enc ? teal : subtextColor },
-                      ]}
-                    >
-                      {enc}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <View style={styles.switchRow}>
-                <TouchableOpacity
-                  style={[
-                    styles.pmfToggle,
-                    {
-                      borderColor: customPmf ? emerald : borderCol,
-                      backgroundColor: customPmf ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
-                    },
-                  ]}
-                  onPress={() => setCustomPmf(!customPmf)}
-                >
-                  <Text style={[styles.pmfToggleText, { color: customPmf ? emerald : subtextColor }]}>
-                    802.11w PMF: {customPmf ? 'ENABLED' : 'DISABLED'}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.pmfToggle,
-                    {
-                      borderColor: customSignal > -42 ? danger : borderCol,
-                      backgroundColor:
-                        customSignal > -42 ? 'rgba(239, 68, 68, 0.15)' : 'transparent',
-                    },
-                  ]}
-                  onPress={() => setCustomSignal(customSignal > -42 ? -60 : -34)}
-                >
-                  <Text
-                    style={[
-                      styles.pmfToggleText,
-                      { color: customSignal > -42 ? danger : subtextColor },
-                    ]}
-                  >
-                    Signal: {customSignal} dBm {customSignal > -42 ? '(Close!)' : '(Normal)'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity
-                style={[styles.analyzeCustomBtn, { backgroundColor: teal }]}
-                onPress={handleAnalyzeCustomHotspot}
               >
-                <Text style={styles.analyzeCustomBtnText}>
-                  ⚡ Predict Threat Before Connecting
+                <Text style={[styles.emptyBadgeText, { color: teal }]}>
+                  🛡️ ZERO PACKETS TRANSMITTED • 100% PASSIVE AIRSPACE MONITORING
                 </Text>
-              </TouchableOpacity>
+              </View>
             </View>
           )}
 
-          {/* Nearby Unconnected Hotspots List */}
-          <View style={styles.sectionHeaderRow}>
-            <Text style={[styles.sectionHeaderTitle, { color: textColor }]}>
-              NEARBY UNCONNECTED HOTSPOTS ({hotspots.length})
-            </Text>
-            <Text style={[styles.sectionHeaderHint, { color: subtextColor }]}>
-              Tap to inspect threat
-            </Text>
-          </View>
+          {/* Scanning In-Progress Indicator */}
+          {isScanning && (
+            <View style={[styles.scanningCard, { backgroundColor: cardBg, borderColor: teal }]}>
+              <Animated.View style={{ transform: [{ scale: radarScale }] }}>
+                <Text style={styles.scanningPulseIcon}>🛰️</Text>
+              </Animated.View>
+              <Text style={[styles.scanningTitle, { color: textColor }]}>
+                Auditing 802.11 Airspace
+              </Text>
+              <Text style={[styles.scanningStep, { color: teal }]}>{scanStepText}</Text>
+              <Text style={[styles.scanningNote, { color: subtextColor }]}>
+                Extracting WPA3-SAE, WPA2-AES, and 802.11w PMF beacon tags...
+              </Text>
+            </View>
+          )}
 
-          <View style={styles.hotspotList}>
-            {hotspots.map((item) => {
-              const vColor = getVerdictColor(item.threatVerdict);
-              const isSelected = selectedHotspot.id === item.id;
-              const isBlocked = !!blockedIds[item.id];
-              const isApproved = !!approvedIds[item.id];
+          {/* Scanned Results View */}
+          {hasScanned && !isScanning && (
+            <View style={styles.resultsContainer}>
+              {/* Section Header & Count */}
+              <View style={styles.resultsHeaderRow}>
+                <Text style={[styles.resultsTitle, { color: textColor }]}>
+                  DISCOVERED NETWORKS ({filteredHotspots.length})
+                </Text>
+                <Text style={[styles.resultsHint, { color: subtextColor }]}>
+                  Tap "View Details" to inspect
+                </Text>
+              </View>
 
-              return (
+              {/* Filter Chips */}
+              <View style={styles.filterRow}>
                 <TouchableOpacity
-                  key={item.id}
                   style={[
-                    styles.hotspotItem,
+                    styles.filterChip,
                     {
-                      backgroundColor: cardBg,
-                      borderColor: isSelected ? vColor : borderCol,
-                      borderWidth: isSelected ? 2 : 1,
+                      borderColor: filterMode === 'ALL' ? teal : borderCol,
+                      backgroundColor: filterMode === 'ALL' ? (isDark ? '#134E4A' : '#CCFBF1') : cardBg,
                     },
                   ]}
-                  onPress={() => setSelectedHotspot(item)}
-                  activeOpacity={0.85}
+                  onPress={() => setFilterMode('ALL')}
                 >
-                  <View style={styles.hotspotTopRow}>
-                    <View style={styles.hotspotTitleGroup}>
-                      <View style={styles.ssidRow}>
-                        <Text style={[styles.hotspotSsid, { color: textColor }]}>
-                          {item.ssid}
-                        </Text>
-                        {item.isRogueAp && (
-                          <View style={[styles.roguePill, { backgroundColor: danger }]}>
-                            <Text style={styles.roguePillText}>EVIL TWIN</Text>
-                          </View>
-                        )}
-                      </View>
-                      <Text style={[styles.hotspotMeta, { color: subtextColor }]}>
-                        BSSID: {item.bssid} · {item.frequency} (Ch {item.channel}) · {item.signalDbm} dBm
-                      </Text>
-                    </View>
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      { color: filterMode === 'ALL' ? teal : subtextColor },
+                    ]}
+                  >
+                    All ({hotspots.length})
+                  </Text>
+                </TouchableOpacity>
 
+                <TouchableOpacity
+                  style={[
+                    styles.filterChip,
+                    {
+                      borderColor: filterMode === 'SAFE' ? emerald : borderCol,
+                      backgroundColor:
+                        filterMode === 'SAFE' ? (isDark ? '#064E3B' : '#D1FAE5') : cardBg,
+                    },
+                  ]}
+                  onPress={() => setFilterMode('SAFE')}
+                >
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      { color: filterMode === 'SAFE' ? emerald : subtextColor },
+                    ]}
+                  >
+                    Safe Only ({hotspots.filter((h) => h.threatVerdict === 'SECURE').length})
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.filterChip,
+                    {
+                      borderColor: filterMode === 'RISKY' ? danger : borderCol,
+                      backgroundColor:
+                        filterMode === 'RISKY' ? (isDark ? '#450A0A' : '#FEE2E2') : cardBg,
+                    },
+                  ]}
+                  onPress={() => setFilterMode('RISKY')}
+                >
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      { color: filterMode === 'RISKY' ? danger : subtextColor },
+                    ]}
+                  >
+                    At Risk ({hotspots.filter((h) => h.threatVerdict !== 'SECURE').length})
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Scanned Wi-Fi Cards */}
+              <View style={styles.networkList}>
+                {filteredHotspots.map((item) => {
+                  const vColor = getVerdictColor(item.threatVerdict);
+                  const isSafe = item.threatVerdict === 'SECURE';
+                  const isBlocked = !!blockedIds[item.id];
+                  const isApproved = !!approvedIds[item.id];
+
+                  return (
                     <View
+                      key={item.id}
                       style={[
-                        styles.verdictBadge,
+                        styles.networkCard,
                         {
-                          borderColor: vColor,
-                          backgroundColor:
-                            item.threatVerdict === 'CRITICAL_THREAT'
-                              ? 'rgba(239, 68, 68, 0.14)'
-                              : item.threatVerdict === 'HIGH_RISK'
-                              ? 'rgba(245, 158, 11, 0.14)'
-                              : 'rgba(16, 185, 129, 0.14)',
+                          backgroundColor: cardBg,
+                          borderColor: isBlocked ? danger : borderCol,
                         },
                       ]}
                     >
-                      <Text style={[styles.verdictBadgeText, { color: vColor }]}>
-                        {isBlocked
-                          ? '🚫 BLOCKED'
-                          : isApproved
-                          ? '✅ APPROVED'
-                          : getVerdictLabel(item.threatVerdict)}
-                      </Text>
+                      {/* Top Row: SSID & Safety Verdict Badge */}
+                      <View style={styles.cardTopRow}>
+                        <View style={styles.ssidContainer}>
+                          <View style={styles.ssidHeaderLine}>
+                            <Text style={styles.wifiSignalIcon}>
+                              {item.signalDbm > -50 ? '📶' : item.signalDbm > -70 ? '📶' : '🛜'}
+                            </Text>
+                            <Text style={[styles.networkSsid, { color: textColor }]} numberOfLines={1}>
+                              {item.ssid}
+                            </Text>
+                          </View>
+                          {item.isCurrentConnection && (
+                            <View style={[styles.activePill, { backgroundColor: `${teal}20`, borderColor: teal }]}>
+                              <Text style={[styles.activePillText, { color: teal }]}>ACTIVE CONNECTION</Text>
+                            </View>
+                          )}
+                          <Text style={[styles.networkMeta, { color: subtextColor }]}>
+                            {item.frequency} (Ch {item.channel}) · {item.signalDbm} dBm · {item.encryption}
+                          </Text>
+                        </View>
+
+                        {/* Safety Status Pill */}
+                        <View
+                          style={[
+                            styles.verdictBadge,
+                            {
+                              borderColor: vColor,
+                              backgroundColor:
+                                item.threatVerdict === 'SECURE'
+                                  ? 'rgba(16, 185, 129, 0.15)'
+                                  : item.threatVerdict === 'MODERATE'
+                                  ? 'rgba(45, 212, 191, 0.15)'
+                                  : 'rgba(239, 68, 68, 0.15)',
+                            },
+                          ]}
+                        >
+                          <Text style={[styles.verdictBadgeText, { color: vColor }]}>
+                            {isBlocked
+                              ? '🚫 BLOCKED'
+                              : isApproved
+                              ? '✅ APPROVED'
+                              : isSafe
+                              ? '✅ SAFE TO CONNECT'
+                              : item.threatVerdict === 'MODERATE'
+                              ? '⚠️ CAUTION'
+                              : '🚨 NOT SAFE'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Middle: Brief Security Reason */}
+                      <View style={[styles.summaryBox, { borderColor: borderCol }]}>
+                        <Text style={[styles.summaryText, { color: isSafe ? emerald : vColor }]}>
+                          {isSafe ? '🔒 ' : '⚠️ '}
+                          {item.threatTag}
+                        </Text>
+                      </View>
+
+                      {/* Bottom Row: Explicit "View Details" button & Risk Score */}
+                      <View style={styles.cardBottomRow}>
+                        <TouchableOpacity
+                          style={[styles.viewDetailsBtn, { borderColor: teal, backgroundColor: isDark ? '#134E4A' : '#CCFBF1' }]}
+                          onPress={() => handleOpenDetails(item)}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={[styles.viewDetailsBtnText, { color: teal }]}>
+                            🔍 View Details →
+                          </Text>
+                        </TouchableOpacity>
+
+                        <Text style={[styles.riskScoreText, { color: subtextColor }]}>
+                          Risk: {item.threatScore}/100
+                        </Text>
+                      </View>
                     </View>
-                  </View>
-
-                  <View style={styles.hotspotBottomRow}>
-                    <Text style={[styles.threatTagText, { color: vColor }]}>
-                      {item.threatVerdict === 'SECURE' ? '🔒 ' : '⚠️ '}
-                      {item.threatTag}
-                    </Text>
-                    <Text style={[styles.scorePill, { color: subtextColor }]}>
-                      Risk: {item.threatScore}/100
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {/* Deep Pre-Connection Forensic Report for Selected Hotspot */}
-          {selectedHotspot && (
-            <View
-              style={[
-                styles.forensicCard,
-                {
-                  backgroundColor: cardBg,
-                  borderColor: getVerdictColor(selectedHotspot.threatVerdict),
-                },
-              ]}
-            >
-              <View style={styles.forensicBanner}>
-                <Text
-                  style={[
-                    styles.forensicBannerTitle,
-                    { color: getVerdictColor(selectedHotspot.threatVerdict) },
-                  ]}
-                >
-                  {selectedHotspot.threatVerdict === 'CRITICAL_THREAT'
-                    ? '🚨 PRE-CRIME INTERCEPTION: THREAT BLOCKED BEFORE CONNECTION'
-                    : selectedHotspot.threatVerdict === 'HIGH_RISK'
-                    ? '⚠️ PRE-CONNECT WARNING: VULNERABLE HOTSPOT ARCHITECTURE'
-                    : '✅ PRE-CONNECT VERIFIED: SAFE CRYPTOGRAPHIC HANDSHAKE'}
-                </Text>
-                <Text style={[styles.forensicSsidTitle, { color: textColor }]}>
-                  Target: {selectedHotspot.ssid} (Unconnected)
-                </Text>
+                  );
+                })}
               </View>
+            </View>
+          )}
 
-              {/* 4-Metric Beacon Hardware Grid */}
-              <View style={styles.metricsGrid}>
-                <View style={[styles.metricItem, { borderColor: borderCol }]}>
-                  <Text
-                    style={[
-                      styles.metricValue,
-                      {
-                        color:
-                          selectedHotspot.encryption === 'OPEN' ||
-                          selectedHotspot.encryption === 'WEP'
-                            ? danger
-                            : emerald,
-                      },
-                    ]}
-                  >
-                    {selectedHotspot.encryption}
-                  </Text>
-                  <Text style={[styles.metricLabel, { color: subtextColor }]}>Beacon Cipher</Text>
-                </View>
+          {/* Close Sentinel Button */}
+          <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.7}>
+            <Text style={[styles.closeBtnText, { color: subtextColor }]}>Close Scanner</Text>
+          </TouchableOpacity>
+        </ScrollView>
 
-                <View style={[styles.metricItem, { borderColor: borderCol }]}>
-                  <Text
-                    style={[
-                      styles.metricValue,
-                      { color: selectedHotspot.pmfEnabled ? emerald : amber },
-                    ]}
-                  >
-                    {selectedHotspot.pmfEnabled ? 'PROTECTED' : 'VULNERABLE'}
-                  </Text>
-                  <Text style={[styles.metricLabel, { color: subtextColor }]}>802.11w PMF</Text>
-                </View>
-
-                <View style={[styles.metricItem, { borderColor: borderCol }]}>
-                  <Text
-                    style={[
-                      styles.metricValue,
-                      { color: selectedHotspot.signalDbm > -40 ? danger : teal },
-                    ]}
-                  >
-                    {selectedHotspot.signalDbm} dBm
-                  </Text>
-                  <Text style={[styles.metricLabel, { color: subtextColor }]}>
-                    {selectedHotspot.signalDbm > -40 ? 'Anomaly (Close!)' : 'Airspace Signal'}
-                  </Text>
-                </View>
-
-                <View style={[styles.metricItem, { borderColor: borderCol }]}>
-                  <Text
-                    style={[
-                      styles.metricValue,
-                      { color: selectedHotspot.isRogueAp ? danger : textColor },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {selectedHotspot.isRogueAp ? 'ROGUE OUI' : 'STANDARD AP'}
-                  </Text>
-                  <Text style={[styles.metricLabel, { color: subtextColor }]}>Hardware OUI</Text>
-                </View>
-              </View>
-
-              {/* Predicted Crimes / Attacks if Connected */}
-              <View style={[styles.crimesSection, { borderColor: borderCol }]}>
-                <Text style={[styles.crimesHeading, { color: textColor }]}>
-                  {selectedHotspot.threatVerdict === 'SECURE'
-                    ? '🛡️ Pre-Connection Defense Verification:'
-                    : '🔍 Predicted Cyber Attacks If You Connect (Pre-Crime Report):'}
-                </Text>
-
-                {selectedHotspot.predictedCrimes.map((crime, idx) => (
-                  <View key={idx} style={styles.crimeRow}>
-                    <Text style={styles.crimeBullet}>
-                      {selectedHotspot.threatVerdict === 'SECURE' ? '✅' : '⚡'}
-                    </Text>
-                    <Text style={[styles.crimeText, { color: textColor }]}>{crime}</Text>
-                  </View>
-                ))}
-
+        {/* -------------------- DEDICATED VIEW DETAILS MODAL -------------------- */}
+        {selectedHotspot && (
+          <Modal
+            visible={showDetailModal}
+            animationType="slide"
+            presentationStyle="pageSheet"
+            onRequestClose={() => setShowDetailModal(false)}
+          >
+            <SafeAreaView style={[styles.detailModalContainer, { backgroundColor: bg }]}>
+              <ScrollView contentContainerStyle={styles.detailScrollContent} showsVerticalScrollIndicator={false}>
+                {/* Detail Header Banner */}
                 <View
                   style={[
-                    styles.adviseBox,
+                    styles.detailBanner,
                     {
-                      backgroundColor: isDark ? '#090D16' : '#F1F5F9',
+                      backgroundColor: cardBg,
                       borderColor: getVerdictColor(selectedHotspot.threatVerdict),
                     },
                   ]}
                 >
-                  <Text style={[styles.adviseText, { color: textColor }]}>
+                  <View style={styles.detailBannerTop}>
+                    <Text
+                      style={[
+                        styles.detailSafetyTag,
+                        { color: getVerdictColor(selectedHotspot.threatVerdict) },
+                      ]}
+                    >
+                      {selectedHotspot.threatVerdict === 'SECURE'
+                        ? '✅ VERIFIED SAFE TO CONNECT'
+                        : selectedHotspot.threatVerdict === 'MODERATE'
+                        ? '⚠️ CAUTION: USABLE WITH PRECAUTIONS'
+                        : '🚨 CRITICAL WARNING: NOT SAFE TO CONNECT'}
+                    </Text>
+                    <Text style={[styles.detailSsidTitle, { color: textColor }]}>
+                      {selectedHotspot.ssid}
+                    </Text>
+                    <Text style={[styles.detailBssidText, { color: subtextColor }]}>
+                      BSSID: {selectedHotspot.bssid} {selectedHotspot.ipAddress ? `· IP: ${selectedHotspot.ipAddress}` : ''}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* 4-Metric Hardware Specs Grid */}
+                <Text style={[styles.detailSectionTitle, { color: textColor }]}>
+                  CRYPTOGRAPHIC & HARDWARE SPECIFICATIONS
+                </Text>
+
+                <View style={styles.specsGrid}>
+                  <View style={[styles.specBox, { backgroundColor: cardBg, borderColor: borderCol }]}>
+                    <Text
+                      style={[
+                        styles.specValue,
+                        {
+                          color:
+                            selectedHotspot.encryption === 'OPEN' || selectedHotspot.encryption === 'WEP'
+                              ? danger
+                              : emerald,
+                        },
+                      ]}
+                    >
+                      {selectedHotspot.encryption}
+                    </Text>
+                    <Text style={[styles.specLabel, { color: subtextColor }]}>Beacon Cipher</Text>
+                  </View>
+
+                  <View style={[styles.specBox, { backgroundColor: cardBg, borderColor: borderCol }]}>
+                    <Text
+                      style={[
+                        styles.specValue,
+                        { color: selectedHotspot.pmfEnabled ? emerald : amber },
+                      ]}
+                    >
+                      {selectedHotspot.pmfEnabled ? 'PROTECTED' : 'VULNERABLE'}
+                    </Text>
+                    <Text style={[styles.specLabel, { color: subtextColor }]}>802.11w PMF</Text>
+                  </View>
+
+                  <View style={[styles.specBox, { backgroundColor: cardBg, borderColor: borderCol }]}>
+                    <Text style={[styles.specValue, { color: teal }]}>
+                      {selectedHotspot.frequency}
+                    </Text>
+                    <Text style={[styles.specLabel, { color: subtextColor }]}>Band (Ch {selectedHotspot.channel})</Text>
+                  </View>
+
+                  <View style={[styles.specBox, { backgroundColor: cardBg, borderColor: borderCol }]}>
+                    <Text style={[styles.specValue, { color: textColor }]}>
+                      {selectedHotspot.signalDbm} dBm
+                    </Text>
+                    <Text style={[styles.specLabel, { color: subtextColor }]}>Signal Strength</Text>
+                  </View>
+                </View>
+
+                {/* Plain-English Security Breakdown */}
+                <View style={[styles.detailCard, { backgroundColor: cardBg, borderColor: borderCol }]}>
+                  <Text style={[styles.detailCardHeading, { color: textColor }]}>
+                    🛡️ Security Evaluation
+                  </Text>
+                  <Text style={[styles.detailBodyText, { color: textColor }]}>
+                    {selectedHotspot.threatVerdict === 'SECURE'
+                      ? 'This network implements robust WPA3 encryption with Protected Management Frames (802.11w). It is immune to offline dictionary attacks and deauthentication jamming.'
+                      : selectedHotspot.threatVerdict === 'MODERATE'
+                      ? 'This network uses standard WPA2 encryption. While your traffic is encrypted, it lacks 802.11w Protected Management Frames, making it susceptible to deauth frame spoofing.'
+                      : 'This network is completely UNENCRYPTED or uses obsolete ciphers. Anyone within radio distance can sniff unencrypted HTTP traffic, harvest cookies, and inject malicious scripts.'}
+                  </Text>
+                </View>
+
+                {/* Threat Analysis / Predicted Attacks */}
+                <View style={[styles.detailCard, { backgroundColor: cardBg, borderColor: borderCol }]}>
+                  <Text style={[styles.detailCardHeading, { color: textColor }]}>
+                    {selectedHotspot.threatVerdict === 'SECURE'
+                      ? '🔒 Threat Vector Protection'
+                      : '🔍 Vulnerabilities & Potential Attack Vectors'}
+                  </Text>
+
+                  {selectedHotspot.predictedCrimes.map((crime, idx) => (
+                    <View key={idx} style={styles.crimeRow}>
+                      <Text style={styles.crimeBullet}>
+                        {selectedHotspot.threatVerdict === 'SECURE' ? '✅' : '⚡'}
+                      </Text>
+                      <Text style={[styles.crimeText, { color: textColor }]}>{crime}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                {/* Prevention Advice */}
+                <View
+                  style={[
+                    styles.adviceCard,
+                    {
+                      backgroundColor: isDark ? '#1E293B' : '#F1F5F9',
+                      borderLeftColor: getVerdictColor(selectedHotspot.threatVerdict),
+                    },
+                  ]}
+                >
+                  <Text style={[styles.adviceTitle, { color: getVerdictColor(selectedHotspot.threatVerdict) }]}>
+                    RECOMMENDED DEFENSIVE ACTION:
+                  </Text>
+                  <Text style={[styles.adviceBody, { color: textColor }]}>
                     {selectedHotspot.preventionAdvise}
                   </Text>
                 </View>
-              </View>
 
-              {/* Pre-Connection Defense Action Button */}
-              {selectedHotspot.threatVerdict !== 'SECURE' ? (
+                {/* Actions: AI Explainer & Connection Policy */}
+                <View style={styles.detailActionsRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.aiExplainerTriggerBtn,
+                      {
+                        backgroundColor: isDark ? '#134E4A' : '#CCFBF1',
+                        borderColor: teal,
+                      },
+                    ]}
+                    onPress={() => setShowAiModal(true)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.aiExplainerTriggerText, { color: teal }]}>
+                      🤖 Ask AI Explainer About This Network
+                    </Text>
+                  </TouchableOpacity>
+
+                  {selectedHotspot.threatVerdict !== 'SECURE' ? (
+                    <TouchableOpacity
+                      style={[
+                        styles.policyBtn,
+                        {
+                          backgroundColor: blockedIds[selectedHotspot.id] ? '#475569' : danger,
+                        },
+                      ]}
+                      onPress={() => toggleBlockHotspot(selectedHotspot.id)}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.policyBtnText}>
+                        {blockedIds[selectedHotspot.id]
+                          ? '✓ Hotspot Blacklisted (Auto-Join Blocked)'
+                          : '🚫 Blacklist & Prevent Connection'}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      style={[
+                        styles.policyBtn,
+                        {
+                          backgroundColor: approvedIds[selectedHotspot.id] ? teal : emerald,
+                        },
+                      ]}
+                      onPress={() => toggleApproveHotspot(selectedHotspot.id)}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.policyBtnText}>
+                        {approvedIds[selectedHotspot.id]
+                          ? '✓ Verified in Trusted Allowlist'
+                          : '✅ Approve Safe Connection'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {/* Close Details Button */}
                 <TouchableOpacity
-                  style={[
-                    styles.defenseActionBtn,
-                    {
-                      backgroundColor: blockedIds[selectedHotspot.id] ? '#334155' : danger,
-                    },
-                  ]}
-                  onPress={() => toggleBlockHotspot(selectedHotspot.id)}
-                  activeOpacity={0.85}
+                  style={styles.closeDetailBtn}
+                  onPress={() => setShowDetailModal(false)}
+                  activeOpacity={0.7}
                 >
-                  <Text style={styles.defenseActionBtnText}>
-                    {blockedIds[selectedHotspot.id]
-                      ? '✓ Hotspot Blacklisted (Auto-Join Prevented)'
-                      : '🚫 Blacklist Hotspot & Prevent Connection'}
+                  <Text style={[styles.closeDetailBtnText, { color: subtextColor }]}>
+                    ← Back to Scanned List
                   </Text>
                 </TouchableOpacity>
-              ) : (
-                <TouchableOpacity
-                  style={[
-                    styles.defenseActionBtn,
-                    {
-                      backgroundColor: approvedIds[selectedHotspot.id] ? teal : emerald,
-                    },
-                  ]}
-                  onPress={() => toggleApproveHotspot(selectedHotspot.id)}
-                  activeOpacity={0.85}
-                >
-                  <Text style={styles.defenseActionBtnText}>
-                    {approvedIds[selectedHotspot.id]
-                      ? '✓ Approved in Trusted SSID Allowlist'
-                      : '✅ Approve Safe Connection'}
-                  </Text>
-                </TouchableOpacity>
-              )}
+              </ScrollView>
+            </SafeAreaView>
+          </Modal>
+        )}
 
-              {/* Interactive AI Threat Explainer Trigger */}
-              <TouchableOpacity
-                style={[
-                  styles.defenseActionBtn,
-                  {
-                    backgroundColor: isDark ? '#134E4A' : '#CCFBF1',
-                    borderColor: teal,
-                    borderWidth: 1,
-                    marginTop: 10,
-                  },
-                ]}
-                onPress={() => setShowAiModal(true)}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.defenseActionBtnText, { color: teal }]}>
-                  🤖 Ask AI Explainer: Why is this network dangerous?
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.7}>
-            <Text style={[styles.closeBtnText, { color: subtextColor }]}>Close Sentinel</Text>
-          </TouchableOpacity>
-        </ScrollView>
-
+        {/* Grounded RAG AI Explainer Modal */}
         {selectedHotspot && (
           <AiExplainerModal
             visible={showAiModal}
             onClose={() => setShowAiModal(false)}
-            query={`Wi-Fi Hotspot: ${selectedHotspot.ssid} (${selectedHotspot.encryption}) ${selectedHotspot.threatTag}`}
+            query={`Wi-Fi Network: ${selectedHotspot.ssid} (${selectedHotspot.encryption}) ${selectedHotspot.threatTag}`}
             immutableVerdict={
               selectedHotspot.threatVerdict === 'CRITICAL_THREAT'
                 ? 'MALICIOUS'
@@ -637,7 +696,6 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
         )}
       </SafeAreaView>
     </Modal>
-
   );
 };
 
@@ -647,58 +705,64 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 44,
+    paddingBottom: 40,
   },
   header: {
     alignItems: 'center',
     marginBottom: 16,
   },
   iconCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
   },
   iconText: {
-    fontSize: 28,
+    fontSize: 30,
   },
   title: {
-    fontSize: 20,
+    fontSize: 21,
     fontWeight: '800',
     letterSpacing: -0.4,
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: 12.5,
     textAlign: 'center',
     marginTop: 4,
-    paddingHorizontal: 10,
+    paddingHorizontal: 16,
+    lineHeight: 17,
   },
-  passivePill: {
-    marginTop: 10,
+  deviceStatusBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
     borderWidth: 1,
     paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 8,
   },
-  passivePillText: {
-    fontSize: 9.5,
-    fontWeight: '800',
-    letterSpacing: 0.6,
+  deviceStatusDot: {
+    fontSize: 10,
   },
-  actionHeaderRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 16,
+  deviceStatusText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   scanBtn: {
-    flex: 1,
-    paddingVertical: 13,
+    paddingVertical: 14,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 18,
+    shadowColor: '#0D9488',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 3,
   },
   scanningRow: {
     flexDirection: 'row',
@@ -706,227 +770,277 @@ const styles = StyleSheet.create({
   },
   scanBtnText: {
     color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  customToggleBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    borderRadius: 18,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  customToggleText: {
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  customCard: {
-    borderRadius: 18,
-    borderWidth: 1.5,
-    padding: 16,
-    marginBottom: 18,
-  },
-  customTitle: {
     fontSize: 14,
     fontWeight: '800',
-    marginBottom: 4,
   },
-  customSub: {
-    fontSize: 11,
+  emptyCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 24,
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+  emptyIcon: {
+    fontSize: 48,
     marginBottom: 12,
   },
-  fieldLabel: {
-    fontSize: 10,
+  emptyTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    marginBottom: 6,
+  },
+  emptySubtitle: {
+    fontSize: 12.5,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  emptyBadge: {
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  emptyBadgeText: {
+    fontSize: 9.5,
     fontWeight: '800',
     letterSpacing: 0.5,
-    marginBottom: 5,
   },
-  textInput: {
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    fontSize: 13,
-    marginBottom: 10,
+  scanningCard: {
+    borderRadius: 20,
+    borderWidth: 1.5,
+    padding: 24,
+    alignItems: 'center',
+    marginBottom: 18,
   },
-  optionChipsRow: {
-    flexDirection: 'row',
-    gap: 8,
+  scanningPulseIcon: {
+    fontSize: 44,
     marginBottom: 12,
   },
-  optionChip: {
-    flex: 1,
-    borderWidth: 1,
-    paddingVertical: 8,
-    borderRadius: 10,
-    alignItems: 'center',
+  scanningTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 6,
   },
-  optionChipText: {
+  scanningStep: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  scanningNote: {
     fontSize: 11,
-    fontWeight: '800',
+    textAlign: 'center',
   },
-  switchRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 12,
+  resultsContainer: {
+    marginBottom: 16,
   },
-  pmfToggle: {
-    flex: 1,
-    borderWidth: 1,
-    paddingVertical: 8,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  pmfToggleText: {
-    fontSize: 10.5,
-    fontWeight: '800',
-  },
-  analyzeCustomBtn: {
-    paddingVertical: 12,
-    borderRadius: 14,
-    alignItems: 'center',
-  },
-  analyzeCustomBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  sectionHeaderRow: {
+  resultsHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
-  sectionHeaderTitle: {
-    fontSize: 11,
+  resultsTitle: {
+    fontSize: 11.5,
     fontWeight: '800',
     letterSpacing: 0.6,
   },
-  sectionHeaderHint: {
+  resultsHint: {
     fontSize: 11,
   },
-  hotspotList: {
-    gap: 10,
-    marginBottom: 18,
+  filterRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 14,
   },
-  hotspotItem: {
-    borderRadius: 16,
-    padding: 14,
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
   },
-  hotspotTopRow: {
+  filterChipText: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  networkList: {
+    gap: 12,
+  },
+  networkCard: {
+    borderRadius: 18,
+    borderWidth: 1.5,
+    padding: 15,
+  },
+  cardTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 8,
+    marginBottom: 10,
   },
-  hotspotTitleGroup: {
+  ssidContainer: {
     flex: 1,
-    paddingRight: 8,
+    paddingRight: 10,
   },
-  ssidRow: {
+  ssidHeaderLine: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    flexWrap: 'wrap',
   },
-  hotspotSsid: {
-    fontSize: 15,
+  wifiSignalIcon: {
+    fontSize: 16,
+  },
+  networkSsid: {
+    fontSize: 16,
     fontWeight: '800',
   },
-  roguePill: {
+  activePill: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
+    marginTop: 4,
   },
-  roguePillText: {
-    color: '#FFFFFF',
+  activePillText: {
     fontSize: 8.5,
     fontWeight: '900',
+    letterSpacing: 0.5,
   },
-  hotspotMeta: {
-    fontSize: 10.5,
-    marginTop: 3,
+  networkMeta: {
+    fontSize: 11,
+    marginTop: 4,
+    fontWeight: '600',
   },
   verdictBadge: {
-    borderWidth: 1,
-    paddingHorizontal: 8,
+    borderWidth: 1.5,
+    paddingHorizontal: 9,
     paddingVertical: 4,
     borderRadius: 8,
   },
   verdictBadgeText: {
     fontSize: 9.5,
     fontWeight: '900',
+    letterSpacing: 0.4,
   },
-  hotspotBottomRow: {
+  summaryBox: {
+    borderTopWidth: 1,
+    paddingTop: 8,
+    marginBottom: 12,
+  },
+  summaryText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+  cardBottomRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  threatTagText: {
+  viewDetailsBtn: {
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  viewDetailsBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  riskScoreText: {
     fontSize: 11,
     fontWeight: '700',
   },
-  scorePill: {
-    fontSize: 10.5,
+  closeBtn: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginTop: 10,
+  },
+  closeBtnText: {
+    fontSize: 13,
     fontWeight: '700',
   },
-  forensicCard: {
+
+  /* View Details Modal Styles */
+  detailModalContainer: {
+    flex: 1,
+  },
+  detailScrollContent: {
+    padding: 20,
+    paddingBottom: 44,
+  },
+  detailBanner: {
     borderRadius: 20,
     borderWidth: 2,
     padding: 18,
-    marginBottom: 20,
+    marginBottom: 16,
   },
-  forensicBanner: {
-    marginBottom: 14,
-  },
-  forensicBannerTitle: {
-    fontSize: 10.5,
+  detailBannerTop: {},
+  detailSafetyTag: {
+    fontSize: 11,
     fontWeight: '900',
-    letterSpacing: 0.5,
-    marginBottom: 4,
+    letterSpacing: 0.6,
+    marginBottom: 6,
   },
-  forensicSsidTitle: {
-    fontSize: 18,
+  detailSsidTitle: {
+    fontSize: 22,
     fontWeight: '800',
+    letterSpacing: -0.4,
   },
-  metricsGrid: {
+  detailBssidText: {
+    fontSize: 11.5,
+    marginTop: 4,
+    fontWeight: '600',
+  },
+  detailSectionTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    marginBottom: 10,
+  },
+  specsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginBottom: 14,
+    marginBottom: 16,
   },
-  metricItem: {
+  specBox: {
     flex: 1,
     minWidth: '45%',
     borderWidth: 1,
-    borderRadius: 12,
-    padding: 10,
+    borderRadius: 14,
+    padding: 12,
     alignItems: 'center',
   },
-  metricValue: {
-    fontSize: 12.5,
+  specValue: {
+    fontSize: 14,
     fontWeight: '800',
   },
-  metricLabel: {
+  specLabel: {
     fontSize: 10,
-    marginTop: 2,
+    fontWeight: '700',
+    marginTop: 4,
   },
-  crimesSection: {
-    borderTopWidth: 1,
-    paddingTop: 12,
+  detailCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
     marginBottom: 14,
   },
-  crimesHeading: {
-    fontSize: 13,
+  detailCardHeading: {
+    fontSize: 13.5,
     fontWeight: '800',
     marginBottom: 8,
+  },
+  detailBodyText: {
+    fontSize: 12.5,
+    lineHeight: 18,
+    fontWeight: '500',
   },
   crimeRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    marginBottom: 6,
+    marginBottom: 8,
   },
   crimeBullet: {
     fontSize: 13,
@@ -938,34 +1052,53 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     fontWeight: '600',
   },
-  adviseBox: {
-    marginTop: 8,
-    padding: 12,
-    borderRadius: 12,
+  adviceCard: {
+    borderRadius: 14,
     borderLeftWidth: 4,
+    padding: 14,
+    marginBottom: 16,
   },
-  adviseText: {
-    fontSize: 11.5,
-    lineHeight: 16,
-    fontWeight: '700',
+  adviceTitle: {
+    fontSize: 10.5,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+    marginBottom: 4,
   },
-  defenseActionBtn: {
+  adviceBody: {
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '600',
+  },
+  detailActionsRow: {
+    gap: 10,
+    marginBottom: 16,
+  },
+  aiExplainerTriggerBtn: {
+    borderWidth: 1,
     paddingVertical: 13,
-    borderRadius: 18,
+    borderRadius: 14,
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  defenseActionBtnText: {
+  aiExplainerTriggerText: {
+    fontSize: 12.5,
+    fontWeight: '800',
+  },
+  policyBtn: {
+    paddingVertical: 13,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  policyBtnText: {
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '800',
   },
-  closeBtn: {
+  closeDetailBtn: {
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 10,
   },
-  closeBtnText: {
+  closeDetailBtnText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });

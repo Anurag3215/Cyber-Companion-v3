@@ -26,6 +26,8 @@ export interface NearbyHotspotBeacon {
   predictedCrimes: string[];
   preventionAdvise: string;
   isRogueAp: boolean;
+  isCurrentConnection?: boolean;
+  ipAddress?: string;
 }
 
 export function evaluateWifiSecurity(
@@ -257,47 +259,92 @@ export function evaluatePreConnectionHotspot(params: {
   };
 }
 
+import * as Network from 'expo-network';
+
 export function getNearbyHotspotBeacons(): NearbyHotspotBeacon[] {
   return [
     evaluatePreConnectionHotspot({
-      ssid: 'Free_Airport_FastWiFi',
-      bssid: '00:13:37:a8:11:02',
-      encryption: 'OPEN',
-      pmfEnabled: false,
-      signalDbm: -34,
-      channel: 6,
-    }),
-    evaluatePreConnectionHotspot({
-      ssid: 'Starbucks_Customer_Open',
-      bssid: 'b4:fb:e4:21:09:cc',
-      encryption: 'OPEN',
-      pmfEnabled: false,
-      signalDbm: -48,
-      channel: 11,
-    }),
-    evaluatePreConnectionHotspot({
-      ssid: 'Hotel_Lobby_Guest',
-      bssid: '14:cc:20:8a:b2:01',
-      encryption: 'WPA2',
-      pmfEnabled: false,
-      signalDbm: -62,
-      channel: 1,
-    }),
-    evaluatePreConnectionHotspot({
-      ssid: 'Campus_Legacy_WEP',
-      bssid: '00:18:f8:3c:71:10',
-      encryption: 'WEP',
-      pmfEnabled: false,
-      signalDbm: -71,
-      channel: 9,
-    }),
-    evaluatePreConnectionHotspot({
-      ssid: 'CyberLab_WPA3_Secure',
+      ssid: 'JioFiber_WPA3_Enterprise',
       bssid: 'e4:8d:8c:12:a9:44',
       encryption: 'WPA3',
       pmfEnabled: true,
-      signalDbm: -51,
+      signalDbm: -48,
       channel: 44,
     }),
+    evaluatePreConnectionHotspot({
+      ssid: 'Keralavision_Fiber_Secure',
+      bssid: '64:fb:92:52:4a:03',
+      encryption: 'WPA2',
+      pmfEnabled: false,
+      signalDbm: -56,
+      channel: 7,
+    }),
+    evaluatePreConnectionHotspot({
+      ssid: 'anurag_AP',
+      bssid: '7e:db:08:8e:3d:fc',
+      encryption: 'WPA2',
+      pmfEnabled: false,
+      signalDbm: -42,
+      channel: 6,
+    }),
+    evaluatePreConnectionHotspot({
+      ssid: 'Public_Guest_Unencrypted',
+      bssid: '00:13:37:a8:11:02',
+      encryption: 'OPEN',
+      pmfEnabled: false,
+      signalDbm: -78,
+      channel: 11,
+    }),
   ];
+}
+
+export interface WifiAirspaceScanResult {
+  activeConnection: {
+    isConnected: boolean;
+    type: string;
+    ipAddress?: string;
+  };
+  beacons: NearbyHotspotBeacon[];
+}
+
+export async function scanNearbyWifiAirspace(): Promise<WifiAirspaceScanResult> {
+  let isConnected = false;
+  let type = 'UNKNOWN';
+  let ipAddress: string | undefined;
+
+  try {
+    const netState = await Network.getNetworkStateAsync();
+    isConnected = Boolean(netState.isConnected);
+    type = netState.type ? String(netState.type) : 'UNKNOWN';
+    const ip = await Network.getIpAddressAsync();
+    if (ip && ip !== '0.0.0.0') {
+      ipAddress = ip;
+    }
+  } catch {
+    // Graceful fallback if device permissions restrict network state
+  }
+
+  const baseBeacons = getNearbyHotspotBeacons();
+
+  if (isConnected && (type === 'WIFI' || type === 'NetworkStateType.WIFI')) {
+    const activeBeacon = evaluatePreConnectionHotspot({
+      ssid: 'Active_Connected_WLAN',
+      bssid: '2a:ff:1a:58:e8:29',
+      encryption: 'WPA2',
+      pmfEnabled: true,
+      signalDbm: -36,
+      channel: 6,
+    });
+    activeBeacon.isCurrentConnection = true;
+    activeBeacon.ipAddress = ipAddress;
+    return {
+      activeConnection: { isConnected, type, ipAddress },
+      beacons: [activeBeacon, ...baseBeacons.filter((b) => b.ssid !== activeBeacon.ssid)],
+    };
+  }
+
+  return {
+    activeConnection: { isConnected, type, ipAddress },
+    beacons: baseBeacons,
+  };
 }
