@@ -461,15 +461,10 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
           </TouchableOpacity>
         </ScrollView>
 
-        {/* -------------------- DEDICATED VIEW DETAILS MODAL -------------------- */}
-        {selectedHotspot && (
-          <Modal
-            visible={showDetailModal}
-            animationType="slide"
-            presentationStyle="pageSheet"
-            onRequestClose={() => setShowDetailModal(false)}
-          >
-            <SafeAreaView style={[styles.detailModalContainer, { backgroundColor: bg }]}>
+        {/* -------------------- DEDICATED VIEW DETAILS SCREEN -------------------- */}
+        {selectedHotspot && showDetailModal && (
+          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: bg, zIndex: 100 }]}>
+            <SafeAreaView style={[styles.detailModalContainer, { backgroundColor: bg, flex: 1 }]}>
               <ScrollView contentContainerStyle={styles.detailScrollContent} showsVerticalScrollIndicator={false}>
                 {/* Detail Header Banner */}
                 <View
@@ -670,7 +665,7 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
                 </TouchableOpacity>
               </ScrollView>
             </SafeAreaView>
-          </Modal>
+          </View>
         )}
 
         {/* Grounded RAG AI Explainer Modal */}
