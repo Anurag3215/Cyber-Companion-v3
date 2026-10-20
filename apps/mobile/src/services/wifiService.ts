@@ -265,28 +265,20 @@ import { ApiClient } from './apiClient';
 export function getNearbyHotspotBeacons(): NearbyHotspotBeacon[] {
   return [
     evaluatePreConnectionHotspot({
+      ssid: 'Redmi 15C 5G',
+      bssid: '4e:2e:5e:d0:54:d2',
+      encryption: 'WPA2',
+      pmfEnabled: false,
+      signalDbm: -62,
+      channel: 1,
+    }),
+    evaluatePreConnectionHotspot({
       ssid: 'DESKTOP-BNFS8Q1 4220',
       bssid: '2e:3b:70:d6:c4:bb',
       encryption: 'WPA2',
       pmfEnabled: false,
       signalDbm: -40,
       channel: 11,
-    }),
-    evaluatePreConnectionHotspot({
-      ssid: 'vivo V70 Elite',
-      bssid: '9a:cf:ab:4c:60:01',
-      encryption: 'WPA2',
-      pmfEnabled: false,
-      signalDbm: -92,
-      channel: 6,
-    }),
-    evaluatePreConnectionHotspot({
-      ssid: 'Car Device_6432',
-      bssid: '02:08:22:a0:09:00',
-      encryption: 'WPA2',
-      pmfEnabled: false,
-      signalDbm: -88,
-      channel: 36,
     }),
   ];
 }

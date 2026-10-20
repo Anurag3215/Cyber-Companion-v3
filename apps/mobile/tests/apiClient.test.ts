@@ -87,4 +87,19 @@ describe('ApiClient & AI Explainer Client Suite', () => {
     expect(punycodeRes.citations.some((c) => c.includes('KB-002'))).toBe(true);
     expect(punycodeRes.explanation).toContain('VERIFIED SAFE:');
   });
+
+  it('accurately resolves ethical hacking inquiries with educational intel', async () => {
+    global.fetch = jest.fn().mockRejectedValue(new Error('Network unreachable'));
+
+    const ethicalRes = await ApiClient.explainThreat({
+      query: 'Ethical hackin',
+      immutableVerdict: 'UNKNOWN',
+    });
+
+    expect(ethicalRes.immutableVerdict).toBe('UNKNOWN');
+    expect(ethicalRes.groundedInKnowledgeBase).toBe(true);
+    expect(ethicalRes.citations.some((c) => c.includes('KB-006'))).toBe(true);
+    expect(ethicalRes.explanation).toContain('CYBER COMPANION INTEL:');
+    expect(ethicalRes.explanation).toContain('authorized');
+  });
 });

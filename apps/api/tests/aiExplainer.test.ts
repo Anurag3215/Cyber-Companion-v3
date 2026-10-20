@@ -47,4 +47,18 @@ describe('Phase 9 AI Explainer: Curated RAG and Immutable Verdicts', () => {
     expect(res.body.citations).toBeDefined();
     expect(res.body.recommendedActions).toBeDefined();
   });
+
+  test('aiExplainerService accurately resolves ethical hacking queries', () => {
+    const result = aiExplainerService.explainThreat({
+      query: 'Ethical hackin',
+      immutableVerdict: 'UNKNOWN',
+      detectedFlags: [],
+    });
+
+    expect(result.immutableVerdict).toBe('UNKNOWN');
+    expect(result.groundedInKnowledgeBase).toBe(true);
+    expect(result.citations.some((c) => c.includes('KB-006'))).toBe(true);
+    expect(result.explanation).toContain('CYBER COMPANION INTEL:');
+    expect(result.explanation).toContain('authorized');
+  });
 });

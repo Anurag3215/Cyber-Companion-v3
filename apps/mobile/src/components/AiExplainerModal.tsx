@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -33,30 +33,48 @@ export const AiExplainerModal: React.FC<AiExplainerModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [explanation, setExplanation] = useState<ExplainerResponse | null>(null);
 
-  useEffect(() => {
-    if (visible && query) {
-      let isMounted = true;
-      setLoading(true);
-      ApiClient.explainThreat({
-        query,
-        immutableVerdict,
-        detectedFlags,
-      })
-        .then((res) => {
-          if (isMounted) {
-            setExplanation(res);
-            setLoading(false);
-          }
-        })
-        .catch(() => {
-          if (isMounted) setLoading(false);
-        });
+  const flagsKey = (detectedFlags || []).join('|');
+  const lastFetchedKey = useRef<string>('');
 
-      return () => {
-        isMounted = false;
-      };
+  useEffect(() => {
+    if (!visible || !query) {
+      setLoading(false);
+      lastFetchedKey.current = '';
+      return;
     }
-  }, [visible, query, immutableVerdict, detectedFlags]);
+
+    const currentKey = `${query}::${immutableVerdict}::${flagsKey}`;
+    if (lastFetchedKey.current === currentKey) {
+      return;
+    }
+
+    let isMounted = true;
+    lastFetchedKey.current = currentKey;
+    setLoading(true);
+
+    const flags = flagsKey ? flagsKey.split('|') : [];
+
+    ApiClient.explainThreat({
+      query,
+      immutableVerdict,
+      detectedFlags: flags,
+    })
+      .then((res) => {
+        if (isMounted) {
+          setExplanation(res);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [visible, query, immutableVerdict, flagsKey]);
 
   const bg = isDark ? '#090D16' : '#FFFFFF';
   const cardBg = isDark ? '#1E293B' : '#F8FAFC';
@@ -117,7 +135,7 @@ export const AiExplainerModal: React.FC<AiExplainerModalProps> = ({
               <View style={[styles.verdictBadge, { borderColor: verdictColor, backgroundColor: `${verdictColor}15` }]}>
                 <View style={[styles.verdictDot, { backgroundColor: verdictColor }]} />
                 <Text style={[styles.verdictText, { color: verdictColor }]}>
-                  {immutableVerdict} VERDICT
+                  {immutableVerdict === 'UNKNOWN' ? 'KNOWLEDGE INTEL' : `${immutableVerdict} VERDICT`}
                 </Text>
               </View>
 

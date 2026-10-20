@@ -3,45 +3,108 @@
     "id": "KB-001",
     "topic": "quishing",
     "title": "QR Code Phishing (Quishing) Explained",
-    "summary": "Quishing occurs when attackers place malicious QR codes over legitimate ones (e.g. at parking meters, restaurants, or in emails) to redirect victims to credential-harvesting websites.",
+    "summary": "Quishing occurs when attackers place malicious QR codes over legitimate ones (e.g. at parking meters, restaurants, or in emails) to redirect victims to credential-harvesting websites or initiate malicious intents.",
     "threatVector": "PHYSICAL_AND_DIGITAL_QR",
-    "defenseGuidance": "Always preview the destination domain before opening links from QR codes. Check for tampering stickers on physical QR displays.",
-    "keywords": ["quishing", "qr code", "sticker", "parking", "restaurant", "fake qr"]
+    "defenseGuidance": "Always preview the destination domain before opening links from QR codes. Check for tampering stickers on physical QR displays and inspect sanitized destination protocols.",
+    "keywords": ["quishing", "qr code", "sticker", "parking", "restaurant", "fake qr", "camera", "barcode", "quick response", "scan"]
   },
   {
     "id": "KB-002",
     "topic": "punycode_homoglyph",
     "title": "Internationalized Domain Name (IDN) Homoglyph Attacks",
-    "summary": "Attackers register domain names using lookalike characters from Cyrillic or Greek alphabets (prefixed by 'xn--' in ASCII) to spoof well-known brand names like apple.com or paypal.com.",
+    "summary": "Attackers register domain names using lookalike characters from Cyrillic, Greek, or Latin alphabets (prefixed by 'xn--' in ASCII) to spoof well-known brand names like apple.com, google.com, or paypal.com.",
     "threatVector": "DOMAIN_SPOOFING",
-    "defenseGuidance": "Inspect the raw Punycode domain. Look for unexpected character sets or slight font rendering variations in the browser address bar.",
-    "keywords": ["punycode", "homoglyph", "cyrillic", "idn", "lookalike", "typosquatting"]
+    "defenseGuidance": "Inspect the raw Punycode domain for 'xn--' prefixes. Verify the domain security certificate and look for slight font rendering variations in the browser address bar.",
+    "keywords": ["punycode", "homoglyph", "cyrillic", "idn", "lookalike", "typosquatting", "spoof", "paypal", "apple", "google", "fake domain"]
   },
   {
     "id": "KB-003",
     "topic": "wifi_security",
-    "title": "Wi-Fi Encryption Standards & Rogue Access Points",
-    "summary": "Open networks transmit unencrypted frames that can be captured by local eavesdroppers. Evil Twin APs mimic trusted network names to conduct man-in-the-middle attacks.",
+    "title": "Wi-Fi Airspace Encryption Standards & Rogue Access Points",
+    "summary": "Open and unencrypted 802.11 networks transmit frames in cleartext that can be captured by local packet sniffers. Rogue Access Points (Evil Twins) mimic trusted network names to conduct man-in-the-middle attacks.",
     "threatVector": "NETWORK_EAVESDROPPING",
-    "defenseGuidance": "Prefer WPA3 or WPA2-Enterprise networks. Always use a trusted encrypted VPN when connecting to airport, hotel, or cafe Wi-Fi.",
-    "keywords": ["wifi", "wpa3", "wpa2", "open network", "evil twin", "rogue ap", "packet sniffing"]
+    "defenseGuidance": "Prefer WPA3-SAE or WPA2 networks with 802.11w Protected Management Frames. Always enable an encrypted VPN tunnel when accessing untrusted public or hotel hotspots.",
+    "keywords": ["wifi", "wpa3", "wpa2", "open network", "evil twin", "rogue ap", "packet sniffing", "hotspot", "pineapple", "wireless", "ssid", "bssid", "wlan"]
   },
   {
     "id": "KB-004",
     "topic": "app_permissions",
-    "title": "Mobile App Permissions & Data Harvesting",
-    "summary": "Overprivileged mobile apps requesting background location, contacts, SMS, or microphone access can covertly track user behavior and sell location telemetry to data brokers.",
+    "title": "Mobile App Permissions & Telemetry Data Harvesting",
+    "summary": "Overprivileged mobile apps requesting background location, contacts, SMS, or microphone access can covertly track user movements and sell device telemetry to third-party data brokers.",
     "threatVector": "ON_DEVICE_PRIVACY",
-    "defenseGuidance": "Grant sensitive permissions only 'While using the app'. Routinely audit and revoke permissions for apps that haven't been used recently.",
-    "keywords": ["permissions", "background location", "sms", "microphone", "tracking", "privacy audit"]
+    "defenseGuidance": "Grant sensitive permissions only 'While using the app'. Routinely audit and revoke permissions for apps that have not been used recently using on-device privacy tools.",
+    "keywords": ["permissions", "background location", "sms", "microphone", "tracking", "privacy audit", "contacts", "camera", "telemetry", "privacy", "privilege"]
   },
   {
     "id": "KB-005",
     "topic": "url_shorteners",
-    "title": "URL Shortener Concealment",
-    "summary": "Shortener services (bit.ly, tinyurl.com) obscure the final destination URL, making it difficult for users to visually detect malicious domains.",
+    "title": "URL Shortener Concealment & Redirection Chains",
+    "summary": "Shortener services (bit.ly, tinyurl.com, t.co) obscure the true destination URL, making it impossible for users to visually assess whether a link directs to a credential phishing page or malware payload.",
     "threatVector": "LINK_OBSCURATION",
-    "defenseGuidance": "Use a link expander tool or automated scanner before clicking shortened links received from unknown senders.",
-    "keywords": ["shortener", "bitly", "tinyurl", "redirect", "short url", "obscuration"]
+    "defenseGuidance": "Always expand shortened URLs or inspect them using automated link sandboxes before opening. Avoid entering credentials following multi-hop HTTP redirections.",
+    "keywords": ["shortener", "bitly", "tinyurl", "redirect", "short url", "obscuration", "link", "redirection", "chain"]
+  },
+  {
+    "id": "KB-006",
+    "topic": "ethical_hacking",
+    "title": "Ethical Hacking & Penetration Testing Principles",
+    "summary": "Ethical hacking involves authorized, legal security assessments to identify, report, and remediate vulnerabilities before malicious threat actors can exploit them. Practitioners employ red teaming, fuzzing, static code analysis, and sandbox execution under strict rules of engagement.",
+    "threatVector": "PROACTIVE_DEFENSE",
+    "defenseGuidance": "Adopt continuous vulnerability management, enforce least-privilege access, mandate code audits, and implement bug bounty programs to harden defenses against real-world adversaries.",
+    "keywords": ["ethical hacking", "ethical", "hacking", "hacker", "penetration testing", "pentest", "bug bounty", "white hat", "red team", "vulnerability assessment", "exploit", "cyber security", "defense", "assessment"]
+  },
+  {
+    "id": "KB-007",
+    "topic": "deauth_jamming",
+    "title": "802.11 Deauthentication Attacks & Evil Twin Jamming",
+    "summary": "Attackers transmit spoofed 802.11 deauthentication management frames to disconnect clients from legitimate access points, compelling the victim's device to auto-connect to a rogue Evil Twin hotspot with identical SSID.",
+    "threatVector": "WIRELESS_FRAME_JAMMING",
+    "defenseGuidance": "Ensure your router supports and enforces 802.11w Protected Management Frames (PMF) which cryptographically sign management frames, rendering deauth attacks ineffective.",
+    "keywords": ["deauth", "deauthentication", "jamming", "802.11w", "pmf", "disconnect", "frame injection", "airspace", "wifi attack", "hotspot attack"]
+  },
+  {
+    "id": "KB-008",
+    "topic": "phishing_social_eng",
+    "title": "Phishing & Social Engineering Manipulation",
+    "summary": "Phishing exploits cognitive biases and emotional urgency to trick victims into revealing sensitive credentials, private OTP tokens, or downloading weaponized attachments disguised as trusted organizations.",
+    "threatVector": "SOCIAL_ENGINEERING",
+    "defenseGuidance": "Never click unsolicited urgent verification links. Verify communications out-of-band by directly typing the official organization website into your browser.",
+    "keywords": ["phishing", "social engineering", "credential harvesting", "spear phishing", "smishing", "vishing", "fake email", "fake login", "scam", "fraud"]
+  },
+  {
+    "id": "KB-009",
+    "topic": "otp_sim_swap",
+    "title": "SMS OTP Interception & SIM Swapping Fraud",
+    "summary": "Attackers deceive mobile telecom carriers into porting a victim's phone number to an attacker-controlled SIM card, enabling interception of one-time passwords (OTPs) and account takeover.",
+    "threatVector": "CREDENTIAL_HIJACKING",
+    "defenseGuidance": "Transition from SMS-based OTP verification to hardware FIDO2 security keys (YubiKey) or time-based authenticator apps (TOTP like Google Authenticator). Set a PIN on your cellular account.",
+    "keywords": ["otp", "sms", "sim swap", "2fa", "mfa", "authenticator", "verification code", "two factor", "banking fraud", "account takeover"]
+  },
+  {
+    "id": "KB-010",
+    "topic": "ransomware_malware",
+    "title": "Ransomware & Weaponized Malware Payloads",
+    "summary": "Ransomware covertly encrypts critical storage files and databases using asymmetric cryptography, demanding cryptocurrency ransoms for decryption keys. Infection vectors include malicious email attachments and drive-by downloads.",
+    "threatVector": "HOST_COMPROMISE",
+    "defenseGuidance": "Maintain immutable 3-2-1 offline backups, enforce software patching, disable legacy macro execution, and restrict executable permissions on untrusted downloads.",
+    "keywords": ["ransomware", "malware", "virus", "trojan", "payload", "encrypt", "extortion", "crypto ransom", "spyware", "keylogger"]
+  },
+  {
+    "id": "KB-011",
+    "topic": "mitm_ssl_strip",
+    "title": "Man-in-the-Middle (MITM) & SSL Stripping Attacks",
+    "summary": "MITM attacks occur when an adversary intercepts communications between two endpoints. SSL stripping forces secure HTTPS connections to downgrade to cleartext HTTP, exposing credentials and session cookies.",
+    "threatVector": "NETWORK_INTERCEPTION",
+    "defenseGuidance": "Enforce HTTP Strict Transport Security (HSTS) with preloading in browsers. Disconnect immediately if browser displays certificate invalidity warnings or protocol downgrade notices.",
+    "keywords": ["mitm", "man in the middle", "ssl strip", "ssl", "tls", "https", "downgrade", "arp spoofing", "dns spoofing", "interception"]
+  },
+  {
+    "id": "KB-012",
+    "topic": "zero_trust",
+    "title": "Zero-Trust Architecture & Continuous Verification",
+    "summary": "Zero-Trust security operates on the core principle: 'Never Trust, Always Verify'. Every access request—regardless of origin within or outside the network perimeter—must be authenticated, authorized, and cryptographically verified.",
+    "threatVector": "SECURITY_ARCHITECTURE",
+    "defenseGuidance": "Implement continuous posture verification, least-privilege microsegmentation, end-to-end encryption for all data in transit, and multi-factor authentication across all endpoints.",
+    "keywords": ["zero trust", "zero-trust", "least privilege", "verification", "architecture", "microsegmentation", "perimeter", "defense in depth"]
   }
 ]

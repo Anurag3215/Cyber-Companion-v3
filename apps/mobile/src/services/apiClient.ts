@@ -72,12 +72,71 @@ const OFFLINE_KNOWLEDGE_BASE = [
       'Use a link expander tool or automated scanner before clicking shortened links received from unknown senders.',
     keywords: ['shortener', 'bitly', 'tinyurl', 'redirect', 'short url', 'obscuration', 'link'],
   },
+  {
+    id: 'KB-006',
+    topic: 'ethical_hacking',
+    title: 'Ethical Hacking & Penetration Testing Principles',
+    summary:
+      'Ethical hacking involves authorized, legal security assessments to identify, report, and remediate vulnerabilities before malicious attackers can exploit them. Practitioners employ red teaming, fuzzing, static code analysis, and sandbox execution.',
+    threatVector: 'PROACTIVE_DEFENSE',
+    defenseGuidance:
+      'Adopt continuous vulnerability management, enforce least-privilege access, mandate code audits, and implement bug bounty programs.',
+    keywords: ['ethical hacking', 'ethical', 'hacking', 'hacker', 'penetration testing', 'pentest', 'bug bounty', 'white hat', 'vulnerability', 'exploit'],
+  },
+  {
+    id: 'KB-007',
+    topic: 'deauth_jamming',
+    title: '802.11 Deauthentication Attacks & Jamming',
+    summary:
+      'Attackers transmit spoofed 802.11 deauthentication management frames to disconnect clients from legitimate access points, compelling the victim device to connect to a rogue clone.',
+    threatVector: 'WIRELESS_FRAME_JAMMING',
+    defenseGuidance:
+      'Enforce 802.11w Protected Management Frames (PMF) on access points to cryptographically sign management frames against deauth attacks.',
+    keywords: ['deauth', 'deauthentication', 'jamming', '802.11w', 'pmf', 'disconnect', 'wifi attack'],
+  },
+  {
+    id: 'KB-008',
+    topic: 'phishing_social_eng',
+    title: 'Phishing & Social Engineering Manipulation',
+    summary:
+      'Phishing exploits human urgency to trick victims into revealing credentials, private OTP tokens, or downloading weaponized attachments disguised as trusted organizations.',
+    threatVector: 'SOCIAL_ENGINEERING',
+    defenseGuidance:
+      'Never click unsolicited urgent verification links. Verify communications out-of-band by navigating to the official website directly.',
+    keywords: ['phishing', 'social engineering', 'credential harvesting', 'smishing', 'vishing', 'scam', 'fraud'],
+  },
+  {
+    id: 'KB-009',
+    topic: 'ransomware_malware',
+    title: 'Ransomware & Malware Defense',
+    summary:
+      'Ransomware covertly encrypts critical personal or enterprise data demanding cryptocurrency ransoms. Infection vectors include malicious email attachments and drive-by downloads.',
+    threatVector: 'HOST_COMPROMISE',
+    defenseGuidance:
+      'Maintain immutable 3-2-1 offline backups, keep operating systems patched, and avoid running unknown executables.',
+    keywords: ['ransomware', 'malware', 'virus', 'trojan', 'payload', 'extortion', 'spyware'],
+  },
+  {
+    id: 'KB-010',
+    topic: 'zero_trust',
+    title: 'Zero-Trust Architecture & Continuous Verification',
+    summary:
+      'Zero-Trust operates on the principle: "Never Trust, Always Verify". Every connection request is strictly authenticated and cryptographically validated regardless of network perimeter.',
+    threatVector: 'SECURITY_ARCHITECTURE',
+    defenseGuidance:
+      'Enforce least-privilege microsegmentation, end-to-end encryption for all data in transit, and multi-factor authentication across all endpoints.',
+    keywords: ['zero trust', 'zero-trust', 'least privilege', 'verification', 'architecture'],
+  },
 ];
 
-const DEFAULT_API_BASE_URL = 'http://localhost:5000/v1';
+const CANDIDATE_API_BASE_URLS = [
+  'http://127.0.0.1:5000/v1',
+  'http://localhost:5000/v1',
+  'http://10.61.206.148:5000/v1',
+];
 
 export class ApiClient {
-  private static baseUrl = DEFAULT_API_BASE_URL;
+  private static baseUrl = 'http://127.0.0.1:5000/v1';
 
   static setBaseUrl(url: string) {
     this.baseUrl = url;
@@ -87,10 +146,33 @@ export class ApiClient {
     return this.baseUrl;
   }
 
+  private static async requestWithFallback(endpoint: string, options?: RequestInit): Promise<Response> {
+    const urls = [this.baseUrl, ...CANDIDATE_API_BASE_URLS.filter((u) => u !== this.baseUrl)];
+
+    for (const url of urls) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3500);
+        const res = await fetch(`${url}${endpoint}`, {
+          ...options,
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        if (res.ok) {
+          this.baseUrl = url;
+          return res;
+        }
+      } catch {
+        // Try next candidate URL
+      }
+    }
+    throw new Error(`Failed to reach API gateway at ${endpoint}`);
+  }
+
   static async checkHealth(): Promise<{ online: boolean; latencyMs: number }> {
     const start = Date.now();
     try {
-      const response = await fetch(`${this.baseUrl}/health`, {
+      const response = await this.requestWithFallback('/health', {
         method: 'GET',
       });
       return {
@@ -104,7 +186,7 @@ export class ApiClient {
 
   static async inspectUrl(url: string): Promise<ThreatInspectionResponse> {
     try {
-      const response = await fetch(`${this.baseUrl}/threat/inspect`, {
+      const response = await this.requestWithFallback('/threat/inspect', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -138,7 +220,7 @@ export class ApiClient {
 
   static async scanRealWifi(): Promise<any[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/threat/wifi/scan`, {
+      const response = await this.requestWithFallback('/threat/wifi/scan', {
         method: 'GET',
       });
       if (!response.ok) return [];
@@ -158,7 +240,7 @@ export class ApiClient {
     const flags = params.detectedFlags || [];
 
     try {
-      const response = await fetch(`${this.baseUrl}/threat/explain`, {
+      const response = await this.requestWithFallback('/threat/explain', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -178,28 +260,55 @@ export class ApiClient {
     }
 
     // Offline Grounded RAG synthesis
-    const queryLower = params.query.toLowerCase();
-    const matched = OFFLINE_KNOWLEDGE_BASE.filter((entry) => {
-      const matchTopic = queryLower.includes(entry.topic.toLowerCase());
-      const matchKeyword = entry.keywords.some((kw) => queryLower.includes(kw.toLowerCase()));
-      const matchFlags = flags.some(
-        (f) =>
-          entry.threatVector.toLowerCase().includes(f.toLowerCase()) ||
-          entry.keywords.some((kw) => f.toLowerCase().includes(kw))
-      );
-      return matchTopic || matchKeyword || matchFlags;
+    const queryLower = params.query.toLowerCase().trim();
+    const queryTokens = queryLower.split(/\s+/).filter((t) => t.length >= 3);
+
+    const scored = OFFLINE_KNOWLEDGE_BASE.map((entry) => {
+      let score = 0;
+      const topicLower = entry.topic.toLowerCase();
+      const titleLower = entry.title.toLowerCase();
+      const summaryLower = entry.summary.toLowerCase();
+
+      if (queryLower.includes(topicLower) || topicLower.includes(queryLower)) score += 20;
+      if (titleLower.includes(queryLower)) score += 15;
+
+      for (const token of queryTokens) {
+        if (topicLower.includes(token)) score += 8;
+        if (titleLower.includes(token)) score += 6;
+        if (summaryLower.includes(token)) score += 3;
+        for (const kw of entry.keywords) {
+          if (kw.toLowerCase().includes(token) || token.includes(kw.toLowerCase())) {
+            score += 7;
+          }
+        }
+      }
+
+      for (const flag of flags) {
+        const flagLower = flag.toLowerCase();
+        if (entry.threatVector.toLowerCase().includes(flagLower)) score += 10;
+        for (const kw of entry.keywords) {
+          if (flagLower.includes(kw.toLowerCase())) score += 5;
+        }
+      }
+
+      return { entry, score };
     });
 
-    const primaryDoc = matched[0] || OFFLINE_KNOWLEDGE_BASE[0];
-    const citations = matched.map((d) => `[${d.id}] ${d.title}`);
+    scored.sort((a, b) => b.score - a.score);
+    const hasMatch = scored.length > 0 && scored[0].score > 0;
+    const primaryDoc = hasMatch ? scored[0].entry : OFFLINE_KNOWLEDGE_BASE[0];
+    const topMatches = scored.filter((s) => s.score > 0).slice(0, 3).map((s) => s.entry);
+    const citations = (topMatches.length > 0 ? topMatches : [primaryDoc]).map((d) => `[${d.id}] ${d.title}`);
 
     let explanationText = '';
     if (verdict === 'MALICIOUS') {
       explanationText = `SECURITY ALERT: This threat was verified as MALICIOUS based on deterministic indicators. ${primaryDoc.summary}`;
     } else if (verdict === 'SUSPICIOUS') {
       explanationText = `CAUTION ADVISED: Target displays SUSPICIOUS anomalies. ${primaryDoc.summary}`;
-    } else {
+    } else if (verdict === 'SAFE') {
       explanationText = `VERIFIED SAFE: No active indicators of compromise were detected. ${primaryDoc.summary}`;
+    } else {
+      explanationText = `CYBER COMPANION INTEL: ${primaryDoc.summary}`;
     }
 
     return {
@@ -210,7 +319,7 @@ export class ApiClient {
         primaryDoc.defenseGuidance,
         'Maintain device encryption and keep your operating system updated.',
       ],
-      groundedInKnowledgeBase: matched.length > 0,
+      groundedInKnowledgeBase: hasMatch,
     };
   }
 }
