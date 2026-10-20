@@ -22,14 +22,6 @@ interface QrScannerModalProps {
   isDark?: boolean;
 }
 
-const SAMPLE_QR_PAYLOADS = [
-  { label: 'Wi-Fi Config', value: 'WIFI:S:Starbucks_Guest_Open;T:nopass;P:;;' },
-  { label: 'Phishing URL', value: 'https://secure-appleid-verify.cc/login' },
-  { label: 'Crypto Address', value: 'bitcoin:1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa?amount=0.05' },
-  { label: 'Malicious SMS Intent', value: 'smsto:+19005550199:SEND_TOKEN_AUTH' },
-  { label: 'Verified Safe', value: 'https://www.github.com' },
-];
-
 export const QrScannerModal: React.FC<QrScannerModalProps> = ({
   visible,
   onClose,
@@ -148,6 +140,22 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
     outputRange: [-90, 90],
   });
 
+  const getFormatBadge = (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return null;
+    if (trimmed.startsWith('WIFI:') || trimmed.startsWith('wifi:'))
+      return { label: 'Wi-Fi Network Configuration', icon: '📶', color: emerald };
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://'))
+      return { label: 'Web URL Destination', icon: '🌐', color: teal };
+    if (trimmed.startsWith('upi://') || trimmed.startsWith('bitcoin:') || trimmed.startsWith('ethereum:'))
+      return { label: 'Payment / Financial Intent', icon: '💳', color: amber };
+    if (trimmed.startsWith('smsto:') || trimmed.startsWith('tel:') || trimmed.startsWith('mailto:'))
+      return { label: 'Communication Intent', icon: '💬', color: amber };
+    return { label: 'Data / Text Payload', icon: '📝', color: subtextColor };
+  };
+
+  const detectedBadge = getFormatBadge(qrInput);
+
   return (
     <Modal
       visible={visible}
@@ -179,17 +187,19 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
               </View>
             ) : !permission.granted ? (
               <View style={styles.permissionBox}>
-                <Text style={styles.lockIcon}>🛡️</Text>
-                <Text style={[styles.permTitle, { color: '#FFFFFF' }]}>Camera Access Required</Text>
+                <View style={[styles.shieldIconRing, { borderColor: `${teal}40`, backgroundColor: `${teal}15` }]}>
+                  <Text style={styles.lockIcon}>🛡️</Text>
+                </View>
+                <Text style={[styles.permTitle, { color: '#FFFFFF' }]}>Hardware Camera Scanner</Text>
                 <Text style={[styles.permDesc, { color: '#94A3B8' }]}>
-                  Enable camera permissions to scan real-world QR codes with physical optical tracking.
+                  Enable camera access to scan physical QR codes in real-time with zero-trust optical sandboxing.
                 </Text>
                 <TouchableOpacity
                   style={[styles.grantBtn, { backgroundColor: teal }]}
                   onPress={requestPermission}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.grantBtnText}>🔓 Grant Camera Access</Text>
+                  <Text style={styles.grantBtnText}>🔓 Enable Camera Scanner</Text>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -276,21 +286,29 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
             </View>
           )}
 
-          {/* Manual Input Box (Universal fallback for emulators or manual entry) */}
+          {/* Manual Input Box (Universal fallback for manual or clipboard entry) */}
           <View style={[styles.inputCard, { backgroundColor: cardBg, borderColor: borderCol }]}>
-            <Text style={[styles.inputHeader, { color: subtextColor }]}>
-              MANUAL / CLIPBOARD PAYLOAD INPUT
-            </Text>
+            <View style={styles.inputHeaderRow}>
+              <Text style={[styles.inputHeader, { color: subtextColor }]}>
+                MANUAL / CLIPBOARD PAYLOAD INPUT
+              </Text>
+              {qrInput.length > 0 && (
+                <TouchableOpacity onPress={() => setQrInput('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={[styles.clearBtnText, { color: teal }]}>Clear ✕</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
             <TextInput
               style={[
                 styles.input,
                 {
                   backgroundColor: isDark ? '#090D16' : '#FFFFFF',
-                  borderColor: borderCol,
+                  borderColor: detectedBadge ? detectedBadge.color : borderCol,
                   color: textColor,
                 },
               ]}
-              placeholder="Paste raw QR data or URL here..."
+              placeholder="Paste raw QR data or URL to analyze..."
               placeholderTextColor="#64748B"
               value={qrInput}
               onChangeText={setQrInput}
@@ -298,32 +316,30 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
               autoCorrect={false}
             />
 
+            {detectedBadge && (
+              <View style={[styles.formatBadgeRow, { backgroundColor: `${detectedBadge.color}15`, borderColor: detectedBadge.color }]}>
+                <Text style={styles.formatBadgeIcon}>{detectedBadge.icon}</Text>
+                <Text style={[styles.formatBadgeText, { color: detectedBadge.color }]}>
+                  {detectedBadge.label}
+                </Text>
+              </View>
+            )}
+
             <TouchableOpacity
-              style={[styles.decodeBtn, { backgroundColor: teal }]}
+              style={[
+                styles.decodeBtn,
+                {
+                  backgroundColor: qrInput.trim() ? teal : isDark ? '#334155' : '#CBD5E1',
+                },
+              ]}
               onPress={() => handleDecode(qrInput)}
+              disabled={!qrInput.trim()}
               activeOpacity={0.85}
             >
-              <Text style={styles.decodeBtnText}>⚡ Decode in Isolated Sandbox</Text>
+              <Text style={[styles.decodeBtnText, { color: qrInput.trim() ? '#FFFFFF' : '#94A3B8' }]}>
+                ⚡ Decode in Isolated Sandbox
+              </Text>
             </TouchableOpacity>
-          </View>
-
-          {/* Preset Test Samples */}
-          <View style={styles.samplesSection}>
-            <Text style={[styles.samplesLabel, { color: subtextColor }]}>QUICK TEST VECTORS:</Text>
-            <View style={styles.chipsRow}>
-              {SAMPLE_QR_PAYLOADS.map((sample, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={[styles.chip, { backgroundColor: cardBg, borderColor: borderCol }]}
-                  onPress={() => {
-                    setQrInput(sample.value);
-                    handleDecode(sample.value);
-                  }}
-                >
-                  <Text style={[styles.chipText, { color: teal }]}>{sample.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
           </View>
 
           {/* Analysis Sheet */}
@@ -389,7 +405,11 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                       },
                     ]}
                   >
-                    {analysis.riskLevel}
+                    {analysis.riskLevel === 'CRITICAL'
+                      ? '🚨 CRITICAL THREAT'
+                      : analysis.riskLevel === 'WARNING'
+                      ? '⚠️ CAUTION'
+                      : '✅ VERIFIED SAFE'}
                   </Text>
                 </View>
               </View>
@@ -416,7 +436,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                 {analysis.metadata && (
                   <>
                     <Text style={[styles.detailKey, { color: subtextColor, marginTop: 8 }]}>
-                      Parsed Fields:
+                      Extracted Metadata:
                     </Text>
                     <Text style={[styles.detailVal, { color: textColor }]}>
                       {JSON.stringify(analysis.metadata, null, 2)}
@@ -432,7 +452,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                   onPress={handleRescan}
                   activeOpacity={0.8}
                 >
-                  <Text style={[styles.actionBtnText, { color: teal }]}>🔄 Scan Another QR</Text>
+                  <Text style={[styles.actionBtnText, { color: teal }]}>🔄 Scan Another Code</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -465,6 +485,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
             }
             detectedFlags={[analysis.type, analysis.riskReason]}
             isDark={isDark}
+            asOverlay={true}
           />
         )}
       </SafeAreaView>
@@ -531,9 +552,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 24,
   },
+  shieldIconRing: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
   lockIcon: {
     fontSize: 32,
-    marginBottom: 8,
   },
   permTitle: {
     fontSize: 16,
@@ -673,19 +702,45 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 14,
   },
+  inputHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   inputHeader: {
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.6,
-    marginBottom: 6,
+  },
+  clearBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
   },
   input: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 13,
+    marginBottom: 10,
+  },
+  formatBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
     marginBottom: 12,
+    gap: 6,
+  },
+  formatBadgeIcon: {
+    fontSize: 14,
+  },
+  formatBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   decodeBtn: {
     paddingVertical: 13,
@@ -694,33 +749,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   decodeBtnText: {
-    color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '800',
-  },
-  samplesSection: {
-    marginBottom: 16,
-  },
-  samplesLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-    marginBottom: 8,
-  },
-  chipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  chipText: {
-    fontSize: 11,
-    fontWeight: '700',
   },
   analysisCard: {
     borderRadius: 18,

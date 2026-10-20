@@ -18,6 +18,7 @@ interface AiExplainerModalProps {
   immutableVerdict?: 'SAFE' | 'SUSPICIOUS' | 'MALICIOUS' | 'UNKNOWN';
   detectedFlags?: string[];
   isDark?: boolean;
+  asOverlay?: boolean;
 }
 
 export const AiExplainerModal: React.FC<AiExplainerModalProps> = ({
@@ -27,6 +28,7 @@ export const AiExplainerModal: React.FC<AiExplainerModalProps> = ({
   immutableVerdict = 'UNKNOWN',
   detectedFlags = [],
   isDark = true,
+  asOverlay = false,
 }) => {
   const [loading, setLoading] = useState(false);
   const [explanation, setExplanation] = useState<ExplainerResponse | null>(null);
@@ -75,35 +77,29 @@ export const AiExplainerModal: React.FC<AiExplainerModalProps> = ({
       ? emerald
       : teal;
 
-  return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent={false}
-      onRequestClose={onClose}
-    >
-      <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>
-        {/* Header */}
-        <View style={[styles.header, { borderBottomColor: borderCol }]}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.assistantIcon}>🤖</Text>
-            <View>
-              <Text style={[styles.headerTitle, { color: textColor }]}>
-                AI Threat Explainer
-              </Text>
-              <Text style={[styles.headerSub, { color: teal }]}>
-                Curated RAG · Deterministic Reasoning
-              </Text>
-            </View>
+  const content = (
+    <SafeAreaView style={[styles.container, { backgroundColor: bg, flex: 1 }]}>
+      {/* Header */}
+      <View style={[styles.header, { borderBottomColor: borderCol }]}>
+        <View style={styles.headerLeft}>
+          <Text style={styles.assistantIcon}>🤖</Text>
+          <View>
+            <Text style={[styles.headerTitle, { color: textColor }]}>
+              AI Threat Explainer
+            </Text>
+            <Text style={[styles.headerSub, { color: teal }]}>
+              Curated RAG · Deterministic Reasoning
+            </Text>
           </View>
-          <TouchableOpacity
-            style={[styles.closeBtn, { backgroundColor: cardBg, borderColor: borderCol }]}
-            onPress={onClose}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.closeBtnText, { color: textColor }]}>✕</Text>
-          </TouchableOpacity>
         </View>
+        <TouchableOpacity
+          style={[styles.closeBtn, { backgroundColor: cardBg, borderColor: borderCol }]}
+          onPress={onClose}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.closeBtnText, { color: textColor }]}>✕</Text>
+        </TouchableOpacity>
+      </View>
 
         <ScrollView
           style={styles.scroll}
@@ -213,6 +209,25 @@ export const AiExplainerModal: React.FC<AiExplainerModalProps> = ({
           </TouchableOpacity>
         </View>
       </SafeAreaView>
+  );
+
+  if (asOverlay) {
+    if (!visible) return null;
+    return (
+      <View style={[StyleSheet.absoluteFillObject, { backgroundColor: bg, zIndex: 999 }]}>
+        {content}
+      </View>
+    );
+  }
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent={false}
+      onRequestClose={onClose}
+    >
+      {content}
     </Modal>
   );
 };

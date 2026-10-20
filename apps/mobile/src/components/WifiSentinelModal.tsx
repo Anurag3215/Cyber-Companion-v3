@@ -687,6 +687,7 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
               ...(selectedHotspot.predictedCrimes || []),
             ]}
             isDark={isDark}
+            asOverlay={true}
           />
         )}
       </SafeAreaView>

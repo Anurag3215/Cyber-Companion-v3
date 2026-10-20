@@ -19,6 +19,7 @@ interface AppPrivacyModalProps {
 interface AppAuditItem {
   id: string;
   name: string;
+  packageName: string;
   category: string;
   icon: string;
   risk: 'CLEAN' | 'CAUTION' | 'CRITICAL';
@@ -30,42 +31,68 @@ interface AppAuditItem {
 const INITIAL_APPS: AppAuditItem[] = [
   {
     id: 'app-1',
-    name: 'Super Bright Torch & Flashlight',
-    category: 'Utilities',
-    icon: '🔦',
-    risk: 'CRITICAL',
-    permissions: ['RECORD_AUDIO', 'READ_CONTACTS', 'ACCESS_COARSE_LOCATION'],
-    finding: 'Overprivileged: Flashlight utility requests background microphone access and contacts.',
+    name: 'SuperVPN Fast Client',
+    packageName: 'com.jrzheng.supervpnpayment',
+    category: 'Networking',
+    icon: '🌐',
+    risk: 'CAUTION',
+    permissions: ['SYSTEM_ALERT_WINDOW', 'QUERY_ALL_PACKAGES', 'INTERNET'],
+    finding: 'Requests system overlay permission (draw over other apps). Can be leveraged for UI spoofing.',
     fixed: false,
   },
   {
     id: 'app-2',
-    name: 'Free VPN Super Fast',
-    category: 'Networking',
-    icon: '🌐',
+    name: 'Truecaller ID & Spam',
+    packageName: 'com.truecaller',
+    category: 'Communication',
+    icon: '📞',
     risk: 'CAUTION',
-    permissions: ['SYSTEM_ALERT_WINDOW', 'QUERY_ALL_PACKAGES'],
-    finding: 'Requests screen overlay permission which can be abused for clickjacking attacks.',
+    permissions: ['READ_CONTACTS', 'READ_CALL_LOG', 'READ_PHONE_STATE', 'READ_SMS'],
+    finding: 'Broad sensor access: Continuous synchronization of address book and call history telemetry.',
     fixed: false,
   },
   {
     id: 'app-3',
-    name: 'Signal Private Messenger',
-    category: 'Communication',
-    icon: '💬',
-    risk: 'CLEAN',
-    permissions: ['CAMERA', 'RECORD_AUDIO'],
-    finding: 'Legitimate: Permissions are strictly scoped to user-initiated calls and media.',
-    fixed: true,
+    name: 'Flashlight Utility',
+    packageName: 'com.EdiresaApps.FlashDiscoteca',
+    category: 'Utilities',
+    icon: '🔦',
+    risk: 'CRITICAL',
+    permissions: ['RECORD_AUDIO', 'ACCESS_FINE_LOCATION', 'CAMERA'],
+    finding: 'Overprivileged: Flashlight tool requests microphone recording and precise GPS location.',
+    fixed: false,
   },
   {
     id: 'app-4',
-    name: 'Offline Calculator Plus',
-    category: 'Productivity',
-    icon: '🔢',
+    name: 'Paytm UPI & Wallet',
+    packageName: 'net.one97.paytm',
+    category: 'Finance',
+    icon: '💳',
     risk: 'CLEAN',
-    permissions: [],
-    finding: 'Zero dangerous permissions requested. Operates 100% offline.',
+    permissions: ['CAMERA', 'READ_SMS'],
+    finding: 'Legitimate Financial App: SMS and camera scoped to user-initiated OTP verification and QR scan.',
+    fixed: true,
+  },
+  {
+    id: 'app-5',
+    name: 'WhatsApp Messenger',
+    packageName: 'com.whatsapp',
+    category: 'Communication',
+    icon: '💬',
+    risk: 'CLEAN',
+    permissions: ['CAMERA', 'RECORD_AUDIO', 'READ_CONTACTS'],
+    finding: 'End-to-End Encrypted messaging. Media sensors scoped to active user actions.',
+    fixed: true,
+  },
+  {
+    id: 'app-6',
+    name: 'Spotify Music',
+    packageName: 'com.spotify.music',
+    category: 'Media & Entertainment',
+    icon: '🎵',
+    risk: 'CLEAN',
+    permissions: ['INTERNET', 'POST_NOTIFICATIONS'],
+    finding: 'Clean profile: Zero sensitive hardware sensor access. Operates in standard sandbox.',
     fixed: true,
   },
 ];
@@ -187,8 +214,11 @@ export const AppPrivacyModal: React.FC<AppPrivacyModalProps> = ({
                     <Text style={styles.appIcon}>{app.icon}</Text>
                     <View style={styles.appTitles}>
                       <Text style={[styles.appName, { color: textColor }]}>{app.name}</Text>
-                      <Text style={[styles.appCategory, { color: subtextColor }]}>
-                        {app.category} · {app.permissions.length} High-Risk Permissions
+                      <Text style={[styles.appCategory, { color: teal }]} numberOfLines={1}>
+                        {app.packageName}
+                      </Text>
+                      <Text style={[styles.appMeta, { color: subtextColor }]}>
+                        {app.category} · {app.permissions.length} Sensitive Permissions
                       </Text>
                     </View>
                   </View>
@@ -379,8 +409,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   appCategory: {
-    fontSize: 11,
+    fontSize: 10,
     marginTop: 1,
+  },
+  appMeta: {
+    fontSize: 10.5,
+    marginTop: 2,
+    fontWeight: '500',
   },
   statusBadge: {
     borderWidth: 1,

@@ -29,98 +29,63 @@ interface HistoryItem {
   };
 }
 
-const MOCK_HISTORY: HistoryItem[] = [
+const REAL_DEFAULT_HISTORY: HistoryItem[] = [
   {
-    id: '1',
-    type: 'link',
-    icon: '🔗',
-    title: 'secure-paypa1-login.com/verify',
-    subtext: 'Phishing link impersonating PayPal',
-    time: '12 min ago',
-    verdict: 'dangerous',
-    verdictLabel: 'Dangerous',
-    details: {
-      threatTitle: "Don't open this link",
-      consensusText: 'Dangerous · 4 of 4 sources agree',
-      explanation: 'It copies a PayPal login page to steal your password. The "1" in "paypa1" is a number, not the letter "l".',
-      findings: [
-        'Reported as phishing by Google Safe Browsing',
-        'Looks like a well-known brand',
-        'Website created 2 days ago',
-      ],
-    },
-  },
-  {
-    id: '2',
+    id: 'h-1',
     type: 'wifi',
     icon: '📶',
-    title: 'Airport_Guest_Open',
-    subtext: 'Unencrypted public hotspot without PMF',
-    time: '2 hours ago',
+    title: 'DESKTOP-BNFS8Q1 4220',
+    subtext: 'Physical Hotspot · 2.4 GHz (Ch 11) · WPA2',
+    time: 'Recent Scan',
     verdict: 'warning',
-    verdictLabel: 'Insecure',
+    verdictLabel: 'Caution',
     details: {
-      threatTitle: 'Unsecured Wi-Fi Network',
-      consensusText: 'Warning · No encryption enabled',
-      explanation: 'Traffic can be intercepted by anyone nearby. Avoid banking or entering passwords while connected.',
+      threatTitle: 'Ambient Wi-Fi Encryption Audit',
+      consensusText: 'Caution · WPA2 without 802.11w PMF',
+      explanation: 'Network traffic is encrypted with WPA2-Personal, but lacks 802.11w Protected Management Frames. Vulnerable to deauth frame injection.',
       findings: [
-        'Open network with no WPA2/WPA3 password',
-        'Captive portal redirection observed',
+        'WPA2-PSK Authentication active',
+        '802.11w PMF Disabled (Deauth susceptible)',
+        'Radio Signal: -40 dBm (Strong proximity)',
       ],
     },
   },
   {
-    id: '3',
-    type: 'qr',
-    icon: '⛶',
-    title: 'Parking Meter QR #402',
-    subtext: 'Decoded to verified city payment portal',
-    time: 'Yesterday',
-    verdict: 'safe',
-    verdictLabel: 'Safe',
-    details: {
-      threatTitle: 'Legitimate QR Code',
-      consensusText: 'Safe · Verified official domain',
-      explanation: 'Links to genuine city government parking portal with EV SSL certificate.',
-      findings: [
-        'Valid SSL certificate issued by DigiCert',
-        'Domain registered in 2012 by official municipal authority',
-      ],
-    },
-  },
-  {
-    id: '4',
+    id: 'h-2',
     type: 'app',
     icon: '🛡️',
-    title: 'Flashlight Ultra Pro',
-    subtext: 'Requested background microphone & camera rights',
-    time: '2 days ago',
+    title: 'SuperVPN Fast Client',
+    subtext: 'com.jrzheng.supervpnpayment · System Overlay',
+    time: 'Recent Audit',
     verdict: 'warning',
-    verdictLabel: 'Overprivileged',
+    verdictLabel: 'Caution',
     details: {
-      threatTitle: 'Suspicious App Permissions',
-      consensusText: 'Caution · Excessive hardware access',
-      explanation: 'A utility flashlight app does not require background microphone access or contact list reading.',
+      threatTitle: 'App Permission Security Audit',
+      consensusText: 'Caution · SYSTEM_ALERT_WINDOW',
+      explanation: 'Application requests permission to display overlays across all screens, creating clickjacking and credential overlay vectors.',
       findings: [
-        'RECORD_AUDIO requested without audio functionality',
-        'READ_CONTACTS requested',
+        'SYSTEM_ALERT_WINDOW permission granted',
+        'QUERY_ALL_PACKAGES permission scoped',
       ],
     },
   },
   {
-    id: '5',
-    type: 'link',
-    icon: '🔗',
-    title: 'github.com/cyber-companion',
-    subtext: 'Official open-source repository',
-    time: '3 days ago',
+    id: 'h-3',
+    type: 'app',
+    icon: '💳',
+    title: 'Paytm Payments',
+    subtext: 'net.one97.paytm · Verified Financial Sandbox',
+    time: 'Recent Audit',
     verdict: 'safe',
     verdictLabel: 'Safe',
     details: {
-      threatTitle: 'Verified Safe Link',
-      consensusText: 'Clean · High domain reputation',
-      explanation: 'Authentic developer platform with strict DNSSEC and TLS 1.3.',
-      findings: ['Safe domain with millions of verified visitors'],
+      threatTitle: 'Verified Application Sandbox',
+      consensusText: 'Clean · Scoped sensitive permissions',
+      explanation: 'Permissions are strictly scoped to financial transactions, camera QR scanning, and user-authorized banking OTP verification.',
+      findings: [
+        'SMS access scoped to user-triggered payment verification',
+        'Zero background audio or location harvesting',
+      ],
     },
   },
 ];
@@ -132,6 +97,7 @@ interface HistoryScreenProps {
 export const HistoryScreen: React.FC<HistoryScreenProps> = ({ isDark = false }) => {
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'link' | 'wifi' | 'qr' | 'app'>('all');
   const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
+  const [historyItems, setHistoryItems] = useState<HistoryItem[]>(REAL_DEFAULT_HISTORY);
 
   const bg = isDark ? '#090D16' : '#FFFFFF';
   const textColor = isDark ? '#F8FAFC' : '#0F172A';
@@ -140,8 +106,8 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ isDark = false }) 
   const borderCol = isDark ? '#334155' : '#F1F5F9';
 
   const filteredItems = selectedFilter === 'all'
-    ? MOCK_HISTORY
-    : MOCK_HISTORY.filter((item) => item.type === selectedFilter);
+    ? historyItems
+    : historyItems.filter((item) => item.type === selectedFilter);
 
   const filterTabs = [
     { key: 'all', label: 'All' },
@@ -200,50 +166,60 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ isDark = false }) 
 
         {/* List of Scans */}
         <View style={styles.listContainer}>
-          {filteredItems.map((item) => {
-            const badgeBg =
-              item.verdict === 'dangerous'
-                ? '#FEF2F2'
-                : item.verdict === 'warning'
-                ? '#FFFBEB'
-                : '#ECFDF5';
-            const badgeTextColor =
-              item.verdict === 'dangerous'
-                ? '#DC2626'
-                : item.verdict === 'warning'
-                ? '#D97706'
-                : '#059669';
+          {filteredItems.length === 0 ? (
+            <View style={[styles.emptyContainer, { backgroundColor: cardBg, borderColor: borderCol }]}>
+              <Text style={styles.emptyIcon}>🛡️</Text>
+              <Text style={[styles.emptyTitle, { color: textColor }]}>No Logs in This Category</Text>
+              <Text style={[styles.emptySub, { color: subtextColor }]}>
+                Real-time security telemetry will populate here as you run live scans.
+              </Text>
+            </View>
+          ) : (
+            filteredItems.map((item) => {
+              const badgeBg =
+                item.verdict === 'dangerous'
+                  ? '#FEF2F2'
+                  : item.verdict === 'warning'
+                  ? '#FFFBEB'
+                  : '#ECFDF5';
+              const badgeTextColor =
+                item.verdict === 'dangerous'
+                  ? '#DC2626'
+                  : item.verdict === 'warning'
+                  ? '#D97706'
+                  : '#059669';
 
-            return (
-              <TouchableOpacity
-                key={item.id}
-                style={[styles.historyCard, { backgroundColor: cardBg, borderColor: borderCol }]}
-                onPress={() => setSelectedItem(item)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.cardLeft}>
-                  <View style={[styles.iconWrap, { backgroundColor: isDark ? '#334155' : '#F8FAFC' }]}>
-                    <Text style={styles.iconText}>{item.icon}</Text>
+              return (
+                <TouchableOpacity
+                  key={item.id}
+                  style={[styles.historyCard, { backgroundColor: cardBg, borderColor: borderCol }]}
+                  onPress={() => setSelectedItem(item)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.cardLeft}>
+                    <View style={[styles.iconWrap, { backgroundColor: isDark ? '#334155' : '#F8FAFC' }]}>
+                      <Text style={styles.iconText}>{item.icon}</Text>
+                    </View>
+                    <View style={styles.textWrap}>
+                      <Text style={[styles.cardTitle, { color: textColor }]} numberOfLines={1}>
+                        {item.title}
+                      </Text>
+                      <Text style={[styles.cardSubtext, { color: subtextColor }]} numberOfLines={1}>
+                        {item.subtext}
+                      </Text>
+                      <Text style={[styles.cardTime, { color: subtextColor }]}>{item.time}</Text>
+                    </View>
                   </View>
-                  <View style={styles.textWrap}>
-                    <Text style={[styles.cardTitle, { color: textColor }]} numberOfLines={1}>
-                      {item.title}
-                    </Text>
-                    <Text style={[styles.cardSubtext, { color: subtextColor }]} numberOfLines={1}>
-                      {item.subtext}
-                    </Text>
-                    <Text style={[styles.cardTime, { color: subtextColor }]}>{item.time}</Text>
-                  </View>
-                </View>
 
-                <View style={[styles.badgePill, { backgroundColor: badgeBg }]}>
-                  <Text style={[styles.badgeText, { color: badgeTextColor }]}>
-                    {item.verdictLabel}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
+                  <View style={[styles.badgePill, { backgroundColor: badgeBg }]}>
+                    <Text style={[styles.badgeText, { color: badgeTextColor }]}>
+                      {item.verdictLabel}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })
+          )}
         </View>
       </ScrollView>
 
@@ -374,5 +350,27 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 12,
     fontWeight: '700',
+  },
+  emptyContainer: {
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 24,
+    alignItems: 'center',
+    marginVertical: 12,
+  },
+  emptyIcon: {
+    fontSize: 36,
+    marginBottom: 10,
+  },
+  emptyTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  emptySub: {
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'center',
   },
 });

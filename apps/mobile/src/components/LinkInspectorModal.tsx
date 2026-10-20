@@ -28,19 +28,12 @@ interface ScanResult {
   recommendation: string;
 }
 
-const SAMPLE_URLS = [
-  { label: 'Verified Safe', url: 'https://google.com' },
-  { label: 'Phishing Imitator', url: 'https://secure-paypa1-login.com/verify' },
-  { label: 'SSRF Attack Vector', url: 'http://192.168.1.1/router-login' },
-  { label: 'Suspicious TLD', url: 'https://free-crypto-airdrop.xyz' },
-];
-
 export const LinkInspectorModal: React.FC<LinkInspectorModalProps> = ({
   visible,
   onClose,
   isDark = true,
 }) => {
-  const [urlInput, setUrlInput] = useState('https://secure-paypa1-login.com/verify');
+  const [urlInput, setUrlInput] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   const [result, setResult] = useState<ScanResult | null>(null);
   const [showAiModal, setShowAiModal] = useState(false);
@@ -184,9 +177,24 @@ export const LinkInspectorModal: React.FC<LinkInspectorModalProps> = ({
 
           {/* Input Box */}
           <View style={[styles.inputCard, { backgroundColor: cardBg, borderColor: borderCol }]}>
-            <Text style={[styles.inputHeader, { color: subtextColor }]}>TARGET URL TO INSPECT</Text>
+            <View style={styles.inputHeaderRow}>
+              <Text style={[styles.inputHeader, { color: subtextColor }]}>TARGET URL TO INSPECT</Text>
+              {urlInput.length > 0 && (
+                <TouchableOpacity onPress={() => setUrlInput('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={[styles.clearBtnText, { color: teal }]}>Clear ✕</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
             <TextInput
-              style={[styles.input, { backgroundColor: isDark ? '#090D16' : '#FFFFFF', borderColor: borderCol, color: textColor }]}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: isDark ? '#090D16' : '#FFFFFF',
+                  borderColor: borderCol,
+                  color: textColor,
+                },
+              ]}
               placeholder="https://example.com/login"
               placeholderTextColor="#64748B"
               value={urlInput}
@@ -195,38 +203,81 @@ export const LinkInspectorModal: React.FC<LinkInspectorModalProps> = ({
               autoCorrect={false}
             />
 
+            {urlInput.trim().length > 0 && (
+              <View
+                style={[
+                  styles.protocolBadge,
+                  {
+                    backgroundColor: urlInput.toLowerCase().startsWith('https://')
+                      ? `${emerald}15`
+                      : urlInput.toLowerCase().startsWith('http://')
+                      ? `${amber}15`
+                      : `${teal}15`,
+                    borderColor: urlInput.toLowerCase().startsWith('https://')
+                      ? emerald
+                      : urlInput.toLowerCase().startsWith('http://')
+                      ? amber
+                      : teal,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.protocolBadgeText,
+                    {
+                      color: urlInput.toLowerCase().startsWith('https://')
+                        ? emerald
+                        : urlInput.toLowerCase().startsWith('http://')
+                        ? amber
+                        : teal,
+                    },
+                  ]}
+                >
+                  {urlInput.toLowerCase().startsWith('https://')
+                    ? '🔒 TLS/SSL Encrypted (HTTPS)'
+                    : urlInput.toLowerCase().startsWith('http://')
+                    ? '⚠️ Unencrypted Cleartext (HTTP)'
+                    : '🌐 Web URL'}
+                </Text>
+              </View>
+            )}
+
             <TouchableOpacity
-              style={[styles.scanBtn, { backgroundColor: teal }]}
+              style={[
+                styles.scanBtn,
+                {
+                  backgroundColor: urlInput.trim() ? teal : isDark ? '#334155' : '#CBD5E1',
+                },
+              ]}
               onPress={() => analyzeUrl(urlInput)}
-              disabled={isScanning}
+              disabled={isScanning || !urlInput.trim()}
               activeOpacity={0.85}
             >
               {isScanning ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <Text style={styles.scanBtnText}>⚡ Inspect Threat Vectors</Text>
+                <Text
+                  style={[
+                    styles.scanBtnText,
+                    { color: urlInput.trim() ? '#FFFFFF' : '#94A3B8' },
+                  ]}
+                >
+                  ⚡ Inspect Threat Vectors
+                </Text>
               )}
             </TouchableOpacity>
           </View>
 
-          {/* Quick Test Vectors Chips */}
-          <View style={styles.sampleSection}>
-            <Text style={[styles.sampleLabel, { color: subtextColor }]}>QUICK TEST SAMPLES:</Text>
-            <View style={styles.chipsRow}>
-              {SAMPLE_URLS.map((sample, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={[styles.chip, { backgroundColor: cardBg, borderColor: borderCol }]}
-                  onPress={() => {
-                    setUrlInput(sample.url);
-                    analyzeUrl(sample.url);
-                  }}
-                >
-                  <Text style={[styles.chipText, { color: teal }]}>{sample.label}</Text>
-                </TouchableOpacity>
-              ))}
+          {/* Pre-Inspection Clean State */}
+          {!result && !isScanning && (
+            <View style={[styles.infoCard, { backgroundColor: cardBg, borderColor: borderCol }]}>
+              <Text style={styles.infoIcon}>🛡️</Text>
+              <Text style={[styles.infoTitle, { color: textColor }]}>Zero-Trust Link Verification</Text>
+              <Text style={[styles.infoDesc, { color: subtextColor }]}>
+                Inspects hyperlinks in an isolated sandbox before your browser connects. Protects against homoglyph spoofing, SSRF private IP pivot attacks, and newly minted phishing domains.
+              </Text>
             </View>
-          </View>
+          )}
 
           {/* Result Card */}
           {result && (
@@ -325,6 +376,7 @@ export const LinkInspectorModal: React.FC<LinkInspectorModalProps> = ({
             immutableVerdict={result.verdict}
             detectedFlags={result.indicators}
             isDark={isDark}
+            asOverlay={true}
           />
         )}
       </SafeAreaView>
@@ -373,19 +425,40 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 14,
   },
+  inputHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   inputHeader: {
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.6,
-    marginBottom: 6,
+  },
+  clearBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
   },
   input: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 13,
+    marginBottom: 10,
+  },
+  protocolBadge: {
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
     marginBottom: 12,
+    alignSelf: 'flex-start',
+  },
+  protocolBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
   },
   scanBtn: {
     paddingVertical: 13,
@@ -394,33 +467,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   scanBtnText: {
-    color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '800',
   },
-  sampleSection: {
-    marginBottom: 18,
-  },
-  sampleLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-    marginBottom: 8,
-  },
-  chipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
+  infoCard: {
+    borderRadius: 18,
     borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
+    padding: 18,
+    alignItems: 'center',
+    marginBottom: 20,
   },
-  chipText: {
-    fontSize: 11,
-    fontWeight: '700',
+  infoIcon: {
+    fontSize: 32,
+    marginBottom: 10,
+  },
+  infoTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  infoDesc: {
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'center',
   },
   resultCard: {
     borderRadius: 18,
