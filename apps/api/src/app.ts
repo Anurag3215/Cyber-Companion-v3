@@ -28,6 +28,25 @@ export function createApp(): Express {
   app.use(express.json({ limit: '100kb' }));
   app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
+  // Root & API Discovery Handler
+  app.get(['/', '/v1'], (_req: Request, res: Response) => {
+    res.status(200).json({
+      service: 'Cyber Companion Threat Intelligence Gateway',
+      version: '1.1.0',
+      status: 'healthy',
+      appUiUrl: 'http://localhost:8081',
+      message: 'This is the backend REST API Gateway. Open http://localhost:8081 to access the Cyber Companion interactive App UI.',
+      endpoints: {
+        health: 'GET /v1/health',
+        inspectThreat: 'POST /v1/threat/inspect',
+        assessWifi: 'POST /v1/threat/wifi/assess',
+        aiExplainer: 'POST /v1/threat/explain',
+        dailyTips: 'GET /v1/tips/today',
+        adminAuth: 'POST /v1/admin/login',
+      },
+    });
+  });
+
   // Routes
   app.use('/v1/health', healthRouter);
   app.use('/v1/threat', threatRouter);
