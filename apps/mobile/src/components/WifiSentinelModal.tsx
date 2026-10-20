@@ -17,6 +17,7 @@ import {
   getNearbyHotspotBeacons,
   evaluatePreConnectionHotspot,
 } from '../services/wifiService';
+import { AiExplainerModal } from './AiExplainerModal';
 
 interface WifiSentinelModalProps {
   visible: boolean;
@@ -34,6 +35,7 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
   const [isScanning, setIsScanning] = useState(false);
   const [blockedIds, setBlockedIds] = useState<Record<string, boolean>>({});
   const [approvedIds, setApprovedIds] = useState<Record<string, boolean>>({});
+  const [showAiModal, setShowAiModal] = useState(false);
 
   // Custom Evaluator Test Input State
   const [showCustomForm, setShowCustomForm] = useState(false);
@@ -586,6 +588,25 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
                   </Text>
                 </TouchableOpacity>
               )}
+
+              {/* Interactive AI Threat Explainer Trigger */}
+              <TouchableOpacity
+                style={[
+                  styles.defenseActionBtn,
+                  {
+                    backgroundColor: isDark ? '#134E4A' : '#CCFBF1',
+                    borderColor: teal,
+                    borderWidth: 1,
+                    marginTop: 10,
+                  },
+                ]}
+                onPress={() => setShowAiModal(true)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.defenseActionBtnText, { color: teal }]}>
+                  🤖 Ask AI Explainer: Why is this network dangerous?
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -593,8 +614,30 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
             <Text style={[styles.closeBtnText, { color: subtextColor }]}>Close Sentinel</Text>
           </TouchableOpacity>
         </ScrollView>
+
+        {selectedHotspot && (
+          <AiExplainerModal
+            visible={showAiModal}
+            onClose={() => setShowAiModal(false)}
+            query={`Wi-Fi Hotspot: ${selectedHotspot.ssid} (${selectedHotspot.encryption}) ${selectedHotspot.threatTag}`}
+            immutableVerdict={
+              selectedHotspot.threatVerdict === 'CRITICAL_THREAT'
+                ? 'MALICIOUS'
+                : selectedHotspot.threatVerdict === 'HIGH_RISK'
+                ? 'SUSPICIOUS'
+                : 'SAFE'
+            }
+            detectedFlags={[
+              `Cipher: ${selectedHotspot.encryption}`,
+              selectedHotspot.threatTag,
+              ...(selectedHotspot.predictedCrimes || []),
+            ]}
+            isDark={isDark}
+          />
+        )}
       </SafeAreaView>
     </Modal>
+
   );
 };
 

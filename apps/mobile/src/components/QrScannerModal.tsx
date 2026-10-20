@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { classifyQrPayload } from '../services/qrScannerService';
+import { AiExplainerModal } from './AiExplainerModal';
 
 interface QrScannerModalProps {
   visible: boolean;
@@ -38,6 +39,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
   const [scanned, setScanned] = useState(false);
   const [facing, setFacing] = useState<'back' | 'front'>('back');
   const [torch, setTorch] = useState(false);
+  const [showAiModal, setShowAiModal] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
 
   const [qrInput, setQrInput] = useState('');
@@ -432,6 +434,14 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                 >
                   <Text style={[styles.actionBtnText, { color: teal }]}>🔄 Scan Another QR</Text>
                 </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionBtn, { borderColor: teal, backgroundColor: isDark ? '#134E4A' : '#CCFBF1' }]}
+                  onPress={() => setShowAiModal(true)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.actionBtnText, { color: teal }]}>🤖 Ask AI Explainer</Text>
+                </TouchableOpacity>
               </View>
             </View>
           )}
@@ -440,8 +450,26 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
             <Text style={[styles.closeBtnText, { color: subtextColor }]}>Close Scanner</Text>
           </TouchableOpacity>
         </ScrollView>
+
+        {analysis && (
+          <AiExplainerModal
+            visible={showAiModal}
+            onClose={() => setShowAiModal(false)}
+            query={analysis.sanitizedDestination || analysis.raw}
+            immutableVerdict={
+              analysis.riskLevel === 'CRITICAL'
+                ? 'MALICIOUS'
+                : analysis.riskLevel === 'WARNING'
+                ? 'SUSPICIOUS'
+                : 'SAFE'
+            }
+            detectedFlags={[analysis.type, analysis.riskReason]}
+            isDark={isDark}
+          />
+        )}
       </SafeAreaView>
     </Modal>
+
   );
 };
 

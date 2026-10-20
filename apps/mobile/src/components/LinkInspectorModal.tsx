@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AiExplainerModal } from './AiExplainerModal';
 
 interface LinkInspectorModalProps {
   visible: boolean;
@@ -42,6 +43,7 @@ export const LinkInspectorModal: React.FC<LinkInspectorModalProps> = ({
   const [urlInput, setUrlInput] = useState('https://secure-paypa1-login.com/verify');
   const [isScanning, setIsScanning] = useState(false);
   const [result, setResult] = useState<ScanResult | null>(null);
+  const [showAiModal, setShowAiModal] = useState(false);
 
   const bg = isDark ? '#090D16' : '#FFFFFF';
   const cardBg = isDark ? '#1E293B' : '#F8FAFC';
@@ -284,6 +286,29 @@ export const LinkInspectorModal: React.FC<LinkInspectorModalProps> = ({
                 <Text style={[styles.recLabel, { color: teal }]}>RECOMMENDED ACTION:</Text>
                 <Text style={[styles.recText, { color: textColor }]}>{result.recommendation}</Text>
               </View>
+
+              {/* Interactive AI Threat Explainer Trigger */}
+              <TouchableOpacity
+                style={[
+                  styles.aiExplainerBtn,
+                  {
+                    backgroundColor: isDark ? '#134E4A' : '#CCFBF1',
+                    borderColor: teal,
+                  },
+                ]}
+                onPress={() => setShowAiModal(true)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.aiBtnIcon}>🤖</Text>
+                <View style={styles.aiBtnTextWrap}>
+                  <Text style={[styles.aiBtnTitle, { color: teal }]}>
+                    Ask AI Explainer: Why is this dangerous?
+                  </Text>
+                  <Text style={[styles.aiBtnSub, { color: subtextColor }]}>
+                    Zero-hallucination RAG breakdown with curated citations
+                  </Text>
+                </View>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -291,8 +316,20 @@ export const LinkInspectorModal: React.FC<LinkInspectorModalProps> = ({
             <Text style={[styles.closeBtnText, { color: subtextColor }]}>Close Link Inspector</Text>
           </TouchableOpacity>
         </ScrollView>
+
+        {result && (
+          <AiExplainerModal
+            visible={showAiModal}
+            onClose={() => setShowAiModal(false)}
+            query={result.url}
+            immutableVerdict={result.verdict}
+            detectedFlags={result.indicators}
+            isDark={isDark}
+          />
+        )}
       </SafeAreaView>
     </Modal>
+
   );
 };
 
@@ -433,6 +470,7 @@ const styles = StyleSheet.create({
   recBox: {
     borderTopWidth: 1,
     paddingTop: 10,
+    marginBottom: 12,
   },
   recLabel: {
     fontSize: 10,
@@ -443,6 +481,28 @@ const styles = StyleSheet.create({
   recText: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  aiExplainerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  aiBtnIcon: {
+    fontSize: 22,
+  },
+  aiBtnTextWrap: {
+    flex: 1,
+  },
+  aiBtnTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  aiBtnSub: {
+    fontSize: 10,
+    marginTop: 2,
   },
   closeBtn: {
     alignItems: 'center',

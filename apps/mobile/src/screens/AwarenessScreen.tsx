@@ -5,8 +5,17 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
+  TextInput,
 } from 'react-native';
+import { AiExplainerModal } from '../components/AiExplainerModal';
+
+const QUICK_QUESTIONS = [
+  { label: 'Quishing & Fake QRs', query: 'What is QR code phishing (quishing) and how does it compromise accounts?' },
+  { label: 'Evil Twin Wi-Fi', query: 'How does an Evil Twin rogue Wi-Fi access point intercept my traffic?' },
+  { label: 'SMS OTP Stealers', query: 'Why is an app requesting SMS and Internet permission a major risk?' },
+  { label: 'Punycode Spoofing', query: 'How do attackers use Punycode IDN homoglyphs to impersonate brands?' },
+  { label: 'URL Shortener Traps', query: 'Why are shortened links dangerous in text messages and emails?' },
+];
 
 const TIPS = [
   {
@@ -57,6 +66,9 @@ interface AwarenessScreenProps {
 
 export const AwarenessScreen: React.FC<AwarenessScreenProps> = ({ isDark = false }) => {
   const [expandedId, setExpandedId] = useState<string | null>('1');
+  const [customQuery, setCustomQuery] = useState('');
+  const [activeAiQuery, setActiveAiQuery] = useState<string | null>(null);
+  const [showAiModal, setShowAiModal] = useState(false);
 
   const bg = isDark ? '#090D16' : '#FFFFFF';
   const textColor = isDark ? '#F8FAFC' : '#0F172A';
@@ -65,6 +77,13 @@ export const AwarenessScreen: React.FC<AwarenessScreenProps> = ({ isDark = false
   const borderCol = isDark ? '#334155' : '#F1F5F9';
   const bannerBg = isDark ? '#134E4A' : '#F0FDFA';
   const bannerBorder = isDark ? '#115E59' : '#CCFBF1';
+  const teal = isDark ? '#2DD4BF' : '#0D9488';
+
+  const handleLaunchAiQuery = (query: string) => {
+    if (!query.trim()) return;
+    setActiveAiQuery(query.trim());
+    setShowAiModal(true);
+  };
 
   return (
     <View style={[styles.safeArea, { backgroundColor: bg }]}>
@@ -74,8 +93,69 @@ export const AwarenessScreen: React.FC<AwarenessScreenProps> = ({ isDark = false
         <View style={styles.header}>
           <Text style={[styles.title, { color: textColor }]}>Learn & Protect</Text>
           <Text style={[styles.subtitle, { color: subtextColor }]}>
-            Bite-sized, plain-language guides to keep you safe everywhere you browse.
+            Bite-sized, plain-language guides and interactive AI assistant to keep you safe.
           </Text>
+        </View>
+
+        {/* Interactive Ask Cyber Companion AI Box */}
+        <View style={[styles.aiSearchCard, { backgroundColor: cardBg, borderColor: borderCol }]}>
+          <View style={styles.aiHeaderRow}>
+            <Text style={styles.aiIcon}>🤖</Text>
+            <View style={styles.aiHeaderTextWrap}>
+              <Text style={[styles.aiCardTitle, { color: textColor }]}>Ask Cyber Companion</Text>
+              <Text style={[styles.aiCardSubtitle, { color: teal }]}>
+                RAG Knowledge Base · Instant Plain-Language Explanations
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.inputRow}>
+            <TextInput
+              style={[
+                styles.aiInput,
+                {
+                  backgroundColor: isDark ? '#090D16' : '#F8FAFC',
+                  borderColor: borderCol,
+                  color: textColor,
+                },
+              ]}
+              placeholder="Ask anything (e.g. What is Quishing?)"
+              placeholderTextColor="#64748B"
+              value={customQuery}
+              onChangeText={setCustomQuery}
+              onSubmitEditing={() => handleLaunchAiQuery(customQuery)}
+            />
+            <TouchableOpacity
+              style={[styles.aiSubmitBtn, { backgroundColor: teal }]}
+              onPress={() => handleLaunchAiQuery(customQuery)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.aiSubmitBtnText}>Ask AI</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Quick Questions Chips */}
+          <View style={styles.quickChipsWrap}>
+            <Text style={[styles.quickChipsLabel, { color: subtextColor }]}>POPULAR THREAT TOPICS:</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
+              {QUICK_QUESTIONS.map((q, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  style={[
+                    styles.chipBtn,
+                    {
+                      backgroundColor: isDark ? '#334155' : '#F1F5F9',
+                      borderColor: borderCol,
+                    },
+                  ]}
+                  onPress={() => handleLaunchAiQuery(q.query)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.chipBtnText, { color: teal }]}>{q.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
         </View>
 
         {/* Featured Tip of the Day */}
@@ -91,6 +171,7 @@ export const AwarenessScreen: React.FC<AwarenessScreenProps> = ({ isDark = false
 
         {/* Guide Cards */}
         <Text style={[styles.sectionHeading, { color: textColor }]}>Security Guides</Text>
+
 
         <View style={styles.cardsContainer}>
           {TIPS.map((tip) => {
@@ -121,18 +202,45 @@ export const AwarenessScreen: React.FC<AwarenessScreenProps> = ({ isDark = false
                 </Text>
 
                 {isExpanded && (
-                  <View style={[styles.actionBox, { backgroundColor: isDark ? '#0F172A' : '#F8FAFC' }]}>
-                    <Text style={styles.actionBoxTitle}>💡 Quick Action:</Text>
-                    <Text style={[styles.actionBoxText, { color: textColor }]}>
-                      {tip.actionableAdvice}
-                    </Text>
-                  </View>
+                  <>
+                    <View style={[styles.actionBox, { backgroundColor: isDark ? '#0F172A' : '#F8FAFC' }]}>
+                      <Text style={styles.actionBoxTitle}>💡 Quick Action:</Text>
+                      <Text style={[styles.actionBoxText, { color: textColor }]}>
+                        {tip.actionableAdvice}
+                      </Text>
+                    </View>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.explainMoreBtn,
+                        {
+                          borderColor: teal,
+                          backgroundColor: isDark ? '#134E4A' : '#CCFBF1',
+                        },
+                      ]}
+                      onPress={() => handleLaunchAiQuery(`${tip.title}: ${tip.summary}`)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.explainMoreText, { color: teal }]}>
+                        🤖 Ask AI: Deep Dive on this Topic →
+                      </Text>
+                    </TouchableOpacity>
+                  </>
                 )}
               </TouchableOpacity>
             );
           })}
         </View>
       </ScrollView>
+
+      {activeAiQuery && (
+        <AiExplainerModal
+          visible={showAiModal}
+          onClose={() => setShowAiModal(false)}
+          query={activeAiQuery}
+          isDark={isDark}
+        />
+      )}
     </View>
   );
 };
@@ -162,6 +270,81 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginTop: 4,
     lineHeight: 20,
+  },
+  aiSearchCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 20,
+  },
+  aiHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+  },
+  aiIcon: {
+    fontSize: 26,
+  },
+  aiHeaderTextWrap: {
+    flex: 1,
+  },
+  aiCardTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  aiCardSubtitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  aiInput: {
+    flex: 1,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    fontSize: 13,
+  },
+  aiSubmitBtn: {
+    height: 44,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  aiSubmitBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  quickChipsWrap: {
+    gap: 6,
+  },
+  quickChipsLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  chipsScroll: {
+    gap: 8,
+    paddingVertical: 2,
+  },
+  chipBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  chipBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   featuredCard: {
     borderRadius: 20,
@@ -258,5 +441,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     lineHeight: 18,
+  },
+  explainMoreBtn: {
+    marginTop: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  explainMoreText: {
+    fontSize: 12,
+    fontWeight: '800',
   },
 });

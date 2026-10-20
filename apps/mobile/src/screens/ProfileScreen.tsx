@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -7,9 +7,12 @@ import {
   Switch,
   TouchableOpacity,
   Alert,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { useAuth } from '../services/AuthContext';
 import { AuthModal } from '../components/AuthModal';
+import { ApiClient } from '../services/apiClient';
 
 interface ProfileScreenProps {
   isDark?: boolean;
@@ -31,6 +34,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const [quietHours, setQuietHours] = useState(true);
   const [fixApplied, setFixApplied] = useState<{ [key: string]: boolean }>({});
 
+  // API Gateway State
+  const [apiUrl, setApiUrl] = useState(() => ApiClient.getBaseUrl());
+  const [apiStatus, setApiStatus] = useState<'UNCHECKED' | 'CHECKING' | 'ONLINE' | 'OFFLINE'>('UNCHECKED');
+  const [apiLatency, setApiLatency] = useState(0);
+
   const bg = isDark ? '#090D16' : '#F8FAFC';
   const textColor = isDark ? '#F8FAFC' : '#0F172A';
   const subtextColor = isDark ? '#94A3B8' : '#475569';
@@ -38,6 +46,24 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const borderCol = isDark ? '#334155' : '#E2E8F0';
   const teal = isDark ? '#2DD4BF' : '#0D9488';
   const emerald = '#10B981';
+
+  const handleTestConnection = async (targetUrl = apiUrl) => {
+    setApiStatus('CHECKING');
+    ApiClient.setBaseUrl(targetUrl.trim());
+    const health = await ApiClient.checkHealth();
+    if (health.online) {
+      setApiStatus('ONLINE');
+      setApiLatency(health.latencyMs);
+    } else {
+      setApiStatus('OFFLINE');
+      setApiLatency(0);
+    }
+  };
+
+  const handleApplyPreset = (presetUrl: string) => {
+    setApiUrl(presetUrl);
+    handleTestConnection(presetUrl);
+  };
 
   const handleClearCache = () => {
     Alert.alert(
@@ -259,6 +285,132 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           </View>
         </View>
 
+        {/* Threat Gateway & Cloud Endpoint Configuration */}
+        <View style={[styles.gatewayCard, { backgroundColor: cardBg, borderColor: borderCol }]}>
+          <View style={styles.gatewayHeader}>
+            <View>
+              <Text style={[styles.gatewayTitle, { color: textColor }]}>⚡ Threat Intel Gateway</Text>
+              <Text style={[styles.gatewaySub, { color: subtextColor }]}>
+                Live REST Server & Threat Feed Integration
+              </Text>
+            </View>
+
+            <View
+              style={[
+                styles.statusPill,
+                {
+                  borderColor:
+                    apiStatus === 'ONLINE'
+                      ? emerald
+                      : apiStatus === 'OFFLINE'
+                      ? '#EF4444'
+                      : apiStatus === 'CHECKING'
+                      ? teal
+                      : borderCol,
+                  backgroundColor:
+                    apiStatus === 'ONLINE'
+                      ? 'rgba(16, 185, 129, 0.12)'
+                      : apiStatus === 'OFFLINE'
+                      ? 'rgba(239, 68, 68, 0.12)'
+                      : 'transparent',
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.statusDot,
+                  {
+                    backgroundColor:
+                      apiStatus === 'ONLINE'
+                        ? emerald
+                        : apiStatus === 'OFFLINE'
+                        ? '#EF4444'
+                        : apiStatus === 'CHECKING'
+                        ? teal
+                        : subtextColor,
+                  },
+                ]}
+              />
+              <Text
+                style={[
+                  styles.statusText,
+                  {
+                    color:
+                      apiStatus === 'ONLINE'
+                        ? emerald
+                        : apiStatus === 'OFFLINE'
+                        ? '#EF4444'
+                        : apiStatus === 'CHECKING'
+                        ? teal
+                        : subtextColor,
+                  },
+                ]}
+              >
+                {apiStatus === 'ONLINE'
+                  ? `ONLINE (${apiLatency}ms)`
+                  : apiStatus === 'OFFLINE'
+                  ? 'OFFLINE FALLBACK'
+                  : apiStatus === 'CHECKING'
+                  ? 'TESTING...'
+                  : 'UNTESTED'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.urlInputRow}>
+            <TextInput
+              style={[
+                styles.urlInput,
+                {
+                  backgroundColor: isDark ? '#090D16' : '#F8FAFC',
+                  borderColor: borderCol,
+                  color: textColor,
+                },
+              ]}
+              value={apiUrl}
+              onChangeText={setApiUrl}
+              placeholder="http://localhost:5000/v1"
+              placeholderTextColor="#64748B"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <TouchableOpacity
+              style={[styles.testBtn, { backgroundColor: teal }]}
+              onPress={() => handleTestConnection()}
+              disabled={apiStatus === 'CHECKING'}
+              activeOpacity={0.8}
+            >
+              {apiStatus === 'CHECKING' ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={styles.testBtnText}>Test Ping</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.presetRow}>
+            <Text style={[styles.presetLabel, { color: subtextColor }]}>PRESETS:</Text>
+            <TouchableOpacity
+              style={[styles.presetBtn, { borderColor: borderCol, backgroundColor: isDark ? '#334155' : '#F1F5F9' }]}
+              onPress={() => handleApplyPreset('http://localhost:5000/v1')}
+            >
+              <Text style={[styles.presetBtnText, { color: textColor }]}>Localhost</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.presetBtn, { borderColor: borderCol, backgroundColor: isDark ? '#334155' : '#F1F5F9' }]}
+              onPress={() => handleApplyPreset('http://10.0.2.2:5000/v1')}
+            >
+              <Text style={[styles.presetBtnText, { color: textColor }]}>Android Emul</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.presetBtn, { borderColor: borderCol, backgroundColor: isDark ? '#334155' : '#F1F5F9' }]}
+              onPress={() => handleApplyPreset('https://api.cybercompanion.io/v1')}
+            >
+              <Text style={[styles.presetBtnText, { color: teal }]}>Cloud Prod</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Privacy & Zero-Trust Pledge Box */}
         <View style={[styles.privacyBox, { backgroundColor: cardBg, borderColor: borderCol }]}>
           <Text style={[styles.privacyHeading, { color: teal }]}>🔒 Zero-Trust Privacy Pledge</Text>
@@ -448,6 +600,90 @@ const styles = StyleSheet.create({
   settingDesc: {
     fontSize: 11,
     marginTop: 2,
+  },
+  gatewayCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 16,
+  },
+  gatewayHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  gatewayTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  gatewaySub: {
+    fontSize: 10,
+    marginTop: 2,
+  },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  urlInputRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
+  },
+  urlInput: {
+    flex: 1,
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    fontSize: 12,
+  },
+  testBtn: {
+    height: 40,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  testBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  presetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  presetLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  presetBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  presetBtnText: {
+    fontSize: 10,
+    fontWeight: '700',
   },
   privacyBox: {
     borderRadius: 20,

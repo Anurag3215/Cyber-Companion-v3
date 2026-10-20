@@ -4,11 +4,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
 import { DashboardScreen } from '../screens/DashboardScreen';
+import { ScanHubScreen } from '../screens/ScanHubScreen';
 import { HistoryScreen } from '../screens/HistoryScreen';
 import { AwarenessScreen } from '../screens/AwarenessScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 
-type TabKey = 'home' | 'history' | 'learn' | 'me';
+type TabKey = 'home' | 'scan' | 'history' | 'learn' | 'me';
 
 export const RootNavigator: React.FC = () => {
   const [hasOnboarded, setHasOnboarded] = useState(true);
@@ -54,23 +55,26 @@ export const RootNavigator: React.FC = () => {
       <View style={styles.body}>
         {currentTab === 'home' && (
           <DashboardScreen
+            onNavigateToScanners={() => setCurrentTab('scan')}
             onNavigateToLearn={() => setCurrentTab('learn')}
             isDark={isDark}
             toggleTheme={toggleTheme}
           />
         )}
+        {currentTab === 'scan' && <ScanHubScreen isDark={isDark} />}
         {currentTab === 'history' && <HistoryScreen isDark={isDark} />}
         {currentTab === 'learn' && <AwarenessScreen isDark={isDark} />}
         {currentTab === 'me' && (
           <ProfileScreen
             isDark={isDark}
+            onNavigateToScanners={() => setCurrentTab('scan')}
             onReplayIntro={() => setShowIntro(true)}
             toggleTheme={toggleTheme}
           />
         )}
       </View>
 
-      {/* 4-Tab Bottom Navigation Bar (Home, History, Learn, Me) */}
+      {/* 5-Tab Bottom Navigation Bar (Home, Scan, History, Learn, Me) */}
       <View
         style={[
           styles.bottomNav,
@@ -103,7 +107,29 @@ export const RootNavigator: React.FC = () => {
           </Text>
         </TouchableOpacity>
 
-        {/* 2. History */}
+        {/* 2. Scan */}
+        <TouchableOpacity
+          style={styles.navBtn}
+          onPress={() => setCurrentTab('scan')}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.navIcon, { color: currentTab === 'scan' ? activeColor : inactiveColor }]}>
+            ⚡
+          </Text>
+          <Text
+            style={[
+              styles.navLabel,
+              {
+                color: currentTab === 'scan' ? activeColor : inactiveColor,
+                fontWeight: currentTab === 'scan' ? '700' : '500',
+              },
+            ]}
+          >
+            Scan
+          </Text>
+        </TouchableOpacity>
+
+        {/* 3. History */}
         <TouchableOpacity
           style={styles.navBtn}
           onPress={() => setCurrentTab('history')}
@@ -125,7 +151,7 @@ export const RootNavigator: React.FC = () => {
           </Text>
         </TouchableOpacity>
 
-        {/* 3. Learn */}
+        {/* 4. Learn */}
         <TouchableOpacity
           style={styles.navBtn}
           onPress={() => setCurrentTab('learn')}
@@ -147,7 +173,7 @@ export const RootNavigator: React.FC = () => {
           </Text>
         </TouchableOpacity>
 
-        {/* 4. Me */}
+        {/* 5. Me */}
         <TouchableOpacity
           style={styles.navBtn}
           onPress={() => setCurrentTab('me')}

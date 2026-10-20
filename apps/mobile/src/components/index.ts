@@ -14,3 +14,4 @@ export * from './BadgesAndStreaksView';
 export * from './ContextualThreatCard';
 export * from './LinkCheckSheet';
 export * from './ScoreHistorySparkline';
+export * from './AiExplainerModal';
