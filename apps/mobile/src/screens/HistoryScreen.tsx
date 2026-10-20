@@ -152,7 +152,7 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ isDark = false }) 
   ] as const;
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: bg }]}>
+    <View style={[styles.safeArea, { backgroundColor: bg }]}>
       <ScrollView style={[styles.container, { backgroundColor: bg }]} contentContainerStyle={styles.content}>
         
         {/* Header */}
@@ -269,7 +269,7 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ isDark = false }) 
           </SafeAreaView>
         </Modal>
       )}
-    </SafeAreaView>
+    </View>
   );
 };
 

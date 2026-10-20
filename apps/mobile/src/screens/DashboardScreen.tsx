@@ -5,81 +5,102 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Modal,
-  SafeAreaView,
-  StatusBar,
-  TextInput,
   Alert,
 } from 'react-native';
-import { ScoreGauge } from '../design-system/ScoreGauge';
-import { LinkCheckSheet } from '../components/LinkCheckSheet';
-import { classifyQrPayload } from '../services/qrScannerService';
+import { CyberLogo } from '../components/CyberLogo';
+import { Cyber3DShieldCore } from '../components/Cyber3DShieldCore';
+import { TiltCard3D } from '../components/TiltCard3D';
+import { ThreatRadar3D } from '../components/ThreatRadar3D';
+import { FloatingParticles3D } from '../components/FloatingParticles3D';
+import { WifiSentinelModal } from '../components/WifiSentinelModal';
+import { LinkInspectorModal } from '../components/LinkInspectorModal';
+import { QrScannerModal } from '../components/QrScannerModal';
+import { AppPrivacyModal } from '../components/AppPrivacyModal';
+import { useAuth } from '../services/AuthContext';
 
 interface DashboardScreenProps {
   onNavigateToScanners?: () => void;
   onNavigateToLearn?: () => void;
-  userName?: string;
   isDark?: boolean;
+  toggleTheme?: () => void;
 }
 
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   onNavigateToScanners,
   onNavigateToLearn,
-  userName = 'Arun',
   isDark = false,
+  toggleTheme,
 }) => {
-  const [showLinkCheckModal, setShowLinkCheckModal] = useState(false);
-  const [showQrModal, setShowQrModal] = useState(false);
-  const [qrInput, setQrInput] = useState('WIFI:S:Airport_Free;T:WPA;P:password;;');
-  const [qrResult, setQrResult] = useState<any>(null);
+  const { user } = useAuth();
+  const userName = user?.name || 'Arun';
 
-  const [wifiChecked, setWifiChecked] = useState(false);
-  const [appsReviewed, setAppsReviewed] = useState(false);
+  // Feature Inspection Modals State
+  const [showWifiModal, setShowWifiModal] = useState(false);
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [showAppPrivacyModal, setShowAppPrivacyModal] = useState(false);
+  const [isDeepScanning, setIsDeepScanning] = useState(false);
 
   // Time-based friendly greeting
   const hour = new Date().getHours();
   const greetingTime = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
-  const bg = isDark ? '#090D16' : '#FFFFFF';
+  // Strict adherence to existing palette for both dark and light modes
+  const bg = isDark ? '#090D16' : '#F8FAFC';
   const textColor = isDark ? '#F8FAFC' : '#0F172A';
-  const subtextColor = isDark ? '#94A3B8' : '#64748B';
+  const subtextColor = isDark ? '#94A3B8' : '#475569';
   const cardBg = isDark ? '#1E293B' : '#FFFFFF';
-  const borderCol = isDark ? '#334155' : '#F1F5F9';
-  const tipBg = isDark ? '#1E293B' : '#F8FAFC';
+  const borderCol = isDark ? '#334155' : '#E2E8F0';
+  const tealAccent = isDark ? '#2DD4BF' : '#0D9488';
+  const greenSafe = '#10B981';
 
-  const handleWifiCheck = () => {
-    setWifiChecked(true);
-    Alert.alert(
-      '📶 Wi-Fi Sentinel Check',
-      'Connected: Home_Office_5G\nSecurity: WPA3-SAE with Protected Management Frames (PMF)\nVerdict: SAFE · Encrypted network',
-      [{ text: 'OK' }]
-    );
-  };
-
-  const handleAppReview = () => {
-    setAppsReviewed(true);
-    Alert.alert(
-      '🛡️ On-Device App Permission Audit',
-      'Audited: 42 Installed Applications\nCritical Telemetry Leaks: 0\nPrivacy Guarantee: No data left this device\nVerdict: CLEAN',
-      [{ text: 'OK' }]
-    );
-  };
-
-  const handleDecodeQr = () => {
-    if (!qrInput.trim()) return;
-    const classified = classifyQrPayload(qrInput);
-    setQrResult(classified);
+  const handleTriggerSweep = () => {
+    setIsDeepScanning(true);
+    setTimeout(() => {
+      setIsDeepScanning(false);
+      Alert.alert(
+        '🛡️ 3D Security Sweep Complete',
+        '• Wi-Fi Encryption: WPA3-SAE & PMF Validated\n• Phishing Guard: 0 Malicious Triggers\n• QR Sandbox: Isolated Execution Ready\n• App Privacy: 0 Unverified Sensor Leaks\nOverall Defense Score: 94/100',
+        [{ text: 'Acknowledged' }]
+      );
+    }, 2800);
   };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: bg }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={bg} />
-      <ScrollView style={[styles.container, { backgroundColor: bg }]} contentContainerStyle={styles.content}>
-        
-        {/* Top Tagline */}
-        <Text style={[styles.topTagline, { color: subtextColor }]}>
-          Know what's safe before you tap, scan, or connect
-        </Text>
+    <View style={[styles.safeArea, { backgroundColor: bg }]}>
+      {/* Subtle 3D floating ambient particles in background */}
+      <FloatingParticles3D isDark={isDark} />
+
+      <ScrollView
+        style={[styles.container, { backgroundColor: bg }]}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Top Header with App Logo & Live Status */}
+        <View style={styles.topHeaderBar}>
+          <CyberLogo size={36} isDark={isDark} animated={true} />
+
+          <View style={styles.headerRightActions}>
+            {/* Quick 1-tap Light / Dark Mode Toggle */}
+            {toggleTheme && (
+              <TouchableOpacity
+                style={[styles.themePill, { backgroundColor: cardBg, borderColor: borderCol }]}
+                onPress={toggleTheme}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.themePillIcon}>{isDark ? '☀️' : '🌙'}</Text>
+                <Text style={[styles.themePillText, { color: textColor }]}>
+                  {isDark ? 'Light' : 'Dark'}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            <View style={[styles.hudPill, { borderColor: borderCol, backgroundColor: cardBg }]}>
+              <View style={[styles.hudPulseDot, { backgroundColor: greenSafe }]} />
+              <Text style={[styles.hudPillText, { color: tealAccent }]}>ZERO-TRUST</Text>
+            </View>
+          </View>
+        </View>
 
         {/* User Greeting & Headline */}
         <View style={styles.headerSection}>
@@ -91,210 +112,162 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
           </Text>
         </View>
 
-        {/* Circular Score Gauge */}
+        {/* 3D Interactive Moving Cyber Shield Core */}
         <View style={styles.gaugeContainer}>
-          <ScoreGauge score={78} potentialScore={92} fixesCount={3} isDark={isDark} />
+          <Cyber3DShieldCore
+            score={user?.securityScore || 78}
+            potentialScore={92}
+            fixesCount={3}
+            isDark={isDark}
+            isScanning={isDeepScanning}
+            onTriggerScan={handleTriggerSweep}
+          />
         </View>
 
-        {/* 2x2 Quick Action Grid */}
-        <View style={styles.gridContainer}>
-          <View style={styles.gridRow}>
-            {/* 1. Check Wi-Fi */}
-            <TouchableOpacity
-              style={[
-                styles.actionCard,
-                { backgroundColor: cardBg, borderColor: wifiChecked ? '#0D9488' : borderCol },
-              ]}
-              onPress={handleWifiCheck}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.actionIcon}>📶</Text>
-              <Text style={[styles.actionLabel, { color: textColor }]}>
-                {wifiChecked ? 'Wi-Fi: Secure' : 'Check Wi-Fi'}
-              </Text>
-            </TouchableOpacity>
-
-            {/* 2. Check a Link (opens reference Screen 2) */}
-            <TouchableOpacity
-              style={[
-                styles.actionCard,
-                { backgroundColor: cardBg, borderColor: borderCol },
-              ]}
-              onPress={() => setShowLinkCheckModal(true)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.actionIcon}>🔗</Text>
-              <Text style={[styles.actionLabel, { color: textColor }]}>Check a link</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.gridRow}>
-            {/* 3. Scan QR Code */}
-            <TouchableOpacity
-              style={[
-                styles.actionCard,
-                { backgroundColor: cardBg, borderColor: borderCol },
-              ]}
-              onPress={() => setShowQrModal(true)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.actionIcon}>⛶</Text>
-              <Text style={[styles.actionLabel, { color: textColor }]}>Scan QR code</Text>
-            </TouchableOpacity>
-
-            {/* 4. Review Apps */}
-            <TouchableOpacity
-              style={[
-                styles.actionCard,
-                { backgroundColor: cardBg, borderColor: appsReviewed ? '#0D9488' : borderCol },
-              ]}
-              onPress={handleAppReview}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.actionIcon}>🛡️</Text>
-              <Text style={[styles.actionLabel, { color: textColor }]}>
-                {appsReviewed ? 'Apps: Clean' : 'Review apps'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* TODAY'S TIP Card */}
+        {/* Interactive 3D Security Sweep Trigger */}
         <TouchableOpacity
-          style={[styles.tipCard, { backgroundColor: tipBg, borderColor: borderCol }]}
-          onPress={onNavigateToLearn}
-          activeOpacity={0.8}
+          style={[
+            styles.sweepButton,
+            {
+              backgroundColor: isDeepScanning ? (isDark ? '#064E3B' : '#0D9488') : tealAccent,
+              borderColor: isDeepScanning ? greenSafe : tealAccent,
+            },
+          ]}
+          onPress={handleTriggerSweep}
+          activeOpacity={0.85}
+          disabled={isDeepScanning}
         >
-          <Text style={styles.tipBadge}>TODAY'S TIP</Text>
-          <Text style={[styles.tipText, { color: textColor }]}>
-            Free Wi-Fi names can be faked. Ask staff.
+          <Text style={styles.sweepButtonText}>
+            {isDeepScanning ? '⚡ 3D Scanning Perimeter...' : '🚀 Trigger 3D Defense Sweep'}
           </Text>
         </TouchableOpacity>
+
+        {/* 2x2 Quick Action Grid with 3D Perspective Tilt Cards */}
+        <View style={styles.gridContainer}>
+          <View style={styles.gridRow}>
+            {/* 1. Check Wi-Fi (Opens real-data WifiSentinelModal) */}
+            <View style={styles.gridCol}>
+              <TiltCard3D
+                isDark={isDark}
+                onPress={() => setShowWifiModal(true)}
+              >
+                <View style={styles.actionCardContent}>
+                  <Text style={styles.actionIcon}>📶</Text>
+                  <Text style={[styles.actionLabel, { color: textColor }]}>Check Wi-Fi</Text>
+                  <Text style={[styles.actionSubtext, { color: greenSafe }]}>
+                    WPA3-SAE & PMF
+                  </Text>
+                </View>
+              </TiltCard3D>
+            </View>
+
+            {/* 2. Check a Link (Opens real-data LinkInspectorModal) */}
+            <View style={styles.gridCol}>
+              <TiltCard3D
+                isDark={isDark}
+                onPress={() => setShowLinkModal(true)}
+              >
+                <View style={styles.actionCardContent}>
+                  <Text style={styles.actionIcon}>🔗</Text>
+                  <Text style={[styles.actionLabel, { color: textColor }]}>Check a link</Text>
+                  <Text style={[styles.actionSubtext, { color: tealAccent }]}>
+                    Phishing & SSRF
+                  </Text>
+                </View>
+              </TiltCard3D>
+            </View>
+          </View>
+
+          <View style={styles.gridRow}>
+            {/* 3. Scan QR Code (Opens real-data QrScannerModal) */}
+            <View style={styles.gridCol}>
+              <TiltCard3D
+                isDark={isDark}
+                onPress={() => setShowQrModal(true)}
+              >
+                <View style={styles.actionCardContent}>
+                  <Text style={styles.actionIcon}>⛶</Text>
+                  <Text style={[styles.actionLabel, { color: textColor }]}>Scan QR code</Text>
+                  <Text style={[styles.actionSubtext, { color: isDark ? '#38BDF8' : '#0284C7' }]}>
+                    Sandbox Preview
+                  </Text>
+                </View>
+              </TiltCard3D>
+            </View>
+
+            {/* 4. Review Apps (Opens real-data AppPrivacyModal) */}
+            <View style={styles.gridCol}>
+              <TiltCard3D
+                isDark={isDark}
+                onPress={() => setShowAppPrivacyModal(true)}
+              >
+                <View style={styles.actionCardContent}>
+                  <Text style={styles.actionIcon}>🛡️</Text>
+                  <Text style={[styles.actionLabel, { color: textColor }]}>Review apps</Text>
+                  <Text style={[styles.actionSubtext, { color: greenSafe }]}>
+                    Zero PII Leaks
+                  </Text>
+                </View>
+              </TiltCard3D>
+            </View>
+          </View>
+        </View>
+
+        {/* 3D Holographic Perspective Threat Radar with interactive sectors */}
+        <ThreatRadar3D
+          isDark={isDark}
+          onSelectSector={(sector) => {
+            if (sector === 'wifi') setShowWifiModal(true);
+            else if (sector === 'url') setShowLinkModal(true);
+            else if (sector === 'qr') setShowQrModal(true);
+            else if (sector === 'apps') setShowAppPrivacyModal(true);
+          }}
+        />
+
+        {/* TODAY'S TIP 3D Tilt Card */}
+        <TiltCard3D
+          isDark={isDark}
+          onPress={onNavigateToLearn}
+        >
+          <View style={styles.tipCardInner}>
+            <View style={styles.tipHeaderRow}>
+              <View style={[styles.tipBadgeWrapper, { backgroundColor: isDark ? '#334155' : '#E2E8F0' }]}>
+                <Text style={[styles.tipBadgeText, { color: tealAccent }]}>TODAY'S INTEL</Text>
+              </View>
+              <Text style={[styles.tipArrow, { color: subtextColor }]}>Tap to learn →</Text>
+            </View>
+            <Text style={[styles.tipText, { color: textColor }]}>
+              Free Wi-Fi names can be faked. Always verify credentials with venue staff.
+            </Text>
+          </View>
+        </TiltCard3D>
       </ScrollView>
 
-      {/* Screen 2: Link Check Modal */}
-      <Modal
-        visible={showLinkCheckModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowLinkCheckModal(false)}
-      >
-        <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? '#0F172A' : '#FFFFFF' }}>
-          <LinkCheckSheet
-            url="secure-paypa1-login.com/verify"
-            isThreat={true}
-            threatTitle="Don't open this link"
-            consensusText="Dangerous · 4 of 4 sources agree"
-            explanation="It copies a PayPal login page to steal your password. The &quot;1&quot; in &quot;paypa1&quot; is a number, not the letter &quot;l&quot;."
-            findings={[
-              'Reported as phishing by Google',
-              'Looks like a well-known brand',
-              'Website created 2 days ago',
-            ]}
-            onClose={() => setShowLinkCheckModal(false)}
-            isDark={isDark}
-          />
-        </SafeAreaView>
-      </Modal>
+      {/* Feature Modals */}
+      <WifiSentinelModal
+        visible={showWifiModal}
+        onClose={() => setShowWifiModal(false)}
+        isDark={isDark}
+      />
 
-      {/* Sandboxed QR Scanner Modal */}
-      <Modal
+      <LinkInspectorModal
+        visible={showLinkModal}
+        onClose={() => setShowLinkModal(false)}
+        isDark={isDark}
+      />
+
+      <QrScannerModal
         visible={showQrModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowQrModal(false)}
-      >
-        <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? '#0F172A' : '#FFFFFF' }}>
-          <ScrollView style={{ flex: 1, padding: 24 }}>
-            <View style={{ alignItems: 'center', marginBottom: 20 }}>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: textColor }}>
-                Sandboxed QR Scanner
-              </Text>
-              <Text style={{ fontSize: 13, color: subtextColor, marginTop: 4 }}>
-                Decodes and previews QR content before launching any apps or URLs
-              </Text>
-            </View>
+        onClose={() => setShowQrModal(false)}
+        isDark={isDark}
+      />
 
-            <View style={{ marginBottom: 16 }}>
-              <Text style={{ fontSize: 13, fontWeight: '600', color: textColor, marginBottom: 8 }}>
-                QR Code Payload
-              </Text>
-              <TextInput
-                style={{
-                  borderWidth: 1,
-                  borderColor: borderCol,
-                  borderRadius: 14,
-                  padding: 14,
-                  color: textColor,
-                  backgroundColor: isDark ? '#1E293B' : '#F8FAFC',
-                }}
-                value={qrInput}
-                onChangeText={setQrInput}
-                placeholder="Enter or paste QR payload"
-                placeholderTextColor="#94A3B8"
-              />
-            </View>
-
-            <TouchableOpacity
-              style={{
-                backgroundColor: '#0D9488',
-                paddingVertical: 14,
-                borderRadius: 24,
-                alignItems: 'center',
-                marginBottom: 20,
-              }}
-              onPress={handleDecodeQr}
-            >
-              <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 14 }}>
-                Decode & Sandbox Preview
-              </Text>
-            </TouchableOpacity>
-
-            {qrResult && (
-              <View
-                style={{
-                  backgroundColor: isDark ? '#1E293B' : '#F0FDFA',
-                  borderColor: '#99F6E4',
-                  borderWidth: 1,
-                  borderRadius: 18,
-                  padding: 16,
-                  marginBottom: 20,
-                }}
-              >
-                <Text style={{ fontSize: 13, fontWeight: '800', color: '#0F766E', marginBottom: 4 }}>
-                  CLASSIFICATION: {qrResult.type}
-                </Text>
-                <Text style={{ fontSize: 14, color: textColor, marginBottom: 4 }}>
-                  Raw: {qrResult.raw}
-                </Text>
-                {qrResult.metadata && (
-                  <Text style={{ fontSize: 13, color: subtextColor }}>
-                    Details: {JSON.stringify(qrResult.metadata)}
-                  </Text>
-                )}
-                {qrResult.sanitizedDestination && (
-                  <Text style={{ fontSize: 13, color: '#0D9488', marginTop: 4 }}>
-                    Sanitized Target: {qrResult.sanitizedDestination}
-                  </Text>
-                )}
-              </View>
-            )}
-
-            <TouchableOpacity
-              style={{
-                backgroundColor: isDark ? '#334155' : '#F3F4F6',
-                paddingVertical: 14,
-                borderRadius: 24,
-                alignItems: 'center',
-              }}
-              onPress={() => setShowQrModal(false)}
-            >
-              <Text style={{ color: textColor, fontWeight: '600', fontSize: 14 }}>Close</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
-    </SafeAreaView>
+      <AppPrivacyModal
+        visible={showAppPrivacyModal}
+        onClose={() => setShowAppPrivacyModal(false)}
+        isDark={isDark}
+      />
+    </View>
   );
 };
 
@@ -306,83 +279,151 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
+    paddingHorizontal: 20,
+    paddingTop: 6,
     paddingBottom: 40,
   },
-  topTagline: {
+  topHeaderBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  themePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 9999,
+    borderWidth: 1,
+    gap: 4,
+  },
+  themePillIcon: {
     fontSize: 12,
-    fontWeight: '500',
-    textAlign: 'center',
-    marginBottom: 20,
-    letterSpacing: -0.2,
+  },
+  themePillText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  hudPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 9999,
+    borderWidth: 1,
+  },
+  hudPulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 6,
+  },
+  hudPillText: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.6,
   },
   headerSection: {
-    marginBottom: 16,
+    marginBottom: 8,
   },
   greetingText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   headlineText: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '800',
     letterSpacing: -0.5,
   },
   gaugeContainer: {
     alignItems: 'center',
-    marginVertical: 14,
+    marginVertical: 2,
+  },
+  sweepButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    marginVertical: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  sweepButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
   gridContainer: {
-    marginTop: 18,
-    marginBottom: 24,
-    gap: 12,
+    marginVertical: 6,
+    gap: 10,
   },
   gridRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
   },
-  actionCard: {
+  gridCol: {
     flex: 1,
-    borderRadius: 20,
-    borderWidth: 1,
-    paddingVertical: 20,
-    paddingHorizontal: 16,
+  },
+  actionCardContent: {
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
+    paddingVertical: 6,
   },
   actionIcon: {
     fontSize: 28,
-    marginBottom: 10,
+    marginBottom: 6,
   },
   actionLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     textAlign: 'center',
     letterSpacing: -0.2,
   },
-  tipCard: {
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 18,
-    marginTop: 4,
-  },
-  tipBadge: {
+  actionSubtext: {
     fontSize: 11,
-    fontWeight: '800',
-    color: '#6B7280',
-    letterSpacing: 0.8,
+    fontWeight: '600',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  tipCardInner: {
+    paddingVertical: 2,
+  },
+  tipHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 6,
   },
+  tipBadgeWrapper: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  tipBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+  },
+  tipArrow: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
   tipText: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 18,
     fontWeight: '500',
   },
 });

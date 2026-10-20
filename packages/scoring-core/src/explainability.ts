@@ -67,7 +67,7 @@ export function generateScoreExplanation(scoreResult: any): ScoreExplanationSumm
       break;
   }
 
-  const priorityActions = scoreResult.topRecommendations.map((rec) => ({
+  const priorityActions = (scoreResult.topRecommendations || []).map((rec: any) => ({
     title: rec.title,
     gainText: `+${rec.potentialPointGain} points`,
     reason: rec.description,

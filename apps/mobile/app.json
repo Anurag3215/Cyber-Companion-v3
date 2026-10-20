@@ -3,18 +3,38 @@
     "name": "Cyber Companion",
     "slug": "cyber-companion",
     "version": "1.0.0",
+    "scheme": "cybercompanion",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "io.cybercompanion.security",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Allow Cyber Companion to scan and analyze QR codes securely."
+      }
     },
     "android": {
+      "package": "io.cybercompanion.security",
+      "permissions": [
+        "CAMERA",
+        "ACCESS_NETWORK_STATE",
+        "ACCESS_WIFI_STATE",
+        "INTERNET"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#0D1117"
       }
     },
     "web": {
       "bundler": "metro"
-    }
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Cyber Companion to scan and analyze QR codes securely."
+        }
+      ]
+    ]
   }
 }
