@@ -5,6 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.1.0] - 2026-10-20
+### Added
+- **3D Interactive Security Core**: Three.js-powered animated Cyber Shield Core, Holographic Threat Radar with interactive sectors, perspective tilt cards, and ambient floating particles.
+- **Optical Camera QR Scanner**: Live camera barcode scanner powered by `expo-camera` with torch control, camera flipping, and automated sandbox threat preview.
+- **Pre-Connection Wi-Fi Sentinel**: 802.11 beacon evaluator analyzing signal profiles, OUI signatures, and encryption ciphers before connection to intercept Evil Twin honeypots and predict cyber attack vectors.
+- **Interactive AI Threat Explainer**: Grounded RAG threat explainer with curated knowledge base citations (`[KB-001]`–`[KB-005]`), 1-tap modal triggers, and interactive cybersecurity Q&A in the Learn hub.
+- **Dedicated Threat Inspection Hub**: Full 4-engine inspection center and upgraded 5-tab bottom navigation (`Home`, `⚡ Scan`, `History`, `Learn`, `Me`).
+- **Live Gateway Health & Switcher**: In-app API Gateway latency tester and environment preset switcher (Localhost, Android Emulator, Cloud Staging).
+- **EAS Build Automation**: Configured `eas.json` and production `app.json` manifests for standalone Android APK, Google Play AAB, and iOS App Store builds.
+
+---
+
 ## [1.0.0] - 2026-10-09
 ### Added
 - **E2E Integration Suite**: Comprehensive end-to-end integration test runner validating end-to-end user flows, API Gateway, scoring core, and threat defense.
