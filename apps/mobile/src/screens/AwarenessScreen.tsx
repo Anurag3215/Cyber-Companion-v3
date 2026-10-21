@@ -8,45 +8,59 @@ import {
   TextInput,
 } from 'react-native';
 import { AiExplainerModal } from '../components/AiExplainerModal';
+import { GlassCard } from '../design-system/GlassCard';
+import { GlassTipCard } from '../design-system/GlassTipCard';
+import { GlassTokens } from '../design-system/glassTokens';
+
+interface TipItem {
+  id: string;
+  category: string;
+  categoryLabel: string;
+  title: string;
+  summary: string;
+  actionableAdvice: string;
+  grade: number;
+}
 
 const QUICK_QUESTIONS = [
-  { label: 'Quishing & Fake QRs', query: 'What is QR code phishing (quishing) and how does it compromise accounts?' },
-  { label: 'Evil Twin Wi-Fi', query: 'How does an Evil Twin rogue Wi-Fi access point intercept my traffic?' },
-  { label: 'SMS OTP Stealers', query: 'Why is an app requesting SMS and Internet permission a major risk?' },
-  { label: 'Punycode Spoofing', query: 'How do attackers use Punycode IDN homoglyphs to impersonate brands?' },
-  { label: 'URL Shortener Traps', query: 'Why are shortened links dangerous in text messages and emails?' },
+  { label: 'Ethical Hacking', query: 'What is ethical hacking and penetration testing?' },
+  { label: 'Quishing & Fake QRs', query: 'How does QR code phishing (quishing) work?' },
+  { label: 'Evil Twin Wi-Fi', query: 'How do hackers set up fake Wi-Fi hotspots?' },
+  { label: 'SMS OTP Stealers', query: 'Can hackers steal my SMS one-time passwords?' },
+  { label: 'Ransomware', query: 'How does ransomware lock my phone and files?' },
+  { label: 'Zero-Trust', query: 'What is zero-trust security and how does it protect me?' },
 ];
 
-const TIPS = [
+const TIPS: TipItem[] = [
   {
     id: '1',
-    category: 'WIFI_SAFETY',
+    category: 'WIFI_SECURITY',
     categoryLabel: 'Wi-Fi Safety',
     title: 'Free Wi-Fi names can be faked. Ask staff.',
     summary:
       'Attackers set up "Evil Twin" hotspots with identical names (e.g., Starbucks_Free) right outside coffee shops. Always confirm the official network name and password with venue staff before connecting.',
-    actionableAdvice: 'Turn off auto-connect to open Wi-Fi in your phone settings.',
+    actionableAdvice: 'Turn off "Auto-Join Hotspots" in your phone settings to prevent silent rogue connections.',
     grade: 5,
   },
   {
     id: '2',
-    category: 'PHISHING_AWARENESS',
-    categoryLabel: 'Phishing Awareness',
-    title: 'Recognize Fake Delivery SMS (Smishing)',
+    category: 'LINK_SAFETY',
+    categoryLabel: 'Link Safety',
+    title: 'Inspect Lookalike "Punycode" Web Links',
     summary:
-      'Fraudulent SMS messages claim a parcel is held for a $1.50 customs fee and urge you to click a link. Legitimate couriers like FedEx or DHL never demand debit card details via unexpected text messages.',
-    actionableAdvice: 'Inspect the sender phone number and check parcel tracking on the courier app directly.',
+      'Scammers register web domains replacing Latin letters with lookalike Greek or Cyrillic characters (like replacing "o" with Cyrillic "о"). The address looks identical on your screen, but sends you to a fake banking login.',
+    actionableAdvice: 'Always bookmark your bank and payment websites rather than clicking links in SMS messages.',
     grade: 6,
   },
   {
     id: '3',
-    category: 'QR_HYGIENE',
-    categoryLabel: 'QR Code Hygiene',
-    title: 'Why QR Code Spoofing Works',
+    category: 'QR_SCAMS',
+    categoryLabel: 'QR Codes',
+    title: 'Never Pay via QR Stickers on Public Meters',
     summary:
-      'Scammers stick fraudulent printed QR codes over legitimate parking meter or restaurant payment stickers. Your camera lens cannot visually differentiate safe vs. malicious QR patterns.',
-    actionableAdvice: 'Always preview the full destination domain before completing any payment.',
-    grade: 6,
+      'Fraudsters print fake QR code stickers and paste them over real parking meters and restaurant menus. Scanning them opens fake payment gateways designed to harvest your credit card numbers.',
+    actionableAdvice: 'Feel the QR code with your finger—if it is a sticker stuck over a metal plate, report it and do not scan.',
+    grade: 4,
   },
   {
     id: '4',
@@ -70,14 +84,7 @@ export const AwarenessScreen: React.FC<AwarenessScreenProps> = ({ isDark = false
   const [activeAiQuery, setActiveAiQuery] = useState<string | null>(null);
   const [showAiModal, setShowAiModal] = useState(false);
 
-  const bg = isDark ? '#090D16' : '#FFFFFF';
-  const textColor = isDark ? '#F8FAFC' : '#0F172A';
-  const subtextColor = isDark ? '#94A3B8' : '#64748B';
-  const cardBg = isDark ? '#1E293B' : '#FFFFFF';
-  const borderCol = isDark ? '#334155' : '#F1F5F9';
-  const bannerBg = isDark ? '#134E4A' : '#F0FDFA';
-  const bannerBorder = isDark ? '#115E59' : '#CCFBF1';
-  const teal = isDark ? '#2DD4BF' : '#0D9488';
+  const theme = isDark ? GlassTokens.colors.dark : GlassTokens.colors.light;
 
   const handleLaunchAiQuery = (query: string) => {
     if (!query.trim()) return;
@@ -86,148 +93,246 @@ export const AwarenessScreen: React.FC<AwarenessScreenProps> = ({ isDark = false
   };
 
   return (
-    <View style={[styles.safeArea, { backgroundColor: bg }]}>
-      <ScrollView style={[styles.container, { backgroundColor: bg }]} contentContainerStyle={styles.content}>
-        
+    <View style={styles.safeArea}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={[styles.title, { color: textColor }]}>Learn & Protect</Text>
-          <Text style={[styles.subtitle, { color: subtextColor }]}>
-            Bite-sized, plain-language guides and interactive AI assistant to keep you safe.
+          <Text style={[styles.title, { color: theme.textPrimary }]}>
+            Learn & Protect
+          </Text>
+          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+            Plain-language security guides and AI intelligence to keep ordinary citizens safe.
           </Text>
         </View>
 
-        {/* Interactive Ask Cyber Companion AI Box */}
-        <View style={[styles.aiSearchCard, { backgroundColor: cardBg, borderColor: borderCol }]}>
-          <View style={styles.aiHeaderRow}>
-            <Text style={styles.aiIcon}>🤖</Text>
-            <View style={styles.aiHeaderTextWrap}>
-              <Text style={[styles.aiCardTitle, { color: textColor }]}>Ask Cyber Companion</Text>
-              <Text style={[styles.aiCardSubtitle, { color: teal }]}>
-                RAG Knowledge Base · Instant Plain-Language Explanations
+        {/* Ask Cyber Companion AI Glass Card */}
+        <GlassCard
+          isDark={isDark}
+          elevation="floating"
+          borderRadius={GlassTokens.radii.xl}
+          style={styles.aiSearchCard}
+        >
+          <View style={styles.aiCardContent}>
+            <View style={styles.aiHeaderRow}>
+              <View
+                style={[
+                  styles.aiIconBubble,
+                  {
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.9)',
+                    borderColor: theme.glassHighlight,
+                  },
+                ]}
+              >
+                <Text style={styles.aiIcon}>🤖</Text>
+              </View>
+
+              <View style={styles.aiHeaderTextWrap}>
+                <Text style={[styles.aiCardTitle, { color: theme.textPrimary }]}>
+                  Ask Cyber Companion
+                </Text>
+                <Text style={[styles.aiCardSubtitle, { color: theme.primary }]}>
+                  Instant Plain-Language Answers
+                </Text>
+              </View>
+            </View>
+
+            {/* Input Bar */}
+            <View style={styles.inputRow}>
+              <TextInput
+                style={[
+                  styles.aiInput,
+                  {
+                    backgroundColor: isDark ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.9)',
+                    borderColor: theme.glassBorder,
+                    color: theme.textPrimary,
+                  },
+                ]}
+                placeholder="Ask anything (e.g. What is Ethical Hacking?)"
+                placeholderTextColor="#64748B"
+                value={customQuery}
+                onChangeText={setCustomQuery}
+                onSubmitEditing={() => handleLaunchAiQuery(customQuery)}
+              />
+
+              {customQuery.length > 0 && (
+                <TouchableOpacity
+                  style={styles.clearBtn}
+                  onPress={() => setCustomQuery('')}
+                >
+                  <Text style={[styles.clearBtnText, { color: theme.textMuted }]}>✕</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={[
+                  styles.aiSubmitBtn,
+                  {
+                    backgroundColor: theme.primary,
+                    opacity: !customQuery.trim() ? 0.7 : 1,
+                  },
+                ]}
+                onPress={() => handleLaunchAiQuery(customQuery)}
+                disabled={!customQuery.trim()}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.aiSubmitBtnText}>Ask AI</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Quick Question Chips */}
+            <View style={styles.quickChipsWrap}>
+              <Text style={[styles.quickChipsLabel, { color: theme.textMuted }]}>
+                POPULAR TOPICS:
               </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.chipsScroll}
+              >
+                {QUICK_QUESTIONS.map((q, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={[
+                      styles.chipBtn,
+                      {
+                        backgroundColor: isDark
+                          ? 'rgba(255, 255, 255, 0.08)'
+                          : 'rgba(255, 255, 255, 0.85)',
+                        borderColor: theme.glassBorder,
+                      },
+                    ]}
+                    onPress={() => handleLaunchAiQuery(q.query)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.chipBtnText, { color: theme.primary }]}>
+                      {q.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </View>
           </View>
-
-          <View style={styles.inputRow}>
-            <TextInput
-              style={[
-                styles.aiInput,
-                {
-                  backgroundColor: isDark ? '#090D16' : '#F8FAFC',
-                  borderColor: borderCol,
-                  color: textColor,
-                },
-              ]}
-              placeholder="Ask anything (e.g. What is Quishing?)"
-              placeholderTextColor="#64748B"
-              value={customQuery}
-              onChangeText={setCustomQuery}
-              onSubmitEditing={() => handleLaunchAiQuery(customQuery)}
-            />
-            <TouchableOpacity
-              style={[styles.aiSubmitBtn, { backgroundColor: teal }]}
-              onPress={() => handleLaunchAiQuery(customQuery)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.aiSubmitBtnText}>Ask AI</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Quick Questions Chips */}
-          <View style={styles.quickChipsWrap}>
-            <Text style={[styles.quickChipsLabel, { color: subtextColor }]}>POPULAR THREAT TOPICS:</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
-              {QUICK_QUESTIONS.map((q, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={[
-                    styles.chipBtn,
-                    {
-                      backgroundColor: isDark ? '#334155' : '#F1F5F9',
-                      borderColor: borderCol,
-                    },
-                  ]}
-                  onPress={() => handleLaunchAiQuery(q.query)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.chipBtnText, { color: teal }]}>{q.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
+        </GlassCard>
 
         {/* Featured Tip of the Day */}
-        <View style={[styles.featuredCard, { backgroundColor: bannerBg, borderColor: bannerBorder }]}>
-          <Text style={styles.featuredBadge}>TODAY'S FEATURED TIP</Text>
-          <Text style={[styles.featuredTitle, { color: textColor }]}>
-            Free Wi-Fi names can be faked. Ask staff.
+        <GlassTipCard
+          category="TODAY'S FEATURED ADVICE"
+          icon="💡"
+          title="Free Wi-Fi names can be faked. Ask staff."
+          advice="Never connect to generic hotspot names without verifying credentials with desk personnel. Unencrypted networks expose cleartext data."
+          onPress={() => handleLaunchAiQuery('How to verify safe public Wi-Fi?')}
+          isDark={isDark}
+        />
+
+        {/* Citizen Security Guides Section */}
+        <View style={styles.guidesHeaderRow}>
+          <Text style={[styles.sectionHeading, { color: theme.textPrimary }]}>
+            Citizen Safety Guides
           </Text>
-          <Text style={[styles.featuredBody, { color: subtextColor }]}>
-            Never connect to generic hotspot names like "Free_Airport_Wi-Fi" without verifying with desk personnel.
+          <Text style={[styles.sectionSubheading, { color: theme.textMuted }]}>
+            Tap to expand advice
           </Text>
         </View>
-
-        {/* Guide Cards */}
-        <Text style={[styles.sectionHeading, { color: textColor }]}>Security Guides</Text>
-
 
         <View style={styles.cardsContainer}>
           {TIPS.map((tip) => {
             const isExpanded = expandedId === tip.id;
 
             return (
-              <TouchableOpacity
+              <GlassCard
                 key={tip.id}
-                style={[
-                  styles.card,
-                  { backgroundColor: cardBg, borderColor: borderCol },
-                  isExpanded && { borderColor: '#0D9488' },
-                ]}
+                isDark={isDark}
                 onPress={() => setExpandedId(isExpanded ? null : tip.id)}
-                activeOpacity={0.8}
+                interactive={true}
+                elevation="soft"
+                borderRadius={GlassTokens.radii.lg}
+                style={styles.guideCard}
               >
-                <View style={styles.cardHeader}>
-                  <View style={styles.badgeRow}>
-                    <Text style={styles.categoryBadge}>{tip.categoryLabel}</Text>
-                    <Text style={[styles.gradeBadge, { color: subtextColor }]}>Grade {tip.grade} reading</Text>
-                  </View>
-                  <Text style={styles.expandChevron}>{isExpanded ? '▲' : '▼'}</Text>
-                </View>
-
-                <Text style={[styles.cardTitle, { color: textColor }]}>{tip.title}</Text>
-                <Text style={[styles.cardSummary, { color: subtextColor }]} numberOfLines={isExpanded ? undefined : 2}>
-                  {tip.summary}
-                </Text>
-
-                {isExpanded && (
-                  <>
-                    <View style={[styles.actionBox, { backgroundColor: isDark ? '#0F172A' : '#F8FAFC' }]}>
-                      <Text style={styles.actionBoxTitle}>💡 Quick Action:</Text>
-                      <Text style={[styles.actionBoxText, { color: textColor }]}>
-                        {tip.actionableAdvice}
+                <View style={styles.guideCardContent}>
+                  <View style={styles.cardHeader}>
+                    <View style={styles.badgeRow}>
+                      <View
+                        style={[
+                          styles.categoryPill,
+                          {
+                            backgroundColor: isDark
+                              ? 'rgba(16, 185, 129, 0.12)'
+                              : 'rgba(5, 150, 105, 0.08)',
+                            borderColor: isDark
+                              ? 'rgba(16, 185, 129, 0.25)'
+                              : 'rgba(5, 150, 105, 0.18)',
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.categoryBadge, { color: theme.primary }]}>
+                          {tip.categoryLabel}
+                        </Text>
+                      </View>
+                      <Text style={[styles.gradeBadge, { color: theme.textMuted }]}>
+                        Grade {tip.grade} reading
                       </Text>
                     </View>
+                    <Text style={[styles.expandChevron, { color: theme.textMuted }]}>
+                      {isExpanded ? '▲' : '▼'}
+                    </Text>
+                  </View>
 
-                    <TouchableOpacity
-                      style={[
-                        styles.explainMoreBtn,
-                        {
-                          borderColor: teal,
-                          backgroundColor: isDark ? '#134E4A' : '#CCFBF1',
-                        },
-                      ]}
-                      onPress={() => handleLaunchAiQuery(`${tip.title}: ${tip.summary}`)}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[styles.explainMoreText, { color: teal }]}>
-                        🤖 Ask AI: Deep Dive on this Topic →
-                      </Text>
-                    </TouchableOpacity>
-                  </>
-                )}
-              </TouchableOpacity>
+                  <Text style={[styles.cardTitle, { color: theme.textPrimary }]}>
+                    {tip.title}
+                  </Text>
+                  <Text
+                    style={[styles.cardSummary, { color: theme.textSecondary }]}
+                    numberOfLines={isExpanded ? undefined : 2}
+                  >
+                    {tip.summary}
+                  </Text>
+
+                  {isExpanded && (
+                    <View style={styles.expandedContent}>
+                      <View
+                        style={[
+                          styles.actionBox,
+                          {
+                            backgroundColor: isDark
+                              ? 'rgba(0, 0, 0, 0.25)'
+                              : 'rgba(255, 255, 255, 0.7)',
+                            borderColor: theme.glassBorder,
+                          },
+                        ]}
+                      >
+                        <Text style={styles.actionBoxTitle}>💡 Practical Action:</Text>
+                        <Text style={[styles.actionBoxText, { color: theme.textPrimary }]}>
+                          {tip.actionableAdvice}
+                        </Text>
+                      </View>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.explainMoreBtn,
+                          {
+                            backgroundColor: isDark
+                              ? 'rgba(16, 185, 129, 0.15)'
+                              : 'rgba(5, 150, 105, 0.1)',
+                            borderColor: isDark
+                              ? 'rgba(16, 185, 129, 0.3)'
+                              : 'rgba(5, 150, 105, 0.25)',
+                          },
+                        ]}
+                        onPress={() => handleLaunchAiQuery(`${tip.title}: ${tip.summary}`)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[styles.explainMoreText, { color: theme.primary }]}>
+                          🤖 Ask AI: Deep Dive on this Topic →
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              </GlassCard>
             );
           })}
         </View>
@@ -248,97 +353,119 @@ export const AwarenessScreen: React.FC<AwarenessScreenProps> = ({ isDark = false
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+    backgroundColor: 'transparent',
   },
   container: {
     flex: 1,
+    backgroundColor: 'transparent',
   },
   content: {
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 40,
+    paddingBottom: 115, // Clear floating glass navigation bar
+    gap: 16,
   },
   header: {
-    marginBottom: 18,
+    marginBottom: 4,
   },
   title: {
     fontSize: 26,
     fontWeight: '800',
-    letterSpacing: -0.5,
+    letterSpacing: -0.6,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 13,
+    lineHeight: 19,
     fontWeight: '500',
     marginTop: 4,
-    lineHeight: 20,
   },
   aiSearchCard: {
-    borderRadius: 20,
-    borderWidth: 1,
-    padding: 16,
-    marginBottom: 20,
+    marginTop: 4,
+  },
+  aiCardContent: {
+    padding: 18,
+    gap: 12,
   },
   aiHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginBottom: 12,
+    gap: 12,
+  },
+  aiIconBubble: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   aiIcon: {
-    fontSize: 26,
+    fontSize: 22,
   },
   aiHeaderTextWrap: {
     flex: 1,
+    gap: 2,
   },
   aiCardTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '800',
+    letterSpacing: -0.3,
   },
   aiCardSubtitle: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
-    marginTop: 2,
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 12,
+    position: 'relative',
   },
   aiInput: {
     flex: 1,
-    height: 44,
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 12,
+    height: 46,
+    borderRadius: 14,
+    borderWidth: 1.2,
+    paddingHorizontal: 14,
+    paddingRight: 36,
     fontSize: 13,
   },
+  clearBtn: {
+    position: 'absolute',
+    right: 88,
+    padding: 8,
+  },
+  clearBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
   aiSubmitBtn: {
-    height: 44,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    height: 46,
+    paddingHorizontal: 18,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   aiSubmitBtnText: {
     color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   quickChipsWrap: {
-    gap: 6,
+    gap: 8,
+    marginTop: 4,
   },
   quickChipsLabel: {
     fontSize: 10,
     fontWeight: '800',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
   },
   chipsScroll: {
     gap: 8,
-    paddingVertical: 2,
   },
   chipBtn: {
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: 16,
     borderWidth: 1,
   },
@@ -346,112 +473,98 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
-  featuredCard: {
-    borderRadius: 20,
-    borderWidth: 1,
-    padding: 20,
-    marginBottom: 24,
-  },
-  featuredBadge: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#0F766E',
-    letterSpacing: 0.8,
-    marginBottom: 6,
-  },
-  featuredTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    letterSpacing: -0.2,
-    marginBottom: 6,
-  },
-  featuredBody: {
-    fontSize: 13,
-    lineHeight: 19,
+  guidesHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginTop: 4,
   },
   sectionHeading: {
     fontSize: 18,
     fontWeight: '800',
     letterSpacing: -0.3,
-    marginBottom: 14,
+  },
+  sectionSubheading: {
+    fontSize: 12,
+    fontWeight: '500',
   },
   cardsContainer: {
-    gap: 14,
+    gap: 12,
   },
-  card: {
-    borderRadius: 20,
-    borderWidth: 1,
+  guideCard: {
+    marginVertical: 2,
+  },
+  guideCardContent: {
     padding: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
+    gap: 8,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
   },
   badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  categoryBadge: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#0D9488',
-    backgroundColor: '#CCFBF1',
+  categoryPill: {
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
+    borderWidth: 1,
+  },
+  categoryBadge: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
   gradeBadge: {
     fontSize: 11,
     fontWeight: '500',
   },
   expandChevron: {
-    fontSize: 11,
-    color: '#94A3B8',
+    fontSize: 12,
   },
   cardTitle: {
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: -0.2,
-    marginBottom: 6,
   },
   cardSummary: {
     fontSize: 13,
-    lineHeight: 19,
+    lineHeight: 18,
+    fontWeight: '500',
+  },
+  expandedContent: {
+    marginTop: 8,
+    gap: 10,
   },
   actionBox: {
-    marginTop: 14,
     padding: 12,
     borderRadius: 12,
+    borderWidth: 1,
+    gap: 4,
   },
   actionBoxTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#0D9488',
-    marginBottom: 2,
+    color: '#10B981',
   },
   actionBoxText: {
     fontSize: 13,
-    fontWeight: '500',
     lineHeight: 18,
+    fontWeight: '500',
   },
   explainMoreBtn: {
-    marginTop: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 10,
+    paddingVertical: 12,
+    borderRadius: 12,
     borderWidth: 1,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   explainMoreText: {
-    fontSize: 12,
-    fontWeight: '800',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

@@ -463,7 +463,7 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
 
         {/* -------------------- DEDICATED VIEW DETAILS SCREEN -------------------- */}
         {selectedHotspot && showDetailModal && (
-          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: bg, zIndex: 100 }]}>
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: bg, zIndex: 100 }]}>
             <SafeAreaView style={[styles.detailModalContainer, { backgroundColor: bg, flex: 1 }]}>
               <ScrollView contentContainerStyle={styles.detailScrollContent} showsVerticalScrollIndicator={false}>
                 {/* Detail Header Banner */}

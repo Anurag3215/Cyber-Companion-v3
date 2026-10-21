@@ -5,12 +5,13 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   Modal,
   SafeAreaView,
 } from 'react-native';
-import { LinkCheckSheet } from '../components/LinkCheckSheet';
 import { ScoreHistorySparkline } from '../components/ScoreHistorySparkline';
+import { GlassCard } from '../design-system/GlassCard';
+import { GlassPrimaryButton } from '../design-system/GlassPrimaryButton';
+import { GlassTokens } from '../design-system/glassTokens';
 
 interface HistoryItem {
   id: string;
@@ -34,19 +35,19 @@ const REAL_DEFAULT_HISTORY: HistoryItem[] = [
     id: 'h-1',
     type: 'wifi',
     icon: '📶',
-    title: 'DESKTOP-BNFS8Q1 4220',
-    subtext: 'Physical Hotspot · 2.4 GHz (Ch 11) · WPA2',
+    title: 'Redmi 15C 5G',
+    subtext: 'Physical Hotspot · 2.4 GHz (Ch 1) · WPA2',
     time: 'Recent Scan',
     verdict: 'warning',
     verdictLabel: 'Caution',
     details: {
       threatTitle: 'Ambient Wi-Fi Encryption Audit',
       consensusText: 'Caution · WPA2 without 802.11w PMF',
-      explanation: 'Network traffic is encrypted with WPA2-Personal, but lacks 802.11w Protected Management Frames. Vulnerable to deauth frame injection.',
+      explanation: 'Network traffic is encrypted with WPA2-Personal, but lacks 802.11w Protected Management Frames. Susceptible to deauth frame injection jamming.',
       findings: [
         'WPA2-PSK Authentication active',
         '802.11w PMF Disabled (Deauth susceptible)',
-        'Radio Signal: -40 dBm (Strong proximity)',
+        'Radio Signal: -62 dBm (Strong proximity)',
       ],
     },
   },
@@ -54,8 +55,8 @@ const REAL_DEFAULT_HISTORY: HistoryItem[] = [
     id: 'h-2',
     type: 'app',
     icon: '🛡️',
-    title: 'SuperVPN Fast Client',
-    subtext: 'com.jrzheng.supervpnpayment · System Overlay',
+    title: 'SuperVPN Client',
+    subtext: 'com.jrzheng.supervpnpayment · Overlay Right',
     time: 'Recent Audit',
     verdict: 'warning',
     verdictLabel: 'Caution',
@@ -99,15 +100,12 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ isDark = false }) 
   const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>(REAL_DEFAULT_HISTORY);
 
-  const bg = isDark ? '#090D16' : '#FFFFFF';
-  const textColor = isDark ? '#F8FAFC' : '#0F172A';
-  const subtextColor = isDark ? '#94A3B8' : '#64748B';
-  const cardBg = isDark ? '#1E293B' : '#FFFFFF';
-  const borderCol = isDark ? '#334155' : '#F1F5F9';
+  const theme = isDark ? GlassTokens.colors.dark : GlassTokens.colors.light;
 
-  const filteredItems = selectedFilter === 'all'
-    ? historyItems
-    : historyItems.filter((item) => item.type === selectedFilter);
+  const filteredItems =
+    selectedFilter === 'all'
+      ? historyItems
+      : historyItems.filter((item) => item.type === selectedFilter);
 
   const filterTabs = [
     { key: 'all', label: 'All' },
@@ -117,24 +115,68 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ isDark = false }) 
     { key: 'app', label: 'Apps' },
   ] as const;
 
+  const getVerdictColors = (verdict: HistoryItem['verdict']) => {
+    switch (verdict) {
+      case 'dangerous':
+        return {
+          bg: theme.redBg,
+          text: theme.red,
+          border: theme.redBorder,
+        };
+      case 'warning':
+        return {
+          bg: theme.amberBg,
+          text: theme.amber,
+          border: theme.amberBorder,
+        };
+      case 'safe':
+      default:
+        return {
+          bg: theme.primaryGlass,
+          text: theme.primary,
+          border: isDark ? 'rgba(16, 185, 129, 0.35)' : 'rgba(5, 150, 105, 0.25)',
+        };
+    }
+  };
+
   return (
-    <View style={[styles.safeArea, { backgroundColor: bg }]}>
-      <ScrollView style={[styles.container, { backgroundColor: bg }]} contentContainerStyle={styles.content}>
-        
+    <View style={styles.safeArea}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={[styles.title, { color: textColor }]}>Scan History</Text>
-          <Text style={[styles.subtitle, { color: subtextColor }]}>
-            Review past security checks and threat verdicts
+          <Text style={[styles.title, { color: theme.textPrimary }]}>
+            Security History
+          </Text>
+          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+            Timeline of past Wi-Fi audits, link inspections, and on-device privacy checks.
           </Text>
         </View>
 
-        {/* 7-Day Score Sparkline */}
-        <View style={styles.sparklineContainer}>
-          <ScoreHistorySparkline history={[68, 71, 70, 74, 76, 78]} />
-        </View>
+        {/* 7-Day Score Sparkline Glass Card */}
+        <GlassCard
+          isDark={isDark}
+          elevation="soft"
+          borderRadius={GlassTokens.radii.xl}
+          style={styles.sparklineCard}
+        >
+          <View style={styles.sparklineInner}>
+            <View style={styles.sparklineHeader}>
+              <Text style={[styles.sparklineTitle, { color: theme.textMuted }]}>
+                7-DAY DEFENSE TREND
+              </Text>
+              <Text style={[styles.sparklineScore, { color: theme.primary }]}>
+                +14 pts gained
+              </Text>
+            </View>
+            <ScoreHistorySparkline history={[68, 71, 70, 74, 76, 78]} />
+          </View>
+        </GlassCard>
 
-        {/* Filter Chips */}
+        {/* Filter Capsule Chips */}
         <View style={styles.filterRow}>
           {filterTabs.map((tab) => {
             const isActive = selectedFilter === tab.key;
@@ -144,8 +186,14 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ isDark = false }) 
                 style={[
                   styles.filterChip,
                   {
-                    backgroundColor: isActive ? '#0F172A' : isDark ? '#1E293B' : '#F1F5F9',
-                    borderColor: borderCol,
+                    backgroundColor: isActive
+                      ? isDark
+                        ? 'rgba(16, 185, 129, 0.18)'
+                        : 'rgba(5, 150, 105, 0.12)'
+                      : theme.glassBg,
+                    borderColor: isActive
+                      ? theme.primary
+                      : theme.glassBorder,
                   },
                 ]}
                 onPress={() => setSelectedFilter(tab.key)}
@@ -154,7 +202,10 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ isDark = false }) 
                 <Text
                   style={[
                     styles.filterChipText,
-                    { color: isActive ? '#FFFFFF' : subtextColor, fontWeight: isActive ? '700' : '500' },
+                    {
+                      color: isActive ? theme.primary : theme.textSecondary,
+                      fontWeight: isActive ? '700' : '500',
+                    },
                   ]}
                 >
                   {tab.label}
@@ -164,84 +215,162 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ isDark = false }) 
           })}
         </View>
 
-        {/* List of Scans */}
+        {/* History Item Cards List */}
         <View style={styles.listContainer}>
           {filteredItems.length === 0 ? (
-            <View style={[styles.emptyContainer, { backgroundColor: cardBg, borderColor: borderCol }]}>
-              <Text style={styles.emptyIcon}>🛡️</Text>
-              <Text style={[styles.emptyTitle, { color: textColor }]}>No Logs in This Category</Text>
-              <Text style={[styles.emptySub, { color: subtextColor }]}>
-                Real-time security telemetry will populate here as you run live scans.
-              </Text>
-            </View>
+            <GlassCard
+              isDark={isDark}
+              elevation="none"
+              borderRadius={GlassTokens.radii.lg}
+              style={styles.emptyCard}
+            >
+              <View style={styles.emptyCardContent}>
+                <Text style={styles.emptyIcon}>🛡️</Text>
+                <Text style={[styles.emptyTitle, { color: theme.textPrimary }]}>
+                  No items in this category
+                </Text>
+                <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
+                  Security audits and scans will appear here automatically.
+                </Text>
+              </View>
+            </GlassCard>
           ) : (
             filteredItems.map((item) => {
-              const badgeBg =
-                item.verdict === 'dangerous'
-                  ? '#FEF2F2'
-                  : item.verdict === 'warning'
-                  ? '#FFFBEB'
-                  : '#ECFDF5';
-              const badgeTextColor =
-                item.verdict === 'dangerous'
-                  ? '#DC2626'
-                  : item.verdict === 'warning'
-                  ? '#D97706'
-                  : '#059669';
+              const vColors = getVerdictColors(item.verdict);
 
               return (
-                <TouchableOpacity
+                <GlassCard
                   key={item.id}
-                  style={[styles.historyCard, { backgroundColor: cardBg, borderColor: borderCol }]}
+                  isDark={isDark}
                   onPress={() => setSelectedItem(item)}
-                  activeOpacity={0.7}
+                  interactive={true}
+                  elevation="soft"
+                  borderRadius={GlassTokens.radii.lg}
+                  style={styles.historyCard}
                 >
-                  <View style={styles.cardLeft}>
-                    <View style={[styles.iconWrap, { backgroundColor: isDark ? '#334155' : '#F8FAFC' }]}>
-                      <Text style={styles.iconText}>{item.icon}</Text>
+                  <View style={styles.historyCardContent}>
+                    {/* Icon Bubble */}
+                    <View
+                      style={[
+                        styles.iconBubble,
+                        {
+                          backgroundColor: isDark
+                            ? 'rgba(255, 255, 255, 0.08)'
+                            : 'rgba(255, 255, 255, 0.9)',
+                          borderColor: theme.glassHighlight,
+                        },
+                      ]}
+                    >
+                      <Text style={styles.itemIcon}>{item.icon}</Text>
                     </View>
-                    <View style={styles.textWrap}>
-                      <Text style={[styles.cardTitle, { color: textColor }]} numberOfLines={1}>
+
+                    {/* Middle Info */}
+                    <View style={styles.middleInfo}>
+                      <Text style={[styles.itemTitle, { color: theme.textPrimary }]} numberOfLines={1}>
                         {item.title}
                       </Text>
-                      <Text style={[styles.cardSubtext, { color: subtextColor }]} numberOfLines={1}>
+                      <Text style={[styles.itemSubtext, { color: theme.textSecondary }]} numberOfLines={1}>
                         {item.subtext}
                       </Text>
-                      <Text style={[styles.cardTime, { color: subtextColor }]}>{item.time}</Text>
+                      <Text style={[styles.itemTime, { color: theme.textMuted }]}>
+                        {item.time}
+                      </Text>
+                    </View>
+
+                    {/* Right Verdict Pill */}
+                    <View
+                      style={[
+                        styles.verdictPill,
+                        {
+                          backgroundColor: vColors.bg,
+                          borderColor: vColors.border,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.verdictText, { color: vColors.text }]}>
+                        {item.verdictLabel}
+                      </Text>
                     </View>
                   </View>
-
-                  <View style={[styles.badgePill, { backgroundColor: badgeBg }]}>
-                    <Text style={[styles.badgeText, { color: badgeTextColor }]}>
-                      {item.verdictLabel}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
+                </GlassCard>
               );
             })
           )}
         </View>
       </ScrollView>
 
-      {/* Item Detail Modal */}
+      {/* Item Detail Inspection Modal */}
       {selectedItem && (
         <Modal
-          visible={!!selectedItem}
+          visible={Boolean(selectedItem)}
           animationType="slide"
           presentationStyle="pageSheet"
           onRequestClose={() => setSelectedItem(null)}
         >
-          <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? '#0F172A' : '#FFFFFF' }}>
-            <LinkCheckSheet
-              url={selectedItem.title}
-              isThreat={selectedItem.verdict !== 'safe'}
-              threatTitle={selectedItem.details?.threatTitle || selectedItem.verdictLabel}
-              consensusText={selectedItem.details?.consensusText || 'Detailed scan breakdown'}
-              explanation={selectedItem.details?.explanation || selectedItem.subtext}
-              findings={selectedItem.details?.findings || []}
-              onClose={() => setSelectedItem(null)}
-              isDark={isDark}
-            />
+          <SafeAreaView
+            style={[
+              styles.modalContainer,
+              { backgroundColor: isDark ? '#090D16' : '#F4FBF7' },
+            ]}
+          >
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderTitleWrap}>
+                <Text style={styles.modalIcon}>{selectedItem.icon}</Text>
+                <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>
+                  {selectedItem.title}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[
+                  styles.closeBtn,
+                  { backgroundColor: theme.glassBg, borderColor: theme.glassBorder },
+                ]}
+                onPress={() => setSelectedItem(null)}
+              >
+                <Text style={[styles.closeBtnText, { color: theme.textPrimary }]}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView contentContainerStyle={styles.modalContent}>
+              <GlassCard
+                isDark={isDark}
+                elevation="soft"
+                borderRadius={GlassTokens.radii.lg}
+                style={styles.modalCard}
+              >
+                <View style={styles.modalCardInner}>
+                  <Text style={[styles.modalCardHeading, { color: theme.textMuted }]}>
+                    FINDINGS & TELEMETRY
+                  </Text>
+                  <Text style={[styles.threatTitle, { color: theme.textPrimary }]}>
+                    {selectedItem.details?.threatTitle || 'Audit Details'}
+                  </Text>
+                  <Text style={[styles.explanation, { color: theme.textSecondary }]}>
+                    {selectedItem.details?.explanation || selectedItem.subtext}
+                  </Text>
+
+                  {selectedItem.details?.findings && (
+                    <View style={styles.findingsList}>
+                      {selectedItem.details.findings.map((f, i) => (
+                        <View key={i} style={styles.findingRow}>
+                          <Text style={{ color: theme.primary }}>✓</Text>
+                          <Text style={[styles.findingText, { color: theme.textPrimary }]}>
+                            {f}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              </GlassCard>
+
+              <GlassPrimaryButton
+                title="Done"
+                onPress={() => setSelectedItem(null)}
+                isDark={isDark}
+                style={styles.doneBtn}
+              />
+            </ScrollView>
           </SafeAreaView>
         </Modal>
       )}
@@ -252,125 +381,220 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ isDark = false }) 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+    backgroundColor: 'transparent',
   },
   container: {
     flex: 1,
+    backgroundColor: 'transparent',
   },
   content: {
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 40,
+    paddingBottom: 115, // Clear floating glass navigation bar
+    gap: 16,
   },
   header: {
-    marginBottom: 16,
+    marginBottom: 4,
   },
   title: {
     fontSize: 26,
     fontWeight: '800',
-    letterSpacing: -0.5,
+    letterSpacing: -0.6,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 13,
+    lineHeight: 19,
     fontWeight: '500',
     marginTop: 4,
   },
-  sparklineContainer: {
-    marginBottom: 20,
+  sparklineCard: {
+    marginTop: 4,
+  },
+  sparklineInner: {
+    padding: 18,
+    gap: 12,
+  },
+  sparklineHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sparklineTitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  sparklineScore: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   filterRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 18,
   },
   filterChip: {
-    paddingVertical: 8,
     paddingHorizontal: 14,
+    paddingVertical: 7,
     borderRadius: 20,
-    borderWidth: 1,
+    borderWidth: 1.2,
   },
   filterChipText: {
-    fontSize: 13,
+    fontSize: 12,
+    letterSpacing: -0.1,
   },
   listContainer: {
-    gap: 12,
+    gap: 10,
   },
   historyCard: {
+    marginVertical: 2,
+  },
+  historyCardContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     padding: 16,
-    borderRadius: 18,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
+    gap: 12,
   },
-  cardLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 12,
-  },
-  iconWrap: {
+  iconBubble: {
     width: 44,
     height: 44,
-    borderRadius: 14,
+    borderRadius: 22,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
   },
-  iconText: {
+  itemIcon: {
     fontSize: 20,
   },
-  textWrap: {
+  middleInfo: {
     flex: 1,
+    gap: 2,
   },
-  cardTitle: {
+  itemTitle: {
     fontSize: 15,
     fontWeight: '700',
     letterSpacing: -0.2,
   },
-  cardSubtext: {
-    fontSize: 13,
-    fontWeight: '400',
+  itemSubtext: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  itemTime: {
+    fontSize: 11,
     marginTop: 2,
   },
-  cardTime: {
-    fontSize: 11,
-    fontWeight: '500',
-    marginTop: 4,
-  },
-  badgePill: {
+  verdictPill: {
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  emptyContainer: {
-    borderRadius: 18,
+    paddingVertical: 4,
+    borderRadius: 14,
     borderWidth: 1,
-    padding: 24,
+  },
+  verdictText: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  emptyCard: {
+    padding: 30,
     alignItems: 'center',
-    marginVertical: 12,
+    justifyContent: 'center',
+  },
+  emptyCardContent: {
+    alignItems: 'center',
+    gap: 8,
   },
   emptyIcon: {
-    fontSize: 36,
-    marginBottom: 10,
+    fontSize: 32,
+    marginBottom: 4,
   },
   emptyTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    marginBottom: 6,
-    textAlign: 'center',
+    fontSize: 16,
+    fontWeight: '700',
   },
-  emptySub: {
-    fontSize: 12,
-    lineHeight: 18,
+  emptySubtitle: {
+    fontSize: 13,
     textAlign: 'center',
+    lineHeight: 18,
+  },
+  modalContainer: {
+    flex: 1,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  modalHeaderTitleWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  modalIcon: {
+    fontSize: 22,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  closeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  modalContent: {
+    padding: 20,
+    gap: 16,
+  },
+  modalCard: {
+    marginVertical: 4,
+  },
+  modalCardInner: {
+    padding: 20,
+    gap: 10,
+  },
+  modalCardHeading: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  threatTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  explanation: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '500',
+  },
+  findingsList: {
+    marginTop: 8,
+    gap: 8,
+  },
+  findingRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  findingText: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '500',
+    flex: 1,
+  },
+  doneBtn: {
+    marginTop: 8,
   },
 });
