@@ -457,9 +457,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                   borderColor: borderSubtle,
                 },
               ]}
-              onPress={() => handleApplyPreset('http://10.61.206.148:5000/v1')}
+              onPress={() => handleApplyPreset('http://192.168.1.15:5000/v1')}
             >
-              <Text style={[styles.presetBtnText, { color: textColor }]}>LAN IP</Text>
+              <Text style={[styles.presetBtnText, { color: textColor }]}>Wi-Fi LAN</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
