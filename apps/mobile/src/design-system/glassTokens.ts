@@ -58,6 +58,14 @@ export const GlassTokens = {
       orb1: '#99E2DA',
       orb2: '#BFDBFE',
       orb3: '#DDE7FB',
+
+      // Showcase tokens
+      cardNavy: '#FFFFFF',
+      cardBorderCyan: 'rgba(56, 189, 248, 0.35)',
+      cardGlow: 'rgba(56, 189, 248, 0.12)',
+      accentCyan: '#0284C7',
+      actionBlue: '#2563EB',
+      actionBlueDark: '#1D4ED8',
     },
 
     dark: {
@@ -101,6 +109,14 @@ export const GlassTokens = {
       orb1: '#0F4C4B',
       orb2: '#14325E',
       orb3: '#10243E',
+
+      // Showcase tokens matching reference UI
+      cardNavy: '#0E1B38',
+      cardBorderCyan: 'rgba(56, 189, 248, 0.22)',
+      cardGlow: 'rgba(56, 189, 248, 0.18)',
+      accentCyan: '#38BDF8',
+      actionBlue: '#2563EB',
+      actionBlueDark: '#1D4ED8',
     },
   },
 

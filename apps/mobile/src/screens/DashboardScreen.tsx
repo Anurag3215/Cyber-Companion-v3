@@ -1,85 +1,80 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  Platform,
+} from 'react-native';
 import { CyberLogo } from '../components/CyberLogo';
+import { Shield3DVisual } from '../components/Showcase3DVisuals';
 import { WifiSentinelModal } from '../components/WifiSentinelModal';
 import { LinkInspectorModal } from '../components/LinkInspectorModal';
 import { QrScannerModal } from '../components/QrScannerModal';
 import { AppPrivacyModal } from '../components/AppPrivacyModal';
 import { useAuth } from '../services/AuthContext';
 import { GlassCard } from '../design-system/GlassCard';
-import { GlassPrimaryButton } from '../design-system/GlassPrimaryButton';
-import { GlassTipCard } from '../design-system/GlassTipCard';
 import { GlassTokens } from '../design-system/glassTokens';
-import { ScoreRing, bandForScore, BAND_LABEL } from '../design-system/ScoreRing';
-import { IconTile } from '../design-system/IconTile';
 
 interface DashboardScreenProps {
   onNavigateToScanners?: () => void;
   onNavigateToLearn?: () => void;
+  onNavigateToWifiAnalyzer?: () => void;
+  onNavigateToUrlScanner?: () => void;
+  onNavigateToQrScanner?: () => void;
+  onNavigateToPermissionAnalyzer?: () => void;
+  onNavigateToSecurityScore?: () => void;
   isDark?: boolean;
   toggleTheme?: () => void;
 }
 
-type ToolKey = 'wifi' | 'link' | 'qr' | 'apps';
-
-const TOOLS: Array<{
-  key: ToolKey;
-  glyph: string;
-  title: string;
-  subtitle: string;
-  tone: 'teal' | 'blue';
-}> = [
-  { key: 'wifi', glyph: '📶', title: 'Wi-Fi check', subtitle: 'Is this network safe?', tone: 'teal' },
-  { key: 'link', glyph: '🔗', title: 'Link check', subtitle: 'Spot scams & phishing', tone: 'blue' },
-  { key: 'qr', glyph: '⛶', title: 'QR scanner', subtitle: 'Preview before opening', tone: 'blue' },
-  { key: 'apps', glyph: '🛡️', title: 'App permissions', subtitle: 'What your apps can access', tone: 'teal' },
-];
-
-const formatWhen = (iso?: string): string | null => {
-  if (!iso) return null;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
-};
+type ToolKey = 'wifi' | 'url' | 'qr' | 'permissions';
 
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   onNavigateToLearn,
-  isDark = false,
+  onNavigateToWifiAnalyzer,
+  onNavigateToUrlScanner,
+  onNavigateToQrScanner,
+  onNavigateToPermissionAnalyzer,
+  onNavigateToSecurityScore,
+  isDark = true,
   toggleTheme,
 }) => {
   const { user } = useAuth();
   const theme = isDark ? GlassTokens.colors.dark : GlassTokens.colors.light;
-  const firstName = (user?.name || '').split(' ')[0];
 
-  const [openTool, setOpenTool] = useState<ToolKey | null>(null);
-  const close = () => setOpenTool(null);
+  const displayName = user?.name || 'Anurag';
+  const score = typeof user?.securityScore === 'number' ? user.securityScore : 78;
 
-  const hour = new Date().getHours();
-  const greetingTime = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const [activeModal, setActiveModal] = useState<ToolKey | null>(null);
 
-  // Only trust a score that a real assessment produced (see AuthContext.updateScore).
-  const assessedAt = user?.scoreUpdatedAt;
-  const score = assessedAt && typeof user?.securityScore === 'number' ? user.securityScore : null;
-  const band = score === null ? null : bandForScore(score);
-  const lastChecked = formatWhen(assessedAt);
+  const handleToolPress = (tool: ToolKey) => {
+    switch (tool) {
+      case 'wifi':
+        if (onNavigateToWifiAnalyzer) onNavigateToWifiAnalyzer();
+        else setActiveModal('wifi');
+        break;
+      case 'url':
+        if (onNavigateToUrlScanner) onNavigateToUrlScanner();
+        else setActiveModal('url');
+        break;
+      case 'qr':
+        if (onNavigateToQrScanner) onNavigateToQrScanner();
+        else setActiveModal('qr');
+        break;
+      case 'permissions':
+        if (onNavigateToPermissionAnalyzer) onNavigateToPermissionAnalyzer();
+        else setActiveModal('permissions');
+        break;
+    }
+  };
 
-  const bandColor =
-    band === 'SECURE'
-      ? theme.green
-      : band === 'MODERATE'
-        ? theme.primaryText
-        : band === 'AT_RISK'
-          ? theme.amber
-          : band === 'CRITICAL'
-            ? theme.red
-            : theme.textMuted;
-
-  const explanation =
-    score === null
-      ? 'Your score appears here after your first check. It only reflects checks you have actually run.'
-      : band === 'SECURE'
-        ? 'Your recent checks look good. Keep checking new links and networks to stay protected.'
-        : 'Your score combines your recent Wi-Fi, link and app checks. Run another check to improve it.';
+  const getStatusText = (s: number) => {
+    if (s >= 80) return 'Good';
+    if (s >= 65) return 'Moderate';
+    return 'Action Needed';
+  };
 
   return (
     <View style={styles.safeArea}>
@@ -89,187 +84,510 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.column}>
-          {/* Header */}
+          {/* Header Bar */}
           <View style={styles.topHeaderBar}>
-            <CyberLogo size={34} isDark={isDark} animated={false} />
-            {toggleTheme && (
+            <View style={styles.brandRow}>
+              <CyberLogo size={32} isDark={isDark} animated={false} />
+              <Text style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : '#0F172A' }]}>
+                Cyber Companion
+              </Text>
+            </View>
+
+            <View style={styles.headerRightActions}>
+              {toggleTheme && (
+                <TouchableOpacity
+                  onPress={toggleTheme}
+                  activeOpacity={0.75}
+                  accessibilityRole="button"
+                  accessibilityLabel={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+                  style={[
+                    styles.iconBtn,
+                    {
+                      backgroundColor: isDark ? 'rgba(14, 27, 56, 0.8)' : '#FFFFFF',
+                      borderColor: isDark ? 'rgba(56, 189, 248, 0.2)' : '#DCE6F0',
+                    },
+                  ]}
+                >
+                  <Text style={{ fontSize: 16 }}>{isDark ? '☀️' : '🌙'}</Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Notification Bell with Badge */}
               <TouchableOpacity
-                onPress={toggleTheme}
+                style={[
+                  styles.iconBtn,
+                  {
+                    backgroundColor: isDark ? 'rgba(14, 27, 56, 0.8)' : '#FFFFFF',
+                    borderColor: isDark ? 'rgba(56, 189, 248, 0.2)' : '#DCE6F0',
+                  },
+                ]}
                 activeOpacity={0.75}
                 accessibilityRole="button"
-                accessibilityLabel={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+                accessibilityLabel="Notifications"
+              >
+                <Text style={{ fontSize: 16 }}>🔔</Text>
+                <View style={styles.notificationDot} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* User Greeting Section */}
+          <View style={styles.greetingSection}>
+            <Text style={[styles.greetingHeadline, { color: isDark ? '#FFFFFF' : '#0F172A' }]}>
+              Hello, {displayName} 👋
+            </Text>
+            <Text style={[styles.greetingSubtitle, { color: isDark ? '#94A3B8' : '#64748B' }]}>
+              Good digital habits keep you safe. Let's stay one step ahead.
+            </Text>
+          </View>
+
+          {/* Hero Security Score Card matching reference showcase */}
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={onNavigateToSecurityScore}
+            accessibilityRole="button"
+            accessibilityLabel={`Security score is ${score} out of 100. Status is ${getStatusText(score)}. Tap to view detailed breakdown.`}
+          >
+            <GlassCard
+              isDark={isDark}
+              elevation="floating"
+              borderRadius={28}
+              style={[
+                styles.scoreHeroCard,
+                {
+                  backgroundColor: isDark ? '#0E1B38' : 'rgba(255, 255, 255, 0.92)',
+                  borderColor: isDark ? 'rgba(56, 189, 248, 0.25)' : 'rgba(2, 132, 199, 0.25)',
+                },
+              ]}
+            >
+              <View style={styles.scoreHeroInner}>
+                {/* Left Side: Score Arc & Details */}
+                <View style={styles.scoreLeftCol}>
+                  <View style={styles.scoreArcWrap}>
+                    <Text style={[styles.scoreNumber, { color: isDark ? '#FFFFFF' : '#0F172A' }]}>
+                      {score}
+                    </Text>
+                    <Text style={[styles.scoreMax, { color: isDark ? '#94A3B8' : '#64748B' }]}>
+                      /100
+                    </Text>
+                  </View>
+
+                  <View
+                    style={[
+                      styles.statusPill,
+                      {
+                        backgroundColor:
+                          score >= 80
+                            ? 'rgba(16, 185, 129, 0.18)'
+                            : 'rgba(56, 189, 248, 0.18)',
+                        borderColor:
+                          score >= 80 ? '#10B981' : isDark ? '#38BDF8' : '#0284C7',
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.statusPillText,
+                        { color: score >= 80 ? '#10B981' : isDark ? '#38BDF8' : '#0284C7' },
+                      ]}
+                    >
+                      {getStatusText(score)}
+                    </Text>
+                  </View>
+
+                  <Text style={[styles.lastCheckedText, { color: isDark ? '#64748B' : '#94A3B8' }]}>
+                    Last checked · Today, 9:42 AM
+                  </Text>
+                </View>
+
+                {/* Right Side: Floating 3D Shield Illustration */}
+                <View style={styles.scoreRightCol}>
+                  <Shield3DVisual size={125} isDark={isDark} />
+                </View>
+              </View>
+            </GlassCard>
+          </TouchableOpacity>
+
+          {/* Quick Tools Header */}
+          <View style={styles.sectionHeaderRow}>
+            <Text style={[styles.sectionTitle, { color: isDark ? '#FFFFFF' : '#0F172A' }]}>
+              Quick Tools
+            </Text>
+          </View>
+
+          {/* 2x2 Quick Tools Grid */}
+          <View style={styles.toolsGrid}>
+            {/* Tool 1: Wi-Fi Risk Analyzer */}
+            <TouchableOpacity
+              style={styles.toolCol}
+              onPress={() => handleToolPress('wifi')}
+              activeOpacity={0.8}
+            >
+              <View
                 style={[
-                  styles.themeButton,
+                  styles.toolCard,
                   {
-                    backgroundColor: theme.glassBg,
-                    borderColor: theme.glassBorder,
+                    backgroundColor: isDark ? '#0E1B38' : 'rgba(255, 255, 255, 0.9)',
+                    borderColor: isDark ? 'rgba(56, 189, 248, 0.18)' : '#DCE6F0',
                   },
                 ]}
               >
-                <Text style={styles.themeButtonIcon}>{isDark ? '☀️' : '🌙'}</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          <View style={styles.greetingSection}>
-            <Text style={[styles.greetingLabel, { color: theme.textSecondary }]}>
-              {greetingTime}
-              {firstName ? `, ${firstName}` : ''}
-            </Text>
-            <Text style={[styles.headlineText, { color: theme.textPrimary }]}>
-              {score === null ? "Let's check your protection" : BAND_LABEL[band!]}
-            </Text>
-          </View>
-
-          {/* Security overview */}
-          <GlassCard
-            isDark={isDark}
-            elevation="floating"
-            borderRadius={GlassTokens.radii.xl}
-            style={styles.heroCard}
-          >
-            <View style={styles.heroInner}>
-              <ScoreRing score={score} size={140} isDark={isDark} />
-              <Text style={[styles.heroStatus, { color: bandColor }]}>
-                {score === null ? 'Not checked yet' : BAND_LABEL[band!]}
-              </Text>
-              <Text style={[styles.heroExplain, { color: theme.textSecondary }]}>
-                {explanation}
-              </Text>
-              {lastChecked && (
-                <Text style={[styles.heroMeta, { color: theme.textMuted }]}>
-                  Last updated {lastChecked}
+                <View style={[styles.toolIconCircle, { backgroundColor: 'rgba(37, 99, 235, 0.2)' }]}>
+                  <Text style={styles.toolGlyph}>📶</Text>
+                </View>
+                <Text style={[styles.toolTitle, { color: isDark ? '#FFFFFF' : '#0F172A' }]}>
+                  Wi-Fi Risk Analyzer
                 </Text>
-              )}
-            </View>
-          </GlassCard>
+                <Text style={[styles.toolSub, { color: isDark ? '#94A3B8' : '#64748B' }]}>
+                  Check network safety
+                </Text>
+              </View>
+            </TouchableOpacity>
 
-          {/* Recommended action — derived from real state only */}
-          {score === null && (
-            <GlassCard
-              isDark={isDark}
-              elevation="soft"
-              borderRadius={GlassTokens.radii.lg}
-              style={styles.recoCard}
+            {/* Tool 2: URL Scanner */}
+            <TouchableOpacity
+              style={styles.toolCol}
+              onPress={() => handleToolPress('url')}
+              activeOpacity={0.8}
             >
-              <View style={styles.recoInner}>
-                <Text style={[styles.recoLabel, { color: theme.primaryText }]}>
-                  RECOMMENDED NEXT STEP
+              <View
+                style={[
+                  styles.toolCard,
+                  {
+                    backgroundColor: isDark ? '#0E1B38' : 'rgba(255, 255, 255, 0.9)',
+                    borderColor: isDark ? 'rgba(56, 189, 248, 0.18)' : '#DCE6F0',
+                  },
+                ]}
+              >
+                <View style={[styles.toolIconCircle, { backgroundColor: 'rgba(37, 99, 235, 0.2)' }]}>
+                  <Text style={styles.toolGlyph}>🌐</Text>
+                </View>
+                <Text style={[styles.toolTitle, { color: isDark ? '#FFFFFF' : '#0F172A' }]}>
+                  URL Scanner
                 </Text>
-                <Text style={[styles.recoTitle, { color: theme.textPrimary }]}>
-                  Check the Wi-Fi you're on
+                <Text style={[styles.toolSub, { color: isDark ? '#94A3B8' : '#64748B' }]}>
+                  Detect malicious links
                 </Text>
-                <Text style={[styles.recoBody, { color: theme.textSecondary }]}>
-                  It takes a few seconds and tells you whether this network is safe for banking and
-                  logins.
-                </Text>
-                <GlassPrimaryButton
-                  title="Check my Wi-Fi"
-                  onPress={() => setOpenTool('wifi')}
-                  isDark={isDark}
-                  size="large"
-                  style={styles.recoButton}
-                />
               </View>
-            </GlassCard>
-          )}
+            </TouchableOpacity>
 
-          {/* Quick tools */}
-          <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>Protection tools</Text>
-          <View style={styles.grid}>
-            {TOOLS.map((t) => (
-              <View key={t.key} style={styles.gridCell}>
-                <GlassCard
-                  isDark={isDark}
-                  onPress={() => setOpenTool(t.key)}
-                  interactive
-                  elevation="soft"
-                  borderRadius={GlassTokens.radii.lg}
-                  style={styles.toolCard}
-                >
-                  <View
-                    style={styles.toolInner}
-                    accessible
-                    accessibilityRole="button"
-                    accessibilityLabel={`${t.title}. ${t.subtitle}`}
-                  >
-                    <IconTile glyph={t.glyph} tone={t.tone} isDark={isDark} size={46} />
-                    <Text style={[styles.toolTitle, { color: theme.textPrimary }]}>{t.title}</Text>
-                    <Text style={[styles.toolSub, { color: theme.textSecondary }]}>
-                      {t.subtitle}
-                    </Text>
-                  </View>
-                </GlassCard>
+            {/* Tool 3: QR Scanner */}
+            <TouchableOpacity
+              style={styles.toolCol}
+              onPress={() => handleToolPress('qr')}
+              activeOpacity={0.8}
+            >
+              <View
+                style={[
+                  styles.toolCard,
+                  {
+                    backgroundColor: isDark ? '#0E1B38' : 'rgba(255, 255, 255, 0.9)',
+                    borderColor: isDark ? 'rgba(56, 189, 248, 0.18)' : '#DCE6F0',
+                  },
+                ]}
+              >
+                <View style={[styles.toolIconCircle, { backgroundColor: 'rgba(37, 99, 235, 0.2)' }]}>
+                  <Text style={styles.toolGlyph}>⛶</Text>
+                </View>
+                <Text style={[styles.toolTitle, { color: isDark ? '#FFFFFF' : '#0F172A' }]}>
+                  QR Scanner
+                </Text>
+                <Text style={[styles.toolSub, { color: isDark ? '#94A3B8' : '#64748B' }]}>
+                  Safe QR code decoding
+                </Text>
               </View>
-            ))}
+            </TouchableOpacity>
+
+            {/* Tool 4: Permission Analyzer */}
+            <TouchableOpacity
+              style={styles.toolCol}
+              onPress={() => handleToolPress('permissions')}
+              activeOpacity={0.8}
+            >
+              <View
+                style={[
+                  styles.toolCard,
+                  {
+                    backgroundColor: isDark ? '#0E1B38' : 'rgba(255, 255, 255, 0.9)',
+                    borderColor: isDark ? 'rgba(56, 189, 248, 0.18)' : '#DCE6F0',
+                  },
+                ]}
+              >
+                <View style={[styles.toolIconCircle, { backgroundColor: 'rgba(37, 99, 235, 0.2)' }]}>
+                  <Text style={styles.toolGlyph}>🛡️</Text>
+                </View>
+                <Text style={[styles.toolTitle, { color: isDark ? '#FFFFFF' : '#0F172A' }]}>
+                  Permission Analyzer
+                </Text>
+                <Text style={[styles.toolSub, { color: isDark ? '#94A3B8' : '#64748B' }]}>
+                  Audit risky permissions
+                </Text>
+              </View>
+            </TouchableOpacity>
           </View>
 
-          {/* Awareness */}
-          <GlassTipCard
-            category="TODAY'S SAFETY TIP"
-            icon="💡"
-            title="Free Wi-Fi names can be faked"
-            advice="Attackers set up hotspots with the same name as a café or airport. Confirm the exact network name with staff before connecting."
+          {/* Security Tip Card */}
+          <TouchableOpacity
+            activeOpacity={0.85}
             onPress={onNavigateToLearn}
-            isDark={isDark}
-          />
+            style={styles.tipCardWrap}
+          >
+            <View
+              style={[
+                styles.tipCard,
+                {
+                  backgroundColor: isDark ? '#0E1B38' : 'rgba(255, 255, 255, 0.9)',
+                  borderColor: isDark ? 'rgba(245, 158, 11, 0.3)' : 'rgba(245, 158, 11, 0.3)',
+                },
+              ]}
+            >
+              <View style={styles.tipInnerRow}>
+                <View style={styles.tipIconBubble}>
+                  <Text style={{ fontSize: 22 }}>💡</Text>
+                </View>
+                <View style={styles.tipTextWrap}>
+                  <Text style={[styles.tipTitle, { color: isDark ? '#FFFFFF' : '#0F172A' }]}>
+                    Security Tip
+                  </Text>
+                  <Text style={[styles.tipBody, { color: isDark ? '#94A3B8' : '#64748B' }]}>
+                    Avoid connecting to open public Wi-Fi networks without an encrypted VPN tunnel.
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </TouchableOpacity>
         </View>
       </ScrollView>
 
-      <WifiSentinelModal visible={openTool === 'wifi'} onClose={close} isDark={isDark} />
-      <LinkInspectorModal visible={openTool === 'link'} onClose={close} isDark={isDark} />
-      <QrScannerModal visible={openTool === 'qr'} onClose={close} isDark={isDark} />
-      <AppPrivacyModal visible={openTool === 'apps'} onClose={close} isDark={isDark} />
+      {/* Fallback Modals */}
+      <WifiSentinelModal
+        visible={activeModal === 'wifi'}
+        onClose={() => setActiveModal(null)}
+        isDark={isDark}
+      />
+      <LinkInspectorModal
+        visible={activeModal === 'url'}
+        onClose={() => setActiveModal(null)}
+        isDark={isDark}
+      />
+      <QrScannerModal
+        visible={activeModal === 'qr'}
+        onClose={() => setActiveModal(null)}
+        isDark={isDark}
+      />
+      <AppPrivacyModal
+        visible={activeModal === 'permissions'}
+        onClose={() => setActiveModal(null)}
+        isDark={isDark}
+      />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
-  container: { flex: 1 },
-  content: { paddingHorizontal: 20, paddingBottom: 140, alignItems: 'center' },
-  column: { width: '100%', maxWidth: GlassTokens.layout.maxContentWidth },
+  safeArea: {
+    flex: 1,
+  },
+  container: {
+    flex: 1,
+  },
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'android' ? 12 : 8,
+    paddingBottom: 130, // Clearance for bottom navigation bar
+    alignItems: 'center',
+  },
+  column: {
+    width: '100%',
+    maxWidth: GlassTokens.layout.maxContentWidth,
+  },
   topHeaderBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 8,
-    paddingBottom: 12,
+    paddingVertical: 10,
   },
-  themeButton: {
-    width: GlassTokens.layout.minTouchTarget,
-    height: GlassTokens.layout.minTouchTarget,
-    borderRadius: GlassTokens.layout.minTouchTarget / 2,
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
   },
-  themeButtonIcon: { fontSize: 18 },
-  greetingSection: { paddingBottom: 16 },
-  greetingLabel: { fontSize: 15, fontWeight: '500', marginBottom: 4 },
-  headlineText: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5, lineHeight: 34 },
-  heroCard: { marginBottom: 16 },
-  heroInner: { alignItems: 'center', paddingVertical: 20, paddingHorizontal: 20 },
-  heroStatus: { fontSize: 17, fontWeight: '700', marginTop: 14 },
-  heroExplain: {
+  notificationDot: {
+    position: 'absolute',
+    top: 9,
+    right: 10,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#EF4444',
+  },
+  greetingSection: {
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  greetingHeadline: {
+    fontSize: 26,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    marginBottom: 4,
+  },
+  greetingSubtitle: {
     fontSize: 14,
     lineHeight: 20,
-    textAlign: 'center',
-    marginTop: 6,
-    maxWidth: 420,
+    fontWeight: '500',
   },
-  heroMeta: { fontSize: 13, marginTop: 10 },
-  recoCard: { marginBottom: 20 },
-  recoInner: { padding: 18 },
-  recoLabel: { fontSize: 12, fontWeight: '700', letterSpacing: 1, marginBottom: 6 },
-  recoTitle: { fontSize: 20, fontWeight: '700', marginBottom: 6 },
-  recoBody: { fontSize: 15, lineHeight: 22 },
-  recoButton: { marginTop: 12 },
-  sectionTitle: { fontSize: 20, fontWeight: '700', marginBottom: 12, marginTop: 8 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -6, marginBottom: 12 },
-  gridCell: { width: '50%', padding: 6 },
-  toolCard: { minHeight: 148 },
-  toolInner: { padding: 16 },
-  toolTitle: { fontSize: 16, fontWeight: '700', marginTop: 12 },
-  toolSub: { fontSize: 13, lineHeight: 18, marginTop: 2 },
+  scoreHeroCard: {
+    marginBottom: 20,
+    borderWidth: 1.5,
+    overflow: 'hidden',
+  },
+  scoreHeroInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+  },
+  scoreLeftCol: {
+    flex: 1.1,
+    gap: 6,
+  },
+  scoreArcWrap: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  scoreNumber: {
+    fontSize: 48,
+    fontWeight: '900',
+    letterSpacing: -1.5,
+    lineHeight: 52,
+  },
+  scoreMax: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginLeft: 3,
+  },
+  statusPill: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 2,
+    marginBottom: 6,
+  },
+  statusPillText: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  lastCheckedText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  scoreRightCol: {
+    flex: 0.9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sectionHeaderRow: {
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 19,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  toolsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -6,
+    marginBottom: 14,
+  },
+  toolCol: {
+    width: '50%',
+    padding: 6,
+  },
+  toolCard: {
+    borderRadius: 20,
+    borderWidth: 1.2,
+    padding: 16,
+    minHeight: 142,
+    justifyContent: 'space-between',
+  },
+  toolIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  toolGlyph: {
+    fontSize: 20,
+  },
+  toolTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+    marginBottom: 2,
+  },
+  toolSub: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500',
+  },
+  tipCardWrap: {
+    marginTop: 4,
+  },
+  tipCard: {
+    borderRadius: 20,
+    borderWidth: 1.2,
+    padding: 16,
+  },
+  tipInnerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  tipIconBubble: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tipTextWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  tipTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  tipBody: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '500',
+  },
 });

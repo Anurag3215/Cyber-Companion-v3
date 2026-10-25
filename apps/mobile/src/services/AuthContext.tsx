@@ -27,10 +27,11 @@ interface AuthContextType {
 
 const DEFAULT_USER: UserProfile = {
   id: 'usr-9281',
-  name: 'Arun V.',
-  email: 'arun@cybercompanion.io',
+  name: 'Anurag',
+  email: 'anurag@cybercompanion.io',
   avatar: '🛡️',
   securityScore: 78,
+  scoreUpdatedAt: new Date().toISOString(),
   streakDays: 5,
   tier: 'PRO_SENTINEL',
   joinedDate: 'October 2026',
