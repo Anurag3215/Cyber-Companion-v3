@@ -232,7 +232,7 @@ export const AiExplainerModal: React.FC<AiExplainerModalProps> = ({
   if (asOverlay) {
     if (!visible) return null;
     return (
-      <View style={[StyleSheet.absoluteFillObject, { backgroundColor: bg, zIndex: 999 }]}>
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: bg, zIndex: 999 }]}>
         {content}
       </View>
     );

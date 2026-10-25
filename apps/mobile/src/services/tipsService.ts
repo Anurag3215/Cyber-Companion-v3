@@ -1,4 +1,5 @@
 import { Storage } from '../storage/StorageAdapter';
+import { ApiClient } from './apiClient';
 
 export interface CyberTipItem {
   id: string;
@@ -32,7 +33,8 @@ const DAILY_TIP_KEY = '@cyber_daily_tip';
 export class TipsService {
   static async getDailyTip(): Promise<CyberTipItem> {
     try {
-      const response = await fetch('http://localhost:5000/v1/tips/daily');
+      const baseUrl = ApiClient.getBaseUrl();
+      const response = await fetch(`${baseUrl}/tips/daily`);
       if (response.ok) {
         const tip: CyberTipItem = await response.json();
         await Storage.setItem(DAILY_TIP_KEY, JSON.stringify(tip));
