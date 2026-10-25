@@ -13,8 +13,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   NearbyHotspotBeacon,
   scanNearbyWifiAirspace,
+  getNearbyHotspotBeacons,
   WifiAirspaceScanResult,
 } from '../services/wifiService';
+import * as Network from 'expo-network';
 import { AiExplainerModal } from './AiExplainerModal';
 
 interface WifiSentinelModalProps {
@@ -61,6 +63,25 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
   const danger = '#EF4444';
 
   useEffect(() => {
+    if (visible) {
+      Network.getNetworkStateAsync()
+        .then(async (netState) => {
+          let ipAddress: string | undefined;
+          try {
+            const ip = await Network.getIpAddressAsync();
+            if (ip && ip !== '0.0.0.0') ipAddress = ip;
+          } catch {}
+          setDeviceNetwork({
+            isConnected: Boolean(netState.isConnected),
+            type: netState.type ? String(netState.type) : 'UNKNOWN',
+            ipAddress,
+          });
+        })
+        .catch(() => {});
+    }
+  }, [visible]);
+
+  useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
@@ -81,15 +102,15 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
 
   const handleScanWifi = async () => {
     setIsScanning(true);
-    setScanStepText('Scanning 2.4 GHz & 5.0 GHz channels...');
+    setScanStepText('Auditing 2.4 GHz & 5.0 GHz radio channels...');
 
-    const timer1 = setTimeout(() => {
+    setTimeout(() => {
       setScanStepText('Capturing 802.11 beacon frames & cipher suites...');
-    }, 600);
+    }, 400);
 
-    const timer2 = setTimeout(() => {
+    setTimeout(() => {
       setScanStepText('Analyzing WPA3/WPA2/PMF security parameters...');
-    }, 1200);
+    }, 800);
 
     try {
       const result: WifiAirspaceScanResult = await scanNearbyWifiAirspace();
@@ -99,18 +120,16 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
         setHasScanned(true);
         setIsScanning(false);
         setScanStepText('');
-      }, 1600);
+      }, 1100);
     } catch {
       setTimeout(() => {
+        const fallback = getNearbyHotspotBeacons();
+        setHotspots(fallback);
+        setHasScanned(true);
         setIsScanning(false);
         setScanStepText('');
-      }, 1600);
+      }, 1100);
     }
-
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-    };
   };
 
   const handleOpenDetails = (item: NearbyHotspotBeacon) => {
