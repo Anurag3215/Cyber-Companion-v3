@@ -13,15 +13,15 @@ interface ThemeContextType {
 }
 
 const ThemeContext = createContext<ThemeContextType>({
-  mode: 'light',
-  isDark: false,
+  mode: 'dark',
+  isDark: true,
   toggleTheme: () => {},
   setMode: () => {},
-  colors: Tokens.colors.light as any,
+  colors: Tokens.colors.dark,
 });
 
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [mode, setModeState] = useState<ThemeMode>('light');
+  const [mode, setModeState] = useState<ThemeMode>('dark');
 
   useEffect(() => {
     // Load persisted theme preference
@@ -29,9 +29,13 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       .then((saved) => {
         if (saved === 'dark' || saved === 'light') {
           setModeState(saved);
+        } else {
+          setModeState('dark');
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        setModeState('dark');
+      });
   }, []);
 
   const setMode = (newMode: ThemeMode) => {

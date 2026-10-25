@@ -32,7 +32,7 @@ type SubScreenKey =
   | 'security-score';
 
 export const RootNavigator: React.FC = () => {
-  const [hasOnboarded, setHasOnboarded] = useState(true);
+  const [hasOnboarded, setHasOnboarded] = useState(false);
   const [currentTab, setCurrentTab] = useState<TabKey>('home');
   const [activeScreen, setActiveScreen] = useState<SubScreenKey>('main');
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -41,7 +41,7 @@ export const RootNavigator: React.FC = () => {
   const [urlResult, setUrlResult] = useState<ThreatInspectionResponse | null>(null);
   const [qrResultData, setQrResultData] = useState<string>('https://legitimate-service.com/portal');
 
-  const { isDark, toggleTheme } = useTheme();
+  const { isDark = true, toggleTheme } = useTheme();
   const insets = useSafeAreaInsets();
 
   const topPadding =
