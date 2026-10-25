@@ -14,6 +14,7 @@
     "build": "npm run build --workspaces --if-present",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
     "start:api": "npm --workspace=@cyber-companion/api run start",
+    "build:api": "npm --workspace=@cyber-companion/scoring-core run build && npm --workspace=@cyber-companion/api run build",
     "start:mobile": "npm --workspace=@cyber-companion/mobile run start"
   },
   "devDependencies": {

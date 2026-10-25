@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: cyber-companion-api
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install && npm run build:api
+    startCommand: npm run start:api
+    healthCheckPath: /v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
