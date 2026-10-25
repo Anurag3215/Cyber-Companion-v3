@@ -19,7 +19,9 @@
         "CAMERA",
         "ACCESS_NETWORK_STATE",
         "ACCESS_WIFI_STATE",
-        "INTERNET"
+        "INTERNET",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#0D1117"
@@ -36,6 +38,12 @@
         }
       ],
       "expo-status-bar"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d3089555-69e0-481e-8851-07c26b2051b3"
+      }
+    },
+    "owner": "anuragts"
   }
 }
