@@ -5,6 +5,7 @@ export interface ThreatInspectionResponse {
   plainLanguageExplanation: string;
   recommendation: string;
   heuristicsTriggered: string[];
+  riskFactors?: string[];
   cached?: boolean;
 }
 

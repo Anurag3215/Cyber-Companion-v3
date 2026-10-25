@@ -11,13 +11,35 @@ import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GlassTokens } from './glassTokens';
 
-export type TabKey = 'home' | 'scan' | 'history' | 'learn' | 'me';
+export type TabKey =
+  | 'home'
+  | 'tools'
+  | 'awareness'
+  | 'settings'
+  | 'scan'
+  | 'history'
+  | 'learn'
+  | 'me';
 
 export interface TabItem {
   key: TabKey;
   label: string;
   icon: string;
 }
+
+export function normalizeNavTab(t: TabKey): 'home' | 'tools' | 'awareness' | 'settings' {
+  if (t === 'scan' || t === 'history') return 'tools';
+  if (t === 'learn') return 'awareness';
+  if (t === 'me') return 'settings';
+  return t;
+}
+
+const TABS: TabItem[] = [
+  { key: 'home', label: 'Home', icon: '🏠' },
+  { key: 'tools', label: 'Tools', icon: '🛠️' },
+  { key: 'awareness', label: 'Awareness', icon: '💡' },
+  { key: 'settings', label: 'Settings', icon: '⚙️' },
+];
 
 export interface GlassNavigationBarProps {
   currentTab: TabKey;
@@ -26,14 +48,6 @@ export interface GlassNavigationBarProps {
   quickActionLabel?: string;
   isDark?: boolean;
 }
-
-const TABS: TabItem[] = [
-  { key: 'home', label: 'Home', icon: '🏠' },
-  { key: 'scan', label: 'Scan', icon: '⚡' },
-  { key: 'history', label: 'History', icon: '🕒' },
-  { key: 'learn', label: 'Learn', icon: '📖' },
-  { key: 'me', label: 'Me', icon: '👤' },
-];
 
 export const GlassNavigationBar: React.FC<GlassNavigationBarProps> = ({
   currentTab,
@@ -115,7 +129,7 @@ export const GlassNavigationBar: React.FC<GlassNavigationBarProps> = ({
         {/* Nav Tabs */}
         <View style={styles.tabsRow}>
           {TABS.map((tab) => {
-            const isSelected = currentTab === tab.key;
+            const isSelected = normalizeNavTab(currentTab) === tab.key;
 
             return (
               <TouchableOpacity

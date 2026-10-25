@@ -15,3 +15,4 @@ export * from './ContextualThreatCard';
 export * from './LinkCheckSheet';
 export * from './ScoreHistorySparkline';
 export * from './AiExplainerModal';
+export * from './Showcase3DVisuals';

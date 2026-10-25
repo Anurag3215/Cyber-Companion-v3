@@ -19,10 +19,20 @@ import { GlassResultCard } from '../design-system/GlassResultCard';
 import { GlassTokens } from '../design-system/glassTokens';
 
 interface ScanHubScreenProps {
+  onNavigateToWifiAnalyzer?: () => void;
+  onNavigateToUrlScanner?: () => void;
+  onNavigateToQrScanner?: () => void;
+  onNavigateToPermissionAnalyzer?: () => void;
   isDark?: boolean;
 }
 
-export const ScanHubScreen: React.FC<ScanHubScreenProps> = ({ isDark = true }) => {
+export const ScanHubScreen: React.FC<ScanHubScreenProps> = ({
+  onNavigateToWifiAnalyzer,
+  onNavigateToUrlScanner,
+  onNavigateToQrScanner,
+  onNavigateToPermissionAnalyzer,
+  isDark = true,
+}) => {
   const [showWifiModal, setShowWifiModal] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
@@ -79,7 +89,9 @@ export const ScanHubScreen: React.FC<ScanHubScreenProps> = ({ isDark = true }) =
                 title="Wi-Fi Sentinel"
                 subtitle="Rogue AP & beacon analysis"
                 badgeText="Airspace"
-                onPress={() => setShowWifiModal(true)}
+                onPress={() =>
+                  onNavigateToWifiAnalyzer ? onNavigateToWifiAnalyzer() : setShowWifiModal(true)
+                }
                 isDark={isDark}
               />
             </View>
@@ -90,7 +102,9 @@ export const ScanHubScreen: React.FC<ScanHubScreenProps> = ({ isDark = true }) =
                 title="Link Inspector"
                 subtitle="Phishing & scam detection"
                 badgeText="Guarded"
-                onPress={() => setShowLinkModal(true)}
+                onPress={() =>
+                  onNavigateToUrlScanner ? onNavigateToUrlScanner() : setShowLinkModal(true)
+                }
                 isDark={isDark}
               />
             </View>
@@ -104,7 +118,9 @@ export const ScanHubScreen: React.FC<ScanHubScreenProps> = ({ isDark = true }) =
                 title="QR Scanner"
                 subtitle="Live camera sandbox"
                 badgeText="Camera"
-                onPress={() => setShowQrModal(true)}
+                onPress={() =>
+                  onNavigateToQrScanner ? onNavigateToQrScanner() : setShowQrModal(true)
+                }
                 isDark={isDark}
               />
             </View>
@@ -115,7 +131,11 @@ export const ScanHubScreen: React.FC<ScanHubScreenProps> = ({ isDark = true }) =
                 title="App Privacy"
                 subtitle="On-device sensor auditor"
                 badgeText="Privacy"
-                onPress={() => setShowAppPrivacyModal(true)}
+                onPress={() =>
+                  onNavigateToPermissionAnalyzer
+                    ? onNavigateToPermissionAnalyzer()
+                    : setShowAppPrivacyModal(true)
+                }
                 isDark={isDark}
               />
             </View>

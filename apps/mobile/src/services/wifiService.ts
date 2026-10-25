@@ -437,3 +437,15 @@ export async function scanNearbyWifiAirspace(): Promise<WifiAirspaceScanResult> 
     beacons: finalBeacons,
   };
 }
+
+export type WifiScanResult = WifiAirspaceScanResult;
+
+export const WifiService = {
+  scanNearbyWifiAirspace,
+  scanWifiNetworks: scanNearbyWifiAirspace,
+  evaluateWifiSecurity,
+  evaluatePreConnectionHotspot,
+  getSavedWifiBeacons,
+  saveAuditedWifiBeacon,
+  deleteSavedWifiBeacon,
+};
