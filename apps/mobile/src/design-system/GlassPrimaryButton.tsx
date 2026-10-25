@@ -60,8 +60,8 @@ export const GlassPrimaryButton: React.FC<GlassPrimaryButtonProps> = ({
   };
 
   // Variant Styling
-  let bg = theme.primary;
-  let borderColor = theme.primaryDark;
+  let bg = '#0F766E'; // white text on #0F766E = 5.5:1 (AA)
+  let borderColor = '#115E59';
   let textColor = '#FFFFFF';
   let shadow = GlassTokens.shadows.glow;
 
@@ -87,6 +87,9 @@ export const GlassPrimaryButton: React.FC<GlassPrimaryButtonProps> = ({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       disabled={disabled || loading}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityState={{ disabled: !!(disabled || loading), busy: !!loading }}
     >
       <Animated.View
         style={[

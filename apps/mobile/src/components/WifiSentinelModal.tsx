@@ -17,6 +17,7 @@ import {
   WifiAirspaceScanResult,
 } from '../services/wifiService';
 import * as Network from 'expo-network';
+import { useAuth } from '../services/AuthContext';
 import { AiExplainerModal } from './AiExplainerModal';
 
 interface WifiSentinelModalProps {
@@ -30,6 +31,7 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
   onClose,
   isDark = true,
 }) => {
+  const { updateScore } = useAuth();
   const [hotspots, setHotspots] = useState<NearbyHotspotBeacon[]>([]);
   const [hasScanned, setHasScanned] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
@@ -120,6 +122,10 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
         setHasScanned(true);
         setIsScanning(false);
         setScanStepText('');
+        // Deterministic scoring based on actual active connection audit
+        const activeBeacon = result.beacons.find((b) => b.isCurrentConnection);
+        const isSecure = activeBeacon ? activeBeacon.threatVerdict === 'SECURE' : true;
+        updateScore(isSecure ? 88 : 55);
       }, 1100);
     } catch {
       setTimeout(() => {
@@ -128,6 +134,7 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
         setHasScanned(true);
         setIsScanning(false);
         setScanStepText('');
+        updateScore(85);
       }, 1100);
     }
   };

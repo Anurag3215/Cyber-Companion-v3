@@ -207,6 +207,7 @@ const styles = StyleSheet.create({
   },
   navBarContainer: {
     width: '100%',
+    maxWidth: 560,
     borderRadius: GlassTokens.radii.nav,
     borderWidth: 1.2,
     overflow: 'hidden',

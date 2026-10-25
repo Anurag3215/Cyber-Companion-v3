@@ -1,26 +1,17 @@
 import React, { useState } from 'react';
-import {
-  StyleSheet,
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-} from 'react-native';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { CyberLogo } from '../components/CyberLogo';
-import { Cyber3DShieldCore } from '../components/Cyber3DShieldCore';
-import { ThreatRadar3D } from '../components/ThreatRadar3D';
-import { FloatingParticles3D } from '../components/FloatingParticles3D';
 import { WifiSentinelModal } from '../components/WifiSentinelModal';
 import { LinkInspectorModal } from '../components/LinkInspectorModal';
 import { QrScannerModal } from '../components/QrScannerModal';
 import { AppPrivacyModal } from '../components/AppPrivacyModal';
 import { useAuth } from '../services/AuthContext';
 import { GlassCard } from '../design-system/GlassCard';
-import { GlassActionCard } from '../design-system/GlassActionCard';
 import { GlassPrimaryButton } from '../design-system/GlassPrimaryButton';
 import { GlassTipCard } from '../design-system/GlassTipCard';
 import { GlassTokens } from '../design-system/glassTokens';
+import { ScoreRing, bandForScore, BAND_LABEL } from '../design-system/ScoreRing';
+import { IconTile } from '../design-system/IconTile';
 
 interface DashboardScreenProps {
   onNavigateToScanners?: () => void;
@@ -29,494 +20,256 @@ interface DashboardScreenProps {
   toggleTheme?: () => void;
 }
 
+type ToolKey = 'wifi' | 'link' | 'qr' | 'apps';
+
+const TOOLS: Array<{
+  key: ToolKey;
+  glyph: string;
+  title: string;
+  subtitle: string;
+  tone: 'teal' | 'blue';
+}> = [
+  { key: 'wifi', glyph: '📶', title: 'Wi-Fi check', subtitle: 'Is this network safe?', tone: 'teal' },
+  { key: 'link', glyph: '🔗', title: 'Link check', subtitle: 'Spot scams & phishing', tone: 'blue' },
+  { key: 'qr', glyph: '⛶', title: 'QR scanner', subtitle: 'Preview before opening', tone: 'blue' },
+  { key: 'apps', glyph: '🛡️', title: 'App permissions', subtitle: 'What your apps can access', tone: 'teal' },
+];
+
+const formatWhen = (iso?: string): string | null => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+};
+
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({
-  onNavigateToScanners,
   onNavigateToLearn,
   isDark = false,
   toggleTheme,
 }) => {
   const { user } = useAuth();
-  const userName = user?.name || 'Arun';
+  const theme = isDark ? GlassTokens.colors.dark : GlassTokens.colors.light;
+  const firstName = (user?.name || '').split(' ')[0];
 
-  // Feature Inspection Modals State
-  const [showWifiModal, setShowWifiModal] = useState(false);
-  const [showLinkModal, setShowLinkModal] = useState(false);
-  const [showQrModal, setShowQrModal] = useState(false);
-  const [showAppPrivacyModal, setShowAppPrivacyModal] = useState(false);
-  const [isDeepScanning, setIsDeepScanning] = useState(false);
+  const [openTool, setOpenTool] = useState<ToolKey | null>(null);
+  const close = () => setOpenTool(null);
 
-  // Time-based friendly greeting
   const hour = new Date().getHours();
   const greetingTime = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
-  const theme = isDark ? GlassTokens.colors.dark : GlassTokens.colors.light;
+  // Only trust a score that a real assessment produced (see AuthContext.updateScore).
+  const assessedAt = user?.scoreUpdatedAt;
+  const score = assessedAt && typeof user?.securityScore === 'number' ? user.securityScore : null;
+  const band = score === null ? null : bandForScore(score);
+  const lastChecked = formatWhen(assessedAt);
 
-  const handleTriggerSweep = () => {
-    setIsDeepScanning(true);
-    setTimeout(() => {
-      setIsDeepScanning(false);
-      Alert.alert(
-        '🛡️ Defense Sweep Complete',
-        '• Wi-Fi Airspace: Cryptographic ciphers verified\n• Link Inspector: Phishing & homoglyph protection active\n• QR Sandbox: Isolated execution engine armed\n• App Privacy: Zero background sensor leaks detected\n\nOverall Hygiene Index: 94/100',
-        [{ text: 'Great, thanks!' }]
-      );
-    }, 2800);
-  };
+  const bandColor =
+    band === 'SECURE'
+      ? theme.green
+      : band === 'MODERATE'
+        ? theme.primaryText
+        : band === 'AT_RISK'
+          ? theme.amber
+          : band === 'CRITICAL'
+            ? theme.red
+            : theme.textMuted;
+
+  const explanation =
+    score === null
+      ? 'Your score appears here after your first check. It only reflects checks you have actually run.'
+      : band === 'SECURE'
+        ? 'Your recent checks look good. Keep checking new links and networks to stay protected.'
+        : 'Your score combines your recent Wi-Fi, link and app checks. Run another check to improve it.';
 
   return (
     <View style={styles.safeArea}>
-      {/* Subtle 3D floating ambient particles */}
-      <FloatingParticles3D isDark={isDark} />
-
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Top Header with App Logo, Glass Status Pill & Theme Switcher */}
-        <View style={styles.topHeaderBar}>
-          <CyberLogo size={34} isDark={isDark} animated={true} />
-
-          <View style={styles.headerRightActions}>
-            {/* 1-tap Frosted Light / Dark Mode Toggle */}
+        <View style={styles.column}>
+          {/* Header */}
+          <View style={styles.topHeaderBar}>
+            <CyberLogo size={34} isDark={isDark} animated={false} />
             {toggleTheme && (
               <TouchableOpacity
+                onPress={toggleTheme}
+                activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
                 style={[
-                  styles.themePill,
-                  GlassTokens.shadows.soft,
+                  styles.themeButton,
                   {
                     backgroundColor: theme.glassBg,
                     borderColor: theme.glassBorder,
-                    borderTopColor: theme.glassHighlight,
                   },
                 ]}
-                onPress={toggleTheme}
-                activeOpacity={0.75}
               >
-                <Text style={styles.themePillIcon}>{isDark ? '☀️' : '🌙'}</Text>
-                <Text style={[styles.themePillText, { color: theme.textPrimary }]}>
-                  {isDark ? 'Light' : 'Dark'}
-                </Text>
+                <Text style={styles.themeButtonIcon}>{isDark ? '☀️' : '🌙'}</Text>
               </TouchableOpacity>
             )}
-
-            {/* Shield Active Status Pill */}
-            <View
-              style={[
-                styles.statusPill,
-                GlassTokens.shadows.soft,
-                {
-                  backgroundColor: theme.glassBg,
-                  borderColor: theme.glassBorder,
-                  borderTopColor: theme.glassHighlight,
-                },
-              ]}
-            >
-              <View style={[styles.statusPulseDot, { backgroundColor: theme.primary }]} />
-              <Text style={[styles.statusPillText, { color: theme.primary }]}>
-                PROTECTED
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* User Greeting Section */}
-        <View style={styles.greetingSection}>
-          <Text style={[styles.greetingLabel, { color: theme.textSecondary }]}>
-            {greetingTime}, {userName}
-          </Text>
-          <Text style={[styles.headlineText, { color: theme.textPrimary }]}>
-            Your digital life is safe
-          </Text>
-          <Text style={[styles.subHeadlineText, { color: theme.textMuted }]}>
-            Continuous on-device protection with zero data transmitted
-          </Text>
-        </View>
-
-        {/* Hero Security Overview: 3D Shield Core inside Frosted Glass Card */}
-        <GlassCard
-          isDark={isDark}
-          elevation="floating"
-          borderRadius={GlassTokens.radii.xl}
-          style={styles.heroCard}
-        >
-          <View style={styles.heroCardInner}>
-            <View style={styles.heroHeader}>
-              <View>
-                <Text style={[styles.heroBadgeTitle, { color: theme.textMuted }]}>
-                  SECURITY POSTURE
-                </Text>
-                <Text style={[styles.heroHeadline, { color: theme.textPrimary }]}>
-                  Device Defense Score
-                </Text>
-              </View>
-
-              <View
-                style={[
-                  styles.scoreBadge,
-                  {
-                    backgroundColor: isDark
-                      ? 'rgba(16, 185, 129, 0.15)'
-                      : 'rgba(5, 150, 105, 0.1)',
-                    borderColor: isDark
-                      ? 'rgba(16, 185, 129, 0.3)'
-                      : 'rgba(5, 150, 105, 0.2)',
-                  },
-                ]}
-              >
-                <Text style={[styles.scoreBadgeText, { color: theme.primary }]}>
-                  {user?.securityScore || 88} / 100
-                </Text>
-              </View>
-            </View>
-
-            {/* 3D Shield Graphic */}
-            <View style={styles.gaugeContainer}>
-              <Cyber3DShieldCore
-                score={user?.securityScore || 88}
-                potentialScore={95}
-                fixesCount={2}
-                isDark={isDark}
-                isScanning={isDeepScanning}
-                onTriggerScan={handleTriggerSweep}
-              />
-            </View>
-
-            {/* Interactive Sweep Trigger Button */}
-            <GlassPrimaryButton
-              title={isDeepScanning ? 'Scanning Perimeter...' : '🚀 Run Full Security Sweep'}
-              onPress={handleTriggerSweep}
-              loading={isDeepScanning}
-              isDark={isDark}
-              size="large"
-              style={styles.heroButton}
-            />
-          </View>
-        </GlassCard>
-
-        {/* 2x2 Quick Action Cards Grid (Liquid Glass) */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
-            Quick Protection Tools
-          </Text>
-          <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>
-            Tap any tool to inspect
-          </Text>
-        </View>
-
-        <View style={styles.gridContainer}>
-          <View style={styles.gridRow}>
-            {/* 1. Check Wi-Fi */}
-            <View style={styles.gridCol}>
-              <GlassActionCard
-                icon="📶"
-                title="Check Wi-Fi"
-                subtitle="Airspace & safe connection"
-                badgeText="Airspace"
-                onPress={() => setShowWifiModal(true)}
-                isDark={isDark}
-              />
-            </View>
-
-            {/* 2. Check a Link */}
-            <View style={styles.gridCol}>
-              <GlassActionCard
-                icon="🔗"
-                title="Check a Link"
-                subtitle="Phishing & scam detection"
-                badgeText="Web Guard"
-                onPress={() => setShowLinkModal(true)}
-                isDark={isDark}
-              />
-            </View>
           </View>
 
-          <View style={styles.gridRow}>
-            {/* 3. Scan QR Code */}
-            <View style={styles.gridCol}>
-              <GlassActionCard
-                icon="⛶"
-                title="Scan QR Code"
-                subtitle="Sandboxed optical preview"
-                badgeText="Camera"
-                onPress={() => setShowQrModal(true)}
-                isDark={isDark}
-              />
-            </View>
-
-            {/* 4. Review Apps */}
-            <View style={styles.gridCol}>
-              <GlassActionCard
-                icon="🛡️"
-                title="Review Apps"
-                subtitle="Camera, mic & sensor rights"
-                badgeText="Privacy"
-                onPress={() => setShowAppPrivacyModal(true)}
-                isDark={isDark}
-              />
-            </View>
+          <View style={styles.greetingSection}>
+            <Text style={[styles.greetingLabel, { color: theme.textSecondary }]}>
+              {greetingTime}
+              {firstName ? `, ${firstName}` : ''}
+            </Text>
+            <Text style={[styles.headlineText, { color: theme.textPrimary }]}>
+              {score === null ? "Let's check your protection" : BAND_LABEL[band!]}
+            </Text>
           </View>
-        </View>
 
-        {/* 3D Threat Radar Container */}
-        <View style={styles.radarWrapper}>
-          <ThreatRadar3D
+          {/* Security overview */}
+          <GlassCard
             isDark={isDark}
-            onSelectSector={(sector) => {
-              if (sector === 'wifi') setShowWifiModal(true);
-              else if (sector === 'url') setShowLinkModal(true);
-              else if (sector === 'qr') setShowQrModal(true);
-              else if (sector === 'apps') setShowAppPrivacyModal(true);
-            }}
+            elevation="floating"
+            borderRadius={GlassTokens.radii.xl}
+            style={styles.heroCard}
+          >
+            <View style={styles.heroInner}>
+              <ScoreRing score={score} size={140} isDark={isDark} />
+              <Text style={[styles.heroStatus, { color: bandColor }]}>
+                {score === null ? 'Not checked yet' : BAND_LABEL[band!]}
+              </Text>
+              <Text style={[styles.heroExplain, { color: theme.textSecondary }]}>
+                {explanation}
+              </Text>
+              {lastChecked && (
+                <Text style={[styles.heroMeta, { color: theme.textMuted }]}>
+                  Last updated {lastChecked}
+                </Text>
+              )}
+            </View>
+          </GlassCard>
+
+          {/* Recommended action — derived from real state only */}
+          {score === null && (
+            <GlassCard
+              isDark={isDark}
+              elevation="soft"
+              borderRadius={GlassTokens.radii.lg}
+              style={styles.recoCard}
+            >
+              <View style={styles.recoInner}>
+                <Text style={[styles.recoLabel, { color: theme.primaryText }]}>
+                  RECOMMENDED NEXT STEP
+                </Text>
+                <Text style={[styles.recoTitle, { color: theme.textPrimary }]}>
+                  Check the Wi-Fi you're on
+                </Text>
+                <Text style={[styles.recoBody, { color: theme.textSecondary }]}>
+                  It takes a few seconds and tells you whether this network is safe for banking and
+                  logins.
+                </Text>
+                <GlassPrimaryButton
+                  title="Check my Wi-Fi"
+                  onPress={() => setOpenTool('wifi')}
+                  isDark={isDark}
+                  size="large"
+                  style={styles.recoButton}
+                />
+              </View>
+            </GlassCard>
+          )}
+
+          {/* Quick tools */}
+          <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>Protection tools</Text>
+          <View style={styles.grid}>
+            {TOOLS.map((t) => (
+              <View key={t.key} style={styles.gridCell}>
+                <GlassCard
+                  isDark={isDark}
+                  onPress={() => setOpenTool(t.key)}
+                  interactive
+                  elevation="soft"
+                  borderRadius={GlassTokens.radii.lg}
+                  style={styles.toolCard}
+                >
+                  <View
+                    style={styles.toolInner}
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel={`${t.title}. ${t.subtitle}`}
+                  >
+                    <IconTile glyph={t.glyph} tone={t.tone} isDark={isDark} size={46} />
+                    <Text style={[styles.toolTitle, { color: theme.textPrimary }]}>{t.title}</Text>
+                    <Text style={[styles.toolSub, { color: theme.textSecondary }]}>
+                      {t.subtitle}
+                    </Text>
+                  </View>
+                </GlassCard>
+              </View>
+            ))}
+          </View>
+
+          {/* Awareness */}
+          <GlassTipCard
+            category="TODAY'S SAFETY TIP"
+            icon="💡"
+            title="Free Wi-Fi names can be faked"
+            advice="Attackers set up hotspots with the same name as a café or airport. Confirm the exact network name with staff before connecting."
+            onPress={onNavigateToLearn}
+            isDark={isDark}
           />
         </View>
-
-        {/* Daily Cybersecurity Tip (GlassTipCard) */}
-        <GlassTipCard
-          category="TODAY'S SAFETY ADVICE"
-          icon="💡"
-          title="Free Wi-Fi names can be faked"
-          advice="Attackers set up identical hotspot names in cafes and airports. Always confirm credentials with venue staff before connecting."
-          onPress={onNavigateToLearn}
-          isDark={isDark}
-        />
-
-        {/* Awareness / Learn Promotion Card */}
-        <GlassCard
-          isDark={isDark}
-          onPress={onNavigateToLearn}
-          interactive={true}
-          elevation="soft"
-          borderRadius={GlassTokens.radii.lg}
-          style={styles.learnCard}
-        >
-          <View style={styles.learnCardContent}>
-            <View style={styles.learnCardLeft}>
-              <Text style={styles.learnCardIcon}>🤖</Text>
-              <View style={styles.learnCardTextWrap}>
-                <Text style={[styles.learnCardTitle, { color: theme.textPrimary }]}>
-                  Ask Cyber Companion
-                </Text>
-                <Text style={[styles.learnCardSub, { color: theme.textSecondary }]}>
-                  Plain-language answers for all your cybersecurity questions
-                </Text>
-              </View>
-            </View>
-            <Text style={[styles.learnCardArrow, { color: theme.primary }]}>→</Text>
-          </View>
-        </GlassCard>
       </ScrollView>
 
-      {/* Feature Modals */}
-      <WifiSentinelModal
-        visible={showWifiModal}
-        onClose={() => setShowWifiModal(false)}
-        isDark={isDark}
-      />
-      <LinkInspectorModal
-        visible={showLinkModal}
-        onClose={() => setShowLinkModal(false)}
-        isDark={isDark}
-      />
-      <QrScannerModal
-        visible={showQrModal}
-        onClose={() => setShowQrModal(false)}
-        isDark={isDark}
-      />
-      <AppPrivacyModal
-        visible={showAppPrivacyModal}
-        onClose={() => setShowAppPrivacyModal(false)}
-        isDark={isDark}
-      />
+      <WifiSentinelModal visible={openTool === 'wifi'} onClose={close} isDark={isDark} />
+      <LinkInspectorModal visible={openTool === 'link'} onClose={close} isDark={isDark} />
+      <QrScannerModal visible={openTool === 'qr'} onClose={close} isDark={isDark} />
+      <AppPrivacyModal visible={openTool === 'apps'} onClose={close} isDark={isDark} />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: 'transparent',
-  },
-  container: {
-    flex: 1,
-    backgroundColor: 'transparent',
-  },
-  content: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 115, // Clear floating glass navigation bar
-    gap: 16,
-  },
+  safeArea: { flex: 1 },
+  container: { flex: 1 },
+  content: { paddingHorizontal: 20, paddingBottom: 140, alignItems: 'center' },
+  column: { width: '100%', maxWidth: GlassTokens.layout.maxContentWidth },
   topHeaderBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 6,
+    paddingTop: 8,
+    paddingBottom: 12,
   },
-  headerRightActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  themePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1.2,
-  },
-  themePillIcon: {
-    fontSize: 13,
-  },
-  themePillText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1.2,
-  },
-  statusPulseDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-  },
-  statusPillText: {
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.6,
-  },
-  greetingSection: {
-    marginTop: 4,
-    gap: 3,
-  },
-  greetingLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    letterSpacing: -0.1,
-  },
-  headlineText: {
-    fontSize: 26,
-    fontWeight: '800',
-    letterSpacing: -0.6,
-  },
-  subHeadlineText: {
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '500',
-  },
-  heroCard: {
-    marginTop: 6,
-  },
-  heroCardInner: {
-    padding: 20,
-    gap: 16,
-  },
-  heroHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  heroBadgeTitle: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-  },
-  heroHeadline: {
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-    marginTop: 2,
-  },
-  scoreBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+  themeButton: {
+    width: GlassTokens.layout.minTouchTarget,
+    height: GlassTokens.layout.minTouchTarget,
+    borderRadius: GlassTokens.layout.minTouchTarget / 2,
     borderWidth: 1,
-  },
-  scoreBadgeText: {
-    fontSize: 14,
-    fontWeight: '800',
-    letterSpacing: -0.2,
-  },
-  gaugeContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: -8,
   },
-  heroButton: {
-    width: '100%',
-  },
-  sectionHeaderRow: {
+  themeButtonIcon: { fontSize: 18 },
+  greetingSection: { paddingBottom: 16 },
+  greetingLabel: { fontSize: 15, fontWeight: '500', marginBottom: 4 },
+  headlineText: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5, lineHeight: 34 },
+  heroCard: { marginBottom: 16 },
+  heroInner: { alignItems: 'center', paddingVertical: 20, paddingHorizontal: 20 },
+  heroStatus: { fontSize: 17, fontWeight: '700', marginTop: 14 },
+  heroExplain: {
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
     marginTop: 6,
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
+    maxWidth: 420,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-  },
-  sectionSubtitle: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  gridContainer: {
-    gap: 12,
-  },
-  gridRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  gridCol: {
-    flex: 1,
-  },
-  radarWrapper: {
-    marginVertical: 4,
-  },
-  learnCard: {
-    marginVertical: 4,
-  },
-  learnCardContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-  },
-  learnCardLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-    paddingRight: 10,
-  },
-  learnCardIcon: {
-    fontSize: 24,
-  },
-  learnCardTextWrap: {
-    flex: 1,
-    gap: 2,
-  },
-  learnCardTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    letterSpacing: -0.2,
-  },
-  learnCardSub: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '500',
-  },
-  learnCardArrow: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
+  heroMeta: { fontSize: 13, marginTop: 10 },
+  recoCard: { marginBottom: 20 },
+  recoInner: { padding: 18 },
+  recoLabel: { fontSize: 12, fontWeight: '700', letterSpacing: 1, marginBottom: 6 },
+  recoTitle: { fontSize: 20, fontWeight: '700', marginBottom: 6 },
+  recoBody: { fontSize: 15, lineHeight: 22 },
+  recoButton: { marginTop: 12 },
+  sectionTitle: { fontSize: 20, fontWeight: '700', marginBottom: 12, marginTop: 8 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -6, marginBottom: 12 },
+  gridCell: { width: '50%', padding: 6 },
+  toolCard: { minHeight: 148 },
+  toolInner: { padding: 16 },
+  toolTitle: { fontSize: 16, fontWeight: '700', marginTop: 12 },
+  toolSub: { fontSize: 13, lineHeight: 18, marginTop: 2 },
 });

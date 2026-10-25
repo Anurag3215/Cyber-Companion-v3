@@ -8,6 +8,8 @@ export * from './GlassTipCard';
 export * from './GlassResultCard';
 export * from './GlassNavigationBar';
 export * from './RiskBadge';
+export * from './ScoreRing';
+export * from './IconTile';
 export * from './ScoreGauge';
 export * from './ActionCard';
 export * from './TipCard';

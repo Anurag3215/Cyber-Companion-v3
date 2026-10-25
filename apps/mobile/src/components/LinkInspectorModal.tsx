@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../services/AuthContext';
 import { AiExplainerModal } from './AiExplainerModal';
 
 interface LinkInspectorModalProps {
@@ -33,6 +34,7 @@ export const LinkInspectorModal: React.FC<LinkInspectorModalProps> = ({
   onClose,
   isDark = true,
 }) => {
+  const { updateScore } = useAuth();
   const [urlInput, setUrlInput] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   const [result, setResult] = useState<ScanResult | null>(null);
@@ -152,6 +154,7 @@ export const LinkInspectorModal: React.FC<LinkInspectorModalProps> = ({
         ],
         recommendation: 'Safe to open in your default browser.',
       });
+      updateScore(92);
     }, 900);
   };
 

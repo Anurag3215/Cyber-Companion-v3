@@ -1,26 +1,26 @@
 export const Tokens = {
   colors: {
     dark: {
-      background: '#090D16',
-      surface: '#1E293B',
+      background: '#0B1220',
+      surface: '#10243E',
       surfaceElevated: '#334155',
       border: '#334155',
       textPrimary: '#F8FAFC',
       textSecondary: '#94A3B8',
       textMuted: '#64748B',
-      primary: '#38BDF8',
-      primaryDark: '#0284C7',
+      primary: '#14B8A6',
+      primaryDark: '#0D9488',
     },
     light: {
-      background: '#F8FAFC',
+      background: '#F4F8FC',
       surface: '#FFFFFF',
       surfaceElevated: '#F1F5F9',
-      border: '#E2E8F0',
-      textPrimary: '#0F172A',
+      border: '#DCE6F0',
+      textPrimary: '#10243E',
       textSecondary: '#475569',
       textMuted: '#94A3B8',
-      primary: '#0284C7',
-      primaryDark: '#0369A1',
+      primary: '#0D9488',
+      primaryDark: '#0F766E',
     },
     risk: {
       safe: {

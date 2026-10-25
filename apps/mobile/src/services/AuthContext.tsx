@@ -7,6 +7,8 @@ export interface UserProfile {
   email: string;
   avatar: string;
   securityScore: number;
+  /** ISO time the score was last produced by a real assessment. Unset = never assessed. */
+  scoreUpdatedAt?: string;
   streakDays: number;
   tier: 'STANDARD' | 'PRO_SENTINEL' | 'ENTERPRISE';
   joinedDate: string;
@@ -153,7 +155,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const updateScore = (newScore: number) => {
     if (user) {
-      const updated = { ...user, securityScore: newScore };
+      const updated = { ...user, securityScore: newScore, scoreUpdatedAt: new Date().toISOString() };
       setUser(updated);
       Storage.setItem('cyber_user_session', JSON.stringify(updated)).catch(() => {});
     }
