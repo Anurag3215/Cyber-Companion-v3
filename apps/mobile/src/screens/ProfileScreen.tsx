@@ -441,13 +441,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               style={[
                 styles.presetBtn,
                 {
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.6)',
-                  borderColor: borderSubtle,
+                  backgroundColor: isDark ? 'rgba(16,185,129,0.15)' : 'rgba(16,185,129,0.12)',
+                  borderColor: isDark ? 'rgba(52,211,153,0.4)' : 'rgba(16,185,129,0.3)',
                 },
               ]}
-              onPress={() => handleApplyPreset('http://127.0.0.1:5000/v1')}
+              onPress={() => handleApplyPreset('https://cyber-companion-v3.onrender.com/v1')}
             >
-              <Text style={[styles.presetBtnText, { color: textColor }]}>Localhost</Text>
+              <Text style={[styles.presetBtnText, { color: '#10B981', fontWeight: 'bold' }]}>Cloud 24/7</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
@@ -469,9 +469,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                   borderColor: borderSubtle,
                 },
               ]}
-              onPress={() => handleApplyPreset('http://10.0.2.2:5000/v1')}
+              onPress={() => handleApplyPreset('http://127.0.0.1:5000/v1')}
             >
-              <Text style={[styles.presetBtnText, { color: textColor }]}>Android Emul</Text>
+              <Text style={[styles.presetBtnText, { color: textColor }]}>Localhost</Text>
             </TouchableOpacity>
           </View>
         </GlassCard>

@@ -130,15 +130,15 @@ const OFFLINE_KNOWLEDGE_BASE = [
 ];
 
 const CANDIDATE_API_BASE_URLS = [
+  'https://cyber-companion-v3.onrender.com/v1',
   'http://192.168.1.15:5000/v1',
   'http://127.0.0.1:5000/v1',
   'http://localhost:5000/v1',
   'http://10.0.2.2:5000/v1',
-  'http://10.61.206.148:5000/v1',
 ];
 
 export class ApiClient {
-  private static baseUrl = 'http://192.168.1.15:5000/v1';
+  private static baseUrl = 'https://cyber-companion-v3.onrender.com/v1';
 
   static setBaseUrl(url: string) {
     this.baseUrl = url;
