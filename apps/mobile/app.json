@@ -34,7 +34,8 @@
         {
           "cameraPermission": "Allow Cyber Companion to scan and analyze QR codes securely."
         }
-      ]
+      ],
+      "expo-status-bar"
     ]
   }
 }

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, StatusBar, Platform } from 'react-native';
+import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
@@ -39,11 +40,7 @@ export const RootNavigator: React.FC = () => {
   return (
     <AmbientBackground isDark={isDark}>
       <View style={[styles.container, { paddingTop: topPadding }]}>
-        <StatusBar
-          barStyle={isDark ? 'light-content' : 'dark-content'}
-          backgroundColor="transparent"
-          translucent={true}
-        />
+        <ExpoStatusBar style={isDark ? 'light' : 'dark'} />
 
         {/* Main Tab Views */}
         <View style={styles.body}>
