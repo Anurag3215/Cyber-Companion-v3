@@ -76,5 +76,23 @@ describe('Wi-Fi Security Assessment Service', () => {
       expect(beacons.length).toBeGreaterThanOrEqual(1);
       expect(beacons.some((b) => b.ssid.includes('DESKTOP') || b.ssid.includes('vivo'))).toBe(true);
     });
+
+    test('persists and removes custom audited Wi-Fi beacons', async () => {
+      const { saveAuditedWifiBeacon, getSavedWifiBeacons, deleteSavedWifiBeacon } = require('../src/services/wifiService');
+      const testBeacon = evaluatePreConnectionHotspot({
+        ssid: 'MyHome_Fiber_5G',
+        encryption: 'WPA3',
+        pmfEnabled: true,
+      });
+
+      const saved = await saveAuditedWifiBeacon(testBeacon);
+      expect(saved.some((b: any) => b.ssid === 'MyHome_Fiber_5G')).toBe(true);
+
+      const retrieved = await getSavedWifiBeacons();
+      expect(retrieved.some((b: any) => b.ssid === 'MyHome_Fiber_5G')).toBe(true);
+
+      const afterDelete = await deleteSavedWifiBeacon(testBeacon.id);
+      expect(afterDelete.some((b: any) => b.id === testBeacon.id)).toBe(false);
+    });
   });
 });

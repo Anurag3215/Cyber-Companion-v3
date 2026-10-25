@@ -219,29 +219,10 @@ export function parseAdbScanResults(): RealScannedBeacon[] {
     if (results.length > 0) {
       return results;
     }
-  } catch (err: any) {
-    // ADB failed or timed out
+  } catch {
+    // ADB unattached or timed out
   }
 
-  // Fallback to real networks detected on this device
-  return [
-    evaluateRealBeacon({
-      ssid: 'Redmi 15C 5G',
-      bssid: '4e:2e:5e:d0:54:d2',
-      channel: 1,
-      frequency: '2.4 GHz',
-      signalDbm: -62,
-      encryption: 'WPA2',
-      pmfEnabled: false,
-    }),
-    evaluateRealBeacon({
-      ssid: 'DESKTOP-BNFS8Q1 4220',
-      bssid: '2e:3b:70:d6:c4:bb',
-      channel: 11,
-      frequency: '2.4 GHz',
-      signalDbm: -40,
-      encryption: 'WPA2',
-      pmfEnabled: false,
-    }),
-  ];
+  // When no hardware ADB daemon is attached, return empty list so client relies on on-device radio
+  return [];
 }

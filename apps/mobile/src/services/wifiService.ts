@@ -261,6 +261,44 @@ export function evaluatePreConnectionHotspot(params: {
 
 import * as Network from 'expo-network';
 import { ApiClient } from './apiClient';
+import { Storage } from '../storage/StorageAdapter';
+
+const STORAGE_KEY_AUDITED_WIFI = 'cyber_user_audited_wifi_beacons';
+
+export async function getSavedWifiBeacons(): Promise<NearbyHotspotBeacon[]> {
+  try {
+    const raw = await Storage.getItem(STORAGE_KEY_AUDITED_WIFI);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {
+    // Non-fatal if storage uninitialized
+  }
+  return [];
+}
+
+export async function saveAuditedWifiBeacon(beacon: NearbyHotspotBeacon): Promise<NearbyHotspotBeacon[]> {
+  try {
+    const current = await getSavedWifiBeacons();
+    const updated = [beacon, ...current.filter((b) => b.id !== beacon.id && b.ssid !== beacon.ssid)];
+    await Storage.setItem(STORAGE_KEY_AUDITED_WIFI, JSON.stringify(updated));
+    return updated;
+  } catch {
+    return [beacon];
+  }
+}
+
+export async function deleteSavedWifiBeacon(id: string): Promise<NearbyHotspotBeacon[]> {
+  try {
+    const current = await getSavedWifiBeacons();
+    const updated = current.filter((b) => b.id !== id);
+    await Storage.setItem(STORAGE_KEY_AUDITED_WIFI, JSON.stringify(updated));
+    return updated;
+  } catch {
+    return [];
+  }
+}
 
 export function getNearbyHotspotBeacons(): NearbyHotspotBeacon[] {
   return [
@@ -322,8 +360,9 @@ export async function scanNearbyWifiAirspace(): Promise<WifiAirspaceScanResult> 
   let activeBeacon: NearbyHotspotBeacon | null = null;
 
   if (isWifi) {
+    const gatewayHint = ipAddress ? ipAddress.replace(/\.\d+$/, '.1') : undefined;
     activeBeacon = evaluatePreConnectionHotspot({
-      ssid: ipAddress ? `Connected Wi-Fi (${ipAddress})` : 'Active Wi-Fi Network',
+      ssid: ipAddress ? `Active Local Wi-Fi (${ipAddress})` : 'Active Wi-Fi Network',
       bssid: 'fa:28:90:7e:11:bc',
       encryption: 'WPA2',
       pmfEnabled: true,
@@ -333,6 +372,7 @@ export async function scanNearbyWifiAirspace(): Promise<WifiAirspaceScanResult> 
     activeBeacon.id = 'active-current-wifi';
     activeBeacon.isCurrentConnection = true;
     activeBeacon.ipAddress = ipAddress;
+    activeBeacon.vendor = gatewayHint ? `Gateway Router (${gatewayHint})` : 'Local Access Point';
   } else if (isCellular) {
     activeBeacon = {
       id: 'active-cellular',
@@ -357,7 +397,7 @@ export async function scanNearbyWifiAirspace(): Promise<WifiAirspaceScanResult> 
     };
   }
 
-  // 2. Fetch ambient beacons (from API Gateway if available, or local airspace beacons)
+  // 2. Fetch ambient beacons from live API Gateway if hardware daemon is connected
   let ambientBeacons: NearbyHotspotBeacon[] = [];
   try {
     const liveNetworks = await ApiClient.scanRealWifi();
@@ -365,14 +405,18 @@ export async function scanNearbyWifiAirspace(): Promise<WifiAirspaceScanResult> 
       ambientBeacons = liveNetworks;
     }
   } catch {
-    // Fallback if API Gateway is unreachable
+    // API Gateway offline or unbridged
   }
 
-  if (ambientBeacons.length === 0) {
-    ambientBeacons = getNearbyHotspotBeacons();
+  // 3. Load user-audited nearby beacons from persistent storage
+  const savedBeacons = await getSavedWifiBeacons();
+  for (const s of savedBeacons) {
+    if (!ambientBeacons.some((b) => b.ssid === s.ssid || b.id === s.id)) {
+      ambientBeacons.push(s);
+    }
   }
 
-  // Filter out any duplicates
+  // 4. Combine into final list with active connection on top
   const finalBeacons: NearbyHotspotBeacon[] = [];
   if (activeBeacon) {
     finalBeacons.push(activeBeacon);
