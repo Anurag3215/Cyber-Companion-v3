@@ -129,11 +129,15 @@ const OFFLINE_KNOWLEDGE_BASE = [
   },
 ];
 
+// Production Gateway configured by environment variable with cloud HTTPS fallback
+const DEFAULT_API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL || 'https://cyber-companion-v3.onrender.com/v1';
+
 const CANDIDATE_API_BASE_URLS = [
-  'http://127.0.0.1:5000/v1',
-  'http://192.168.250.108:5000/v1',
-  'http://10.0.2.2:5000/v1',
+  DEFAULT_API_BASE_URL,
   'https://cyber-companion-v3.onrender.com/v1',
+  'http://10.0.2.2:5000/v1',
+  'http://127.0.0.1:5000/v1',
 ];
 
 /**
@@ -279,7 +283,7 @@ export function evaluateAutonomousUrlHeuristics(rawInput: string): ThreatInspect
     };
   }
 
-  // Check 6: Verified Safe Perimeter (Trusted Reputable Domains)
+  // Check 6: Verified Safe Perimeter (Explicitly Whitelisted Reputable Organizations)
   const isVerifiedSafe =
     lower.includes('github.com') ||
     lower.includes('google.com') ||
@@ -509,35 +513,39 @@ export function evaluateAutonomousUrlHeuristics(rawInput: string): ThreatInspect
     };
   }
 
-  // Check 12: General Clean HTTPS
+  // Check 12: General HTTPS (Unverified by Live Threat Feeds)
+  // ZERO-TRUST HARDENING: HTTPS only guarantees channel encryption, NOT authenticity or benign intent.
+  // Over 80% of phishing sites utilize valid SSL/TLS certificates. Unverified HTTPS is marked UNKNOWN with 50 score.
   if (lower.startsWith('https://')) {
+    addFlag('UNVERIFIED_HTTPS_DESTINATION');
     return {
       target,
-      verdict: 'SAFE',
-      confidenceScore: 16,
+      verdict: 'UNKNOWN',
+      confidenceScore: 50,
       plainLanguageExplanation:
-        'Autonomous on-device inspection completed. Target uses encrypted HTTPS protocol with zero detected homoglyphs, malware payloads, or phishing keywords.',
-      recommendation: 'Standard web navigation safety observed.',
-      heuristicsTriggered: ['ACTIVE_TLS_TRANSPORT'],
+        'UNVERIFIED DESTINATION: Target uses HTTPS transport encryption, but destination identity could not be verified by live cloud threat intelligence feeds. Threat actors frequently register valid TLS certificates on credential harvesting portals. Exercise caution before entering credentials.',
+      recommendation:
+        'Verify the destination domain carefully before proceeding. Do not submit sensitive passwords, credentials, or payment information without independent verification.',
+      heuristicsTriggered: flags.length > 0 ? flags : ['ACTIVE_TLS_TRANSPORT', 'UNVERIFIED_HTTPS_DESTINATION'],
       cached: false,
     };
   }
 
-  // Default clean URL
+  // Default unverified URL
   return {
     target,
-    verdict: 'SAFE',
-    confidenceScore: 20,
+    verdict: 'UNKNOWN',
+    confidenceScore: 50,
     plainLanguageExplanation:
-      'Autonomous on-device inspection completed. No malicious patterns, homoglyphs, or credential interceptors detected.',
-    recommendation: 'Proceed with standard cybersecurity awareness.',
-    heuristicsTriggered: [],
+      'UNVERIFIED DESTINATION: Destination identity could not be verified by live cloud threat intelligence databases. Exercise caution and verify the domain name independently before proceeding.',
+    recommendation: 'Proceed with standard cybersecurity awareness. Verify the destination independently.',
+    heuristicsTriggered: flags.length > 0 ? flags : ['UNVERIFIED_DESTINATION'],
     cached: false,
   };
 }
 
 export class ApiClient {
-  private static baseUrl = 'https://cyber-companion-v3.onrender.com/v1';
+  private static baseUrl = DEFAULT_API_BASE_URL;
 
   static setBaseUrl(url: string) {
     this.baseUrl = url;
@@ -547,20 +555,35 @@ export class ApiClient {
     return this.baseUrl;
   }
 
-  private static async requestWithFallback(endpoint: string, options?: RequestInit): Promise<Response> {
-    const urls = [this.baseUrl, ...CANDIDATE_API_BASE_URLS.filter((u) => u !== this.baseUrl)];
+  private static async requestWithFallback(
+    endpoint: string,
+    options?: RequestInit,
+    timeoutOverrideMs?: number
+  ): Promise<Response> {
+    const urls = Array.from(new Set([this.baseUrl, ...CANDIDATE_API_BASE_URLS]));
 
-    // Aggressive timeout: 1000ms per candidate so offline mobile does not stall
     for (const url of urls) {
       try {
-        const timeoutMs = url.startsWith('https://') ? 2000 : 800;
+        const timeoutMs =
+          timeoutOverrideMs ?? (url.startsWith('https://') ? 6000 : 1500);
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+        const onExternalAbort = () => controller.abort();
+        if (options?.signal) {
+          options.signal.addEventListener('abort', onExternalAbort, { once: true });
+        }
+
         const res = await fetch(`${url}${endpoint}`, {
           ...options,
           signal: controller.signal,
         });
+
         clearTimeout(timeoutId);
+        if (options?.signal) {
+          options.signal.removeEventListener('abort', onExternalAbort);
+        }
+
         if (res.ok) {
           this.baseUrl = url;
           return res;
@@ -577,7 +600,7 @@ export class ApiClient {
     try {
       const response = await this.requestWithFallback('/health', {
         method: 'GET',
-      });
+      }, 3000);
       return {
         online: response.ok,
         latencyMs: Math.max(1, Date.now() - start),
@@ -587,33 +610,50 @@ export class ApiClient {
     }
   }
 
+  /**
+   * Real-Time URL Threat Inspection
+   * Protected with 6000ms AbortController timeout for cloud cold-starts and fallback to on-device zero-trust heuristics.
+   */
   static async inspectUrl(url: string): Promise<ThreatInspectionResponse> {
     const onDevice = evaluateAutonomousUrlHeuristics(url);
 
+    // If on-device deterministic heuristics already caught an explicit severe threat
+    // (SSRF private network targeting, IDN homoglyph impersonation, or direct malware executable),
+    // block immediately without network latency.
+    if (onDevice.verdict === 'MALICIOUS') {
+      return onDevice;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000); // 6s timeout for cloud cold-starts & external feed latencies
+
     try {
-      const response = await Promise.race([
-        this.requestWithFallback('/threat/inspect', {
+      const response = await this.requestWithFallback(
+        '/threat/inspect',
+        {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ url, source: 'USER_INPUT' }),
-        }),
-        new Promise<Response>((_, reject) => setTimeout(() => reject(new Error('Race timeout')), 1200)),
-      ]);
+          signal: controller.signal,
+        },
+        6000
+      );
+
+      clearTimeout(timeoutId);
 
       if (response && response.ok) {
         const serverResult: ThreatInspectionResponse = await response.json();
-        if (onDevice.verdict === 'MALICIOUS') {
-          return onDevice;
-        }
         if (onDevice.verdict === 'SUSPICIOUS' && serverResult.verdict === 'SAFE') {
           return onDevice;
         }
         return serverResult;
       }
     } catch {
-      // Fast fallback to instant on-device heuristics
+      // Fast fallback to instant on-device zero-trust heuristics
+    } finally {
+      clearTimeout(timeoutId);
     }
 
     return onDevice;
@@ -623,7 +663,7 @@ export class ApiClient {
     try {
       const response = await this.requestWithFallback('/threat/wifi/scan', {
         method: 'GET',
-      });
+      }, 4000);
       if (!response.ok) return { networks: [] };
       const data = await response.json();
       return {
@@ -643,9 +683,13 @@ export class ApiClient {
     const verdict = params.immutableVerdict || 'UNKNOWN';
     const flags = params.detectedFlags || [];
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
     try {
-      const response = await Promise.race([
-        this.requestWithFallback('/threat/explain', {
+      const response = await this.requestWithFallback(
+        '/threat/explain',
+        {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -655,15 +699,20 @@ export class ApiClient {
             immutableVerdict: verdict,
             detectedFlags: flags,
           }),
-        }),
-        new Promise<Response>((_, reject) => setTimeout(() => reject(new Error('Race timeout')), 1200)),
-      ]);
+          signal: controller.signal,
+        },
+        5000
+      );
+
+      clearTimeout(timeoutId);
 
       if (response && response.ok) {
         return await response.json();
       }
     } catch {
       // Fast fallback to instant on-device grounded RAG
+    } finally {
+      clearTimeout(timeoutId);
     }
 
     // Offline Grounded RAG synthesis

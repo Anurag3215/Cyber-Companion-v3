@@ -52,7 +52,9 @@ describe('ApiClient & AI Explainer Client Suite', () => {
     expect(cleartextResult.verdict).toBe('SUSPICIOUS');
 
     const safeResult = await ApiClient.inspectUrl('https://valid-portal.com');
-    expect(safeResult.verdict).toBe('SAFE');
+    expect(safeResult.verdict).toBe('UNKNOWN');
+    expect(safeResult.confidenceScore).toBe(50);
+    expect(safeResult.plainLanguageExplanation).toContain('could not be verified');
 
     const githubResult = await ApiClient.inspectUrl('https://github.com/security');
     expect(githubResult.verdict).toBe('SAFE');
