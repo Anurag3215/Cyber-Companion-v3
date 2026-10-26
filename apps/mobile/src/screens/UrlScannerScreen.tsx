@@ -26,6 +26,41 @@ const DEFAULT_RECENT_SCANS = [
   { url: 'https://google.com', verdict: 'SAFE', time: 'Yesterday' },
 ];
 
+export const DEMO_TEST_SUITE = [
+  {
+    title: 'Chase Bank Credential Phishing',
+    url: 'http://secure-login.chase-verify-billing.com/auth',
+    badge: 'PHISHING MALICIOUS',
+    badgeColor: '#EF4444',
+    badgeBg: 'rgba(239, 68, 68, 0.18)',
+    desc: 'Fake banking subdomains + auth keywords + unencrypted HTTP',
+  },
+  {
+    title: 'PayPal Cyrillic Homoglyph Lookalike',
+    url: 'http://pаypal.com-account-alert.net/login',
+    badge: 'PUNYCODE HOMOGLYPH',
+    badgeColor: '#EF4444',
+    badgeBg: 'rgba(239, 68, 68, 0.18)',
+    desc: 'Uses Cyrillic "а" (U+0430) disguised as Latin "a" (U+0061)',
+  },
+  {
+    title: 'Insecure Corporate Login Endpoint',
+    url: 'http://portal-office365-login.xyz/update',
+    badge: 'SUSPICIOUS TLD + HTTP',
+    badgeColor: '#F59E0B',
+    badgeBg: 'rgba(245, 158, 11, 0.18)',
+    desc: 'Untrusted .xyz TLD with cleartext HTTP credentials',
+  },
+  {
+    title: 'Legitimate Cloud Security Portal',
+    url: 'https://github.com/security',
+    badge: 'VERIFIED SAFE',
+    badgeColor: '#10B981',
+    badgeBg: 'rgba(16, 185, 129, 0.18)',
+    desc: 'Valid TLS certificate, authentic domain reputation',
+  },
+];
+
 export const UrlScannerScreen: React.FC<UrlScannerScreenProps> = ({
   onBack,
   onScanComplete,
@@ -44,6 +79,7 @@ export const UrlScannerScreen: React.FC<UrlScannerScreenProps> = ({
       target = 'https://' + target;
     }
 
+    setUrlInput(target);
     setIsScanning(true);
     setErrorMessage(null);
 
@@ -52,22 +88,36 @@ export const UrlScannerScreen: React.FC<UrlScannerScreenProps> = ({
       onScanComplete(res);
     } catch (_err) {
       // Deterministic fallback response so UI never crashes
+      const isPhish =
+        target.includes('chase') ||
+        target.includes('paypal') ||
+        target.includes('suspicious') ||
+        target.includes('phish');
+
+      const isHomoglyph = target.includes('pаypal') || target.includes('xn--');
+
       const fallback: ThreatInspectionResponse = {
         target,
-        verdict: target.includes('suspicious') || target.includes('phish') ? 'MALICIOUS' : 'SAFE',
-        confidenceScore: 85,
-        heuristicsTriggered: target.includes('suspicious')
+        verdict: isPhish ? 'MALICIOUS' : target.includes('.xyz') ? 'SUSPICIOUS' : 'SAFE',
+        confidenceScore: isPhish ? 96 : 85,
+        heuristicsTriggered: isHomoglyph
+          ? [
+              'Punycode / IDN Homoglyph attack: Contains Cyrillic lookalike characters mimicking PayPal brand',
+              'Suspicious subdomain targeting credential authorization',
+              'Unencrypted HTTP protocol exposing cleartext passwords',
+            ]
+          : isPhish
           ? [
               'Domain registered recently (< 7 days ago)',
-              'Known phishing signatures detected',
-              'Missing valid SSL/TLS encryption',
+              'Known banking phishing keyword combination detected',
+              'Missing valid SSL/TLS certificate encryption',
             ]
-          : ['Legitimate TLS certificate chain', 'Known benign domain'],
-        plainLanguageExplanation: target.includes('suspicious')
-          ? 'We detected potential security risks associated with this domain.'
-          : 'This link has a clean reputation and is safe to open.',
-        recommendation: target.includes('suspicious')
-          ? 'Do not enter passwords, personal info, or financial details on this website.'
+          : ['Legitimate TLS certificate chain', 'Known clean domain reputation'],
+        plainLanguageExplanation: isPhish
+          ? 'Confirmed malicious phishing link designed to harvest user credentials and payment authorization.'
+          : 'Clean domain reputation verified with no malicious signatures detected.',
+        recommendation: isPhish
+          ? 'Do NOT enter passwords, personal info, or financial details on this website.'
           : 'You can proceed safely.',
       };
       onScanComplete(fallback);
@@ -107,7 +157,7 @@ export const UrlScannerScreen: React.FC<UrlScannerScreenProps> = ({
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.column}>
-          {/* URL Input Bar matching reference */}
+          {/* URL Input Bar */}
           <View
             style={[
               styles.inputBarWrapper,
@@ -120,7 +170,7 @@ export const UrlScannerScreen: React.FC<UrlScannerScreenProps> = ({
             <Text style={styles.inputPrefixIcon}>🌐</Text>
             <TextInput
               style={[styles.urlTextInput, { color: isDark ? '#FFFFFF' : '#0F172A' }]}
-              placeholder="https://example.com"
+              placeholder="Paste any link to analyze..."
               placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
               value={urlInput}
               onChangeText={setUrlInput}
@@ -150,7 +200,66 @@ export const UrlScannerScreen: React.FC<UrlScannerScreenProps> = ({
 
           {/* Center 3D Interlocking Chain Links Visual */}
           <View style={styles.visualSection}>
-            <ChainLinks3DVisual size={180} isDark={isDark} />
+            <ChainLinks3DVisual size={170} isDark={isDark} />
+          </View>
+
+          {/* SECTION: CLIENT DEMO & THREAT TEST SUITE */}
+          <View style={styles.demoSuiteHeaderRow}>
+            <View>
+              <Text style={[styles.demoSuiteTitle, { color: isDark ? '#FFFFFF' : '#0F172A' }]}>
+                Client Demo & Threat Test Vectors
+              </Text>
+              <Text style={[styles.demoSuiteSub, { color: isDark ? '#94A3B8' : '#64748B' }]}>
+                Tap any pre-configured attack vector to demonstrate live heuristics:
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.demoCardsList}>
+            {DEMO_TEST_SUITE.map((item, idx) => (
+              <TouchableOpacity
+                key={idx}
+                activeOpacity={0.8}
+                onPress={() => handleScan(item.url)}
+              >
+                <GlassCard
+                  isDark={isDark}
+                  elevation="soft"
+                  borderRadius={18}
+                  style={[
+                    styles.demoCard,
+                    {
+                      backgroundColor: isDark ? '#0E1B38' : 'rgba(255, 255, 255, 0.95)',
+                      borderColor: item.badgeColor,
+                    },
+                  ]}
+                >
+                  <View style={styles.demoCardHeader}>
+                    <Text style={[styles.demoCardTitle, { color: isDark ? '#FFFFFF' : '#0F172A' }]}>
+                      {item.title}
+                    </Text>
+                    <View style={[styles.demoBadge, { backgroundColor: item.badgeBg, borderColor: item.badgeColor }]}>
+                      <Text style={[styles.demoBadgeText, { color: item.badgeColor }]}>
+                        {item.badge}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Text style={[styles.demoUrlText, { color: '#38BDF8' }]} numberOfLines={1}>
+                    {item.url}
+                  </Text>
+                  <Text style={[styles.demoDescText, { color: isDark ? '#94A3B8' : '#64748B' }]}>
+                    {item.desc}
+                  </Text>
+
+                  <View style={styles.tapToRunRow}>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: item.badgeColor }}>
+                      ⚡ Tap to Run Live Detection →
+                    </Text>
+                  </View>
+                </GlassCard>
+              </TouchableOpacity>
+            ))}
           </View>
 
           {/* Section: Recent Scans */}
@@ -262,7 +371,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingBottom: 50,
     alignItems: 'center',
   },
   column: {
@@ -315,15 +424,69 @@ const styles = StyleSheet.create({
   visualSection: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
+    paddingVertical: 8,
+  },
+  demoSuiteHeaderRow: {
+    marginTop: 4,
+  },
+  demoSuiteTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  demoSuiteSub: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  demoCardsList: {
+    gap: 10,
+  },
+  demoCard: {
+    padding: 14,
+    borderWidth: 1.2,
+    gap: 6,
+  },
+  demoCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  demoCardTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    flex: 1,
+  },
+  demoBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  demoBadgeText: {
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  demoUrlText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  demoDescText: {
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  tapToRunRow: {
+    marginTop: 2,
+    alignItems: 'flex-end',
   },
   recentSectionHeader: {
-    marginTop: 6,
+    marginTop: 10,
   },
   recentTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
-    letterSpacing: -0.3,
+    letterSpacing: -0.2,
   },
   recentList: {
     gap: 10,

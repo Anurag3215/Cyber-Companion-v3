@@ -19,6 +19,59 @@ interface QrScannerScreenProps {
   isDark?: boolean;
 }
 
+const DEMO_QR_VECTORS = [
+  {
+    id: 'quish-parking',
+    title: 'Quishing Parking Meter Fraud',
+    subtitle: 'Physical sticker replacement vector',
+    category: 'QUISHING FRAUD',
+    payload: 'http://city-parking-pay.quick-bill.info/pay?meter=982',
+    icon: '🅿️',
+    badgeColor: '#EF4444',
+    badgeText: 'CRITICAL',
+  },
+  {
+    id: 'malware-apk',
+    title: 'Android Malware APK Drive-By',
+    subtitle: 'Fake mandatory security patch download',
+    category: 'MALICIOUS APK',
+    payload: 'http://update-android-security.com/system-patch.apk',
+    icon: '⚠️',
+    badgeColor: '#EF4444',
+    badgeText: 'CRITICAL',
+  },
+  {
+    id: 'rogue-wifi',
+    title: 'Rogue Wi-Fi Auto-Connect Trap',
+    subtitle: 'Evil Twin unencrypted airspace beacon',
+    category: 'ROGUE HOTSPOT',
+    payload: 'WIFI:S:Free_Airport_VIP_WiFi;T:nopass;;',
+    icon: '📶',
+    badgeColor: '#F59E0B',
+    badgeText: 'HIGH RISK',
+  },
+  {
+    id: 'banking-phish',
+    title: 'Banking Credential Phishing',
+    subtitle: 'Financial portal spoofing gateway',
+    category: 'CREDENTIAL HARVEST',
+    payload: 'http://secure-login.chase-verify-billing.com/auth',
+    icon: '💳',
+    badgeColor: '#EF4444',
+    badgeText: 'CRITICAL',
+  },
+  {
+    id: 'safe-portal',
+    title: 'Verified Corporate Service',
+    subtitle: 'EV TLS 1.3 certified cloud destination',
+    category: 'LEGITIMATE SERVICE',
+    payload: 'https://legitimate-service.com/portal',
+    icon: '🛡️',
+    badgeColor: '#10B981',
+    badgeText: 'SECURE',
+  },
+];
+
 export const QrScannerScreen: React.FC<QrScannerScreenProps> = ({
   onBack,
   onScanComplete,
@@ -62,7 +115,7 @@ export const QrScannerScreen: React.FC<QrScannerScreenProps> = ({
     setTimeout(() => {
       setIsSimulating(false);
       onScanComplete(sampleUrl);
-    }, 700);
+    }, 600);
   };
 
   return (
@@ -156,83 +209,89 @@ export const QrScannerScreen: React.FC<QrScannerScreenProps> = ({
             </View>
           </View>
 
-          {/* Instant Test Samples & Manual Input */}
+          {/* Client Demo Threat Test Suite */}
           <View style={styles.testSection}>
-            <Text style={[styles.testSectionTitle, { color: isDark ? '#94A3B8' : '#64748B' }]}>
-              OR TEST WITH SAMPLE PAYLOADS:
+            <View style={styles.sectionTitleRow}>
+              <Text style={[styles.testSectionTitle, { color: isDark ? '#38BDF8' : '#0284C7' }]}>
+                CLIENT DEMO & THREAT TEST VECTORS
+              </Text>
+              <View style={[styles.countBadge, { backgroundColor: isDark ? 'rgba(56, 189, 248, 0.15)' : '#E0F2FE' }]}>
+                <Text style={{ fontSize: 11, fontWeight: '800', color: '#38BDF8' }}>5 VECTORS</Text>
+              </View>
+            </View>
+
+            <Text style={[styles.sectionSubtitle, { color: isDark ? '#94A3B8' : '#64748B' }]}>
+              Tap any test vector below to trigger instant real-time payload inspection:
             </Text>
 
-            <TouchableOpacity
-              style={[
-                styles.sampleBtn,
-                {
-                  backgroundColor: isDark ? '#0E1B38' : '#FFFFFF',
-                  borderColor: isDark ? 'rgba(56, 189, 248, 0.2)' : '#DCE6F0',
-                },
-              ]}
-              onPress={() => handleTestSample('https://legitimate-service.com/portal')}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.sampleIcon, { color: '#10B981' }]}>✓</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.sampleBtnTitle, { color: isDark ? '#FFFFFF' : '#0F172A' }]}>
-                  Test Safe QR Code
-                </Text>
-                <Text style={[styles.sampleBtnSub, { color: isDark ? '#94A3B8' : '#64748B' }]}>
-                  https://legitimate-service.com/portal
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.sampleBtn,
-                {
-                  backgroundColor: isDark ? '#0E1B38' : '#FFFFFF',
-                  borderColor: isDark ? 'rgba(239, 68, 68, 0.2)' : '#DCE6F0',
-                },
-              ]}
-              onPress={() => handleTestSample('http://suspicious-phish.net/login')}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.sampleIcon, { color: '#EF4444' }]}>⚠️</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.sampleBtnTitle, { color: isDark ? '#FFFFFF' : '#0F172A' }]}>
-                  Test Suspicious Quishing QR
-                </Text>
-                <Text style={[styles.sampleBtnSub, { color: isDark ? '#94A3B8' : '#64748B' }]}>
-                  http://suspicious-phish.net/login
-                </Text>
-              </View>
-            </TouchableOpacity>
+            {DEMO_QR_VECTORS.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={[
+                  styles.sampleBtn,
+                  {
+                    backgroundColor: isDark ? '#0E1B38' : '#FFFFFF',
+                    borderColor: isDark ? 'rgba(56, 189, 248, 0.2)' : '#DCE6F0',
+                  },
+                ]}
+                onPress={() => handleTestSample(item.payload)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.sampleIcon}>{item.icon}</Text>
+                <View style={{ flex: 1, gap: 3 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Text
+                      style={[styles.sampleBtnTitle, { color: isDark ? '#FFFFFF' : '#0F172A' }]}
+                      numberOfLines={1}
+                    >
+                      {item.title}
+                    </Text>
+                    <View style={[styles.vectorBadge, { backgroundColor: item.badgeColor }]}>
+                      <Text style={styles.vectorBadgeText}>{item.badgeText}</Text>
+                    </View>
+                  </View>
+                  <Text
+                    style={[styles.sampleBtnSub, { color: isDark ? '#94A3B8' : '#64748B' }]}
+                    numberOfLines={1}
+                  >
+                    {item.payload}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
 
             {/* Manual Paste Row */}
-            <View
-              style={[
-                styles.manualInputRow,
-                {
-                  backgroundColor: isDark ? '#0E1B38' : '#FFFFFF',
-                  borderColor: isDark ? 'rgba(56, 189, 248, 0.2)' : '#DCE6F0',
-                },
-              ]}
-            >
-              <TextInput
-                style={[styles.manualTextInput, { color: isDark ? '#FFFFFF' : '#0F172A' }]}
-                placeholder="Paste QR link or text..."
-                placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
-                value={manualInput}
-                onChangeText={setManualInput}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity
-                style={[styles.manualSubmitBtn, { opacity: !manualInput.trim() ? 0.6 : 1 }]}
-                onPress={() => {
-                  if (manualInput.trim()) onScanComplete(manualInput.trim());
-                }}
-                disabled={!manualInput.trim()}
+            <View style={{ marginTop: 10, gap: 8 }}>
+              <Text style={[styles.inputLabel, { color: isDark ? '#94A3B8' : '#64748B' }]}>
+                OR INSPECT CUSTOM QR PAYLOAD / URL:
+              </Text>
+              <View
+                style={[
+                  styles.manualInputRow,
+                  {
+                    backgroundColor: isDark ? '#0E1B38' : '#FFFFFF',
+                    borderColor: isDark ? 'rgba(56, 189, 248, 0.2)' : '#DCE6F0',
+                  },
+                ]}
               >
-                <Text style={styles.manualSubmitText}>Inspect</Text>
-              </TouchableOpacity>
+                <TextInput
+                  style={[styles.manualTextInput, { color: isDark ? '#FFFFFF' : '#0F172A' }]}
+                  placeholder="Paste QR payload or raw link..."
+                  placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                  value={manualInput}
+                  onChangeText={setManualInput}
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity
+                  style={[styles.manualSubmitBtn, { opacity: !manualInput.trim() ? 0.6 : 1 }]}
+                  onPress={() => {
+                    if (manualInput.trim()) onScanComplete(manualInput.trim());
+                  }}
+                  disabled={!manualInput.trim()}
+                >
+                  <Text style={styles.manualSubmitText}>Inspect</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </View>
@@ -302,58 +361,58 @@ const styles = StyleSheet.create({
   },
   cornerBracket: {
     position: 'absolute',
-    width: 28,
-    height: 28,
+    width: 32,
+    height: 32,
     borderColor: '#FFFFFF',
   },
   topLeftCorner: {
-    top: 14,
-    left: 14,
-    borderTopWidth: 3.5,
-    borderLeftWidth: 3.5,
-    borderTopLeftRadius: 8,
+    top: 20,
+    left: 20,
+    borderTopWidth: 4,
+    borderLeftWidth: 4,
+    borderTopLeftRadius: 10,
   },
   topRightCorner: {
-    top: 14,
-    right: 14,
-    borderTopWidth: 3.5,
-    borderRightWidth: 3.5,
-    borderTopRightRadius: 8,
+    top: 20,
+    right: 20,
+    borderTopWidth: 4,
+    borderRightWidth: 4,
+    borderTopRightRadius: 10,
   },
   bottomLeftCorner: {
-    bottom: 14,
-    left: 14,
-    borderBottomWidth: 3.5,
-    borderLeftWidth: 3.5,
-    borderBottomLeftRadius: 8,
+    bottom: 20,
+    left: 20,
+    borderBottomWidth: 4,
+    borderLeftWidth: 4,
+    borderBottomLeftRadius: 10,
   },
   bottomRightCorner: {
-    bottom: 14,
-    right: 14,
-    borderBottomWidth: 3.5,
-    borderRightWidth: 3.5,
-    borderBottomRightRadius: 8,
+    bottom: 20,
+    right: 20,
+    borderBottomWidth: 4,
+    borderRightWidth: 4,
+    borderBottomRightRadius: 10,
   },
   statusPill: {
-    marginTop: 20,
-    paddingHorizontal: 20,
+    marginTop: 18,
+    paddingHorizontal: 22,
     paddingVertical: 12,
-    borderRadius: 20,
-    borderWidth: 1.2,
+    borderRadius: 24,
+    borderWidth: 1,
     alignItems: 'center',
+    width: 280,
     gap: 8,
-    width: 270,
   },
   statusText: {
     fontSize: 13,
     fontWeight: '700',
-    textAlign: 'center',
+    letterSpacing: -0.2,
   },
   progressBarTrack: {
     width: '100%',
     height: 4,
-    borderRadius: 2,
     backgroundColor: 'rgba(56, 189, 248, 0.2)',
+    borderRadius: 2,
     overflow: 'hidden',
   },
   progressBarFill: {
@@ -363,57 +422,85 @@ const styles = StyleSheet.create({
   },
   testSection: {
     width: '100%',
-    gap: 10,
-    marginTop: 6,
+    gap: 12,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   testSectionTitle: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.8,
-    marginBottom: 2,
+  },
+  countBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '500',
+    marginBottom: 4,
   },
   sampleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 14,
-    borderRadius: 18,
-    borderWidth: 1.2,
+    borderRadius: 16,
+    borderWidth: 1,
     gap: 12,
   },
   sampleIcon: {
-    fontSize: 20,
-    fontWeight: '900',
+    fontSize: 22,
   },
   sampleBtnTitle: {
     fontSize: 14,
     fontWeight: '700',
+    flex: 1,
   },
   sampleBtnSub: {
-    fontSize: 12,
-    fontWeight: '500',
-    marginTop: 1,
+    fontSize: 11,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  vectorBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginLeft: 6,
+  },
+  vectorBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  inputLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   manualInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 18,
-    borderWidth: 1.2,
+    borderRadius: 16,
+    borderWidth: 1,
     paddingHorizontal: 14,
-    height: 52,
+    paddingVertical: 6,
     gap: 10,
-    marginTop: 4,
   },
   manualTextInput: {
     flex: 1,
-    fontSize: 13,
+    height: 44,
+    fontSize: 14,
   },
   manualSubmitBtn: {
-    backgroundColor: '#2563EB',
+    backgroundColor: '#0284C7',
     paddingHorizontal: 16,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: 9,
+    borderRadius: 12,
   },
   manualSubmitText: {
     color: '#FFFFFF',

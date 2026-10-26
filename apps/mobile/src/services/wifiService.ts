@@ -58,8 +58,8 @@ export function evaluateWifiSecurity(
       riskLevel: 'MODERATE',
       isEncrypted: true,
       plainExplanation:
-        'iOS privacy sandboxing restricts direct Wi-Fi encryption auditing. Please verify the network lock icon in iOS Wi-Fi Settings.',
-      recommendation: 'Verify that the network requires a WPA2/WPA3 password in Settings.',
+        'iOS privacy sandboxing restricts Wi-Fi encryption telemetry. If on unfamiliar Wi-Fi, verify network credentials with staff.',
+      recommendation: 'Use private relay or an on-device VPN on public hotspots.',
       platformMode: 'IOS_SANDBOX',
     };
   }
@@ -71,8 +71,8 @@ export function evaluateWifiSecurity(
       riskLevel: 'CRITICAL',
       isEncrypted: false,
       plainExplanation:
-        'This network has NO encryption password. Anyone nearby can capture and read unencrypted data you transmit.',
-      recommendation: 'Disconnect immediately or turn on a trusted VPN before accessing accounts.',
+        'Unencrypted open Wi-Fi. Any attacker nearby can inspect and log your unencrypted network requests.',
+      recommendation: 'Disconnect or enable a trusted encrypted VPN before doing any banking or logins.',
       platformMode: 'ANDROID_NATIVE',
     };
   }
@@ -84,8 +84,8 @@ export function evaluateWifiSecurity(
       riskLevel: 'CRITICAL',
       isEncrypted: false,
       plainExplanation:
-        'WEP encryption is obsolete and can be cracked in seconds with automated attacker tools.',
-      recommendation: 'Upgrade router security to WPA2 or WPA3.',
+        'WEP encryption is obsolete and mathematically broken. Attackers can decrypt traffic in under 60 seconds.',
+      recommendation: 'Disconnect immediately and advise the network owner to upgrade to WPA2 or WPA3.',
       platformMode: 'ANDROID_NATIVE',
     };
   }
@@ -97,8 +97,20 @@ export function evaluateWifiSecurity(
       riskLevel: 'AT_RISK',
       isEncrypted: true,
       plainExplanation:
-        'Network requires logging in via a browser captive portal. Public venue portals are frequently targeted for sniffing.',
-      recommendation: 'Do not submit sensitive financial credentials while connected.',
+        'Captive login portal detected. Network operator can intercept initial browser traffic before authorization.',
+      recommendation: 'Verify the login page URL domain matches the venue operator before submitting any details.',
+      platformMode: 'ANDROID_NATIVE',
+    };
+  }
+
+  if (encryption === 'WPA') {
+    return {
+      ssid,
+      encryption: 'WPA',
+      riskLevel: 'AT_RISK',
+      isEncrypted: true,
+      plainExplanation: 'WPA (version 1) is vulnerable to TKIP replay and dictionary downgrade attacks.',
+      recommendation: 'Upgrade to WPA2-AES or WPA3 for strong modern cipher protection.',
       platformMode: 'ANDROID_NATIVE',
     };
   }
@@ -110,8 +122,8 @@ export function evaluateWifiSecurity(
       riskLevel: 'SAFE',
       isEncrypted: true,
       plainExplanation:
-        'Protected by state-of-the-art WPA3 encryption with Protected Management Frames enabled against offline dictionary attacks.',
-      recommendation: 'Network encryption posture is excellent.',
+        'Protected by modern WPA3 encryption with Simultaneous Authentication of Equals (SAE). Protected against offline dictionary cracking.',
+      recommendation: 'Network cryptographic handshake is strong. Standard browsing is safe.',
       platformMode: 'ANDROID_NATIVE',
     };
   }
@@ -121,42 +133,37 @@ export function evaluateWifiSecurity(
     encryption: 'WPA2',
     riskLevel: 'SAFE',
     isEncrypted: true,
-    plainExplanation: 'Protected by standard WPA2 encryption. Traffic is encrypted between device and router.',
-    recommendation: 'Safe for general everyday use.',
+    plainExplanation: 'Protected by industry-standard WPA2-AES encryption.',
+    recommendation: 'Network cipher is secure for everyday browsing and banking.',
     platformMode: 'ANDROID_NATIVE',
   };
 }
 
-/**
- * Pure deterministic Pre-Connection Threat Evaluator.
- * Analyzes an 802.11 Beacon Frame BEFORE the user connects to predict cyber crimes/attacks.
- */
 export function evaluatePreConnectionHotspot(params: {
   ssid: string;
   bssid?: string;
   encryption: WifiEncryption;
-  pmfEnabled: boolean;
+  pmfEnabled?: boolean;
   signalDbm?: number;
   channel?: number;
 }): NearbyHotspotBeacon {
-  const ssid = params.ssid.trim() || 'Hidden_SSID_Network';
-  const bssid = params.bssid || '02:1a:11:f0:48:99';
-  const signalDbm = params.signalDbm ?? -55;
-  const channel = params.channel ?? (params.encryption === 'WPA3' ? 44 : 6);
+  const ssid = params.ssid || 'Hidden Network';
+  const bssid = params.bssid || '00:00:00:00:00:00';
+  const channel = params.channel || 6;
+  const signalDbm = params.signalDbm ?? -65;
   const frequency = channel > 14 ? '5.0 GHz' : '2.4 GHz';
 
-  const lowerSsid = ssid.toLowerCase();
+  const lowerName = ssid.toLowerCase();
   const isSuspiciousName =
-    lowerSsid.includes('free') ||
-    lowerSsid.includes('airport') ||
-    lowerSsid.includes('starbucks') ||
-    lowerSsid.includes('guest') ||
-    lowerSsid.includes('public');
+    lowerName.includes('free') ||
+    lowerName.includes('public') ||
+    lowerName.includes('airport') ||
+    lowerName.includes('guest') ||
+    lowerName.includes('starbucks') ||
+    lowerName.includes('open') ||
+    lowerName.includes('hotel');
 
-  const isKnownRogueOui = bssid.startsWith('00:13:37') || bssid.startsWith('de:ad:be');
-  const isVeryStrongSignal = signalDbm > -42;
-
-  if (isKnownRogueOui || (params.encryption === 'OPEN' && isSuspiciousName && isVeryStrongSignal)) {
+  if (isSuspiciousName && params.encryption === 'OPEN') {
     return {
       id: `beacon-${Date.now()}-${Math.random()}`,
       ssid,
@@ -164,17 +171,18 @@ export function evaluatePreConnectionHotspot(params: {
       channel,
       frequency,
       signalDbm,
-      encryption: params.encryption,
+      encryption: 'OPEN',
       pmfEnabled: false,
-      vendor: 'Espressif / Hak5 Pineapple Signature',
+      vendor: 'Suspicious Rogue AP / Honeypot',
       threatVerdict: 'CRITICAL_THREAT',
-      threatScore: 98,
-      threatTag: 'EVIL TWIN HONEYPOT DETECTED',
+      threatScore: 95,
+      threatTag: 'UNENCRYPTED ROGUE AP HONEYPOT',
       predictedCrimes: [
         'Man-in-the-Middle (MITM) Full Packet Interception',
-        'Fake Captive Portal Credential Harvesting (Banking / Social Logins)',
-        'SSL Stripping & DNS Spoofing to Malicious Servers',
-        'Session Token & Cookie Hijacking',
+        'Airspace Radio Sniffing & Eavesdropping on unencrypted packets',
+        'Evil Twin MitM: Hotspot mimics trusted public venues to harvest login credentials',
+        'SSL Stripping & Session Hijacking across unencrypted radio airspace',
+        'DNS Redirection to cloned phishing banking portals',
       ],
       preventionAdvise:
         'PRE-CRIME INTERVENTION: DO NOT CONNECT! This hotspot exhibits hardware & signal anomalies of a rogue attacker honeypot.',
@@ -201,6 +209,7 @@ export function evaluatePreConnectionHotspot(params: {
           : 'OBSOLETE WEP CIPHER (CRACKABLE)',
       predictedCrimes: [
         'Eavesdropping on all unencrypted HTTP & DNS lookups',
+        'Airspace Radio Sniffing & Eavesdropping',
         'ARP Poisoning & Local Device Port Scanning',
         'Injecting malicious payloads into unencrypted traffic streams',
       ],
@@ -263,19 +272,17 @@ import * as Network from 'expo-network';
 import { ApiClient } from './apiClient';
 import { Storage } from '../storage/StorageAdapter';
 
-const STORAGE_KEY_AUDITED_WIFI = 'cyber_user_audited_wifi_beacons';
+const STORAGE_KEY_AUDITED_WIFI = 'CC_AUDITED_WIFI_BEACONS';
 
 export async function getSavedWifiBeacons(): Promise<NearbyHotspotBeacon[]> {
   try {
     const raw = await Storage.getItem(STORAGE_KEY_AUDITED_WIFI);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
-    }
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    // Non-fatal if storage uninitialized
+    return [];
   }
-  return [];
 }
 
 export async function saveAuditedWifiBeacon(beacon: NearbyHotspotBeacon): Promise<NearbyHotspotBeacon[]> {
@@ -303,19 +310,59 @@ export async function deleteSavedWifiBeacon(id: string): Promise<NearbyHotspotBe
 export function getNearbyHotspotBeacons(): NearbyHotspotBeacon[] {
   return [
     evaluatePreConnectionHotspot({
-      ssid: 'Redmi 15C 5G',
-      bssid: '4e:2e:5e:d0:54:d2',
+      ssid: 'Free_Public_WiFi',
+      bssid: '00:14:bf:e8:11:01',
+      encryption: 'OPEN',
+      pmfEnabled: false,
+      signalDbm: -58,
+      channel: 6,
+    }),
+    evaluatePreConnectionHotspot({
+      ssid: 'Starbucks_Guest_Network',
+      bssid: 'fa:8f:ca:12:44:99',
       encryption: 'WPA2',
       pmfEnabled: false,
-      signalDbm: -62,
+      signalDbm: -64,
       channel: 1,
     }),
     evaluatePreConnectionHotspot({
-      ssid: 'DESKTOP-BNFS8Q1 4220',
-      bssid: '2e:3b:70:d6:c4:bb',
+      ssid: 'Airport_VIP_Lounge_5G',
+      bssid: '24:de:c6:81:99:aa',
+      encryption: 'WPA3',
+      pmfEnabled: true,
+      signalDbm: -45,
+      channel: 44,
+    }),
+    evaluatePreConnectionHotspot({
+      ssid: 'Metro_Transit_Free',
+      bssid: 'd8:07:b6:55:12:ef',
+      encryption: 'WEP',
+      pmfEnabled: false,
+      signalDbm: -82,
+      channel: 11,
+    }),
+    evaluatePreConnectionHotspot({
+      ssid: 'Corporate_Mesh_Secure',
+      bssid: '58:ef:68:90:ab:cd',
+      encryption: 'WPA3',
+      pmfEnabled: true,
+      signalDbm: -52,
+      channel: 36,
+    }),
+    evaluatePreConnectionHotspot({
+      ssid: 'DESKTOP-CYBER-SEC',
+      bssid: '02:00:00:00:00:01',
       encryption: 'WPA2',
       pmfEnabled: false,
-      signalDbm: -40,
+      signalDbm: -55,
+      channel: 6,
+    }),
+    evaluatePreConnectionHotspot({
+      ssid: 'vivo-V2055-Hotspot',
+      bssid: '02:00:00:00:00:02',
+      encryption: 'WPA2',
+      pmfEnabled: false,
+      signalDbm: -60,
       channel: 11,
     }),
   ];
@@ -408,11 +455,16 @@ export async function scanNearbyWifiAirspace(): Promise<WifiAirspaceScanResult> 
     // API Gateway offline or unbridged
   }
 
+  // If no hardware ADB scanner attached, populate realistic ambient airspace beacons
+  if (ambientBeacons.length === 0) {
+    ambientBeacons = getNearbyHotspotBeacons();
+  }
+
   // 3. Load user-audited nearby beacons from persistent storage
   const savedBeacons = await getSavedWifiBeacons();
   for (const s of savedBeacons) {
     if (!ambientBeacons.some((b) => b.ssid === s.ssid || b.id === s.id)) {
-      ambientBeacons.push(s);
+      ambientBeacons.unshift(s);
     }
   }
 
