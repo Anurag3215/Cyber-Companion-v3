@@ -1,0 +1,8 @@
+{
+  "name": "wifi-scanner",
+  "platforms": ["android"],
+  "android": {
+    "package": "io.cybercompanion.wifiscanner",
+    "modules": ["io.cybercompanion.wifiscanner.WifiScannerModule"]
+  }
+}

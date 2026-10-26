@@ -5,6 +5,8 @@ module.exports = {
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
     '^expo-network$': '<rootDir>/tests/mocks/expo-network.js',
+    '^expo-modules-core$': '<rootDir>/tests/mocks/expo-modules-core.js',
+    '^react-native$': '<rootDir>/tests/mocks/react-native.js',
   },
   transform: {
     '^.+\\.tsx?$': [

@@ -10,6 +10,7 @@ import {
   Animated,
   TextInput,
   Alert,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -47,6 +48,11 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
     type: string;
     ipAddress?: string;
   } | null>(null);
+  const [scanAdvisory, setScanAdvisory] = useState<{
+    type: 'NONE' | 'PERMISSION_DENIED' | 'LOCATION_DISABLED' | 'IOS_RESTRICTED';
+    message: string;
+    canAskAgain?: boolean;
+  }>({ type: 'NONE', message: '' });
 
   // Detail Modal State
   const [selectedHotspot, setSelectedHotspot] = useState<NearbyHotspotBeacon | null>(null);
@@ -187,6 +193,32 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
       setIsScanning(false);
       setScanStepText('');
 
+      if (result.permissionDenied) {
+        setScanAdvisory({
+          type: 'PERMISSION_DENIED',
+          message:
+            result.statusMessage ||
+            'Android privacy sandboxing requires Location permission to inspect 802.11 Wi-Fi radio airspace and scan BSSIDs.',
+          canAskAgain: result.canAskAgain,
+        });
+      } else if (result.locationDisabled) {
+        setScanAdvisory({
+          type: 'LOCATION_DISABLED',
+          message:
+            result.statusMessage ||
+            'Device Location Services (GPS) are turned OFF. Android OS returns 0 nearby Wi-Fi networks when Location is disabled in device settings.',
+        });
+      } else if (result.isIosRestricted) {
+        setScanAdvisory({
+          type: 'IOS_RESTRICTED',
+          message:
+            result.statusMessage ||
+            'iOS Privacy Sandboxing: Apple prohibits ambient 802.11 BSSID radio scanning via public APIs. You can audit active Wi-Fi or set presentation hotspots.',
+        });
+      } else {
+        setScanAdvisory({ type: 'NONE', message: '' });
+      }
+
       const threatCount = result.beacons.filter((b) => b.threatVerdict === 'CRITICAL_THREAT').length;
       addHistoryRecord({
         type: 'wifi',
@@ -205,11 +237,14 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
     } catch {
       clearTimeout(t1);
       clearTimeout(t2);
-      const fallback = getNearbyHotspotBeacons();
-      setHotspots(fallback);
+      setHotspots([]);
       setHasScanned(true);
       setIsScanning(false);
       setScanStepText('');
+      setScanAdvisory({
+        type: 'PERMISSION_DENIED',
+        message: 'Could not complete native Wi-Fi scan. Ensure Location permission is granted and device GPS is turned on.',
+      });
     }
   };
 
@@ -347,6 +382,68 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
             </TouchableOpacity>
           </View>
 
+          {/* Hardware & Sandbox Advisory Banner */}
+          {scanAdvisory.type !== 'NONE' && (
+            <View
+              style={[
+                styles.advisoryCard,
+                {
+                  backgroundColor: isDark ? '#1C1917' : '#FEF3C7',
+                  borderColor: scanAdvisory.type === 'PERMISSION_DENIED' ? danger : amber,
+                },
+              ]}
+            >
+              <View style={styles.advisoryHeaderRow}>
+                <Text style={styles.advisoryIcon}>
+                  {scanAdvisory.type === 'PERMISSION_DENIED' ? '📍' : scanAdvisory.type === 'LOCATION_DISABLED' ? '🛰️' : '🍎'}
+                </Text>
+                <View style={styles.advisoryTextContainer}>
+                  <Text style={[styles.advisoryTitle, { color: textColor }]}>
+                    {scanAdvisory.type === 'PERMISSION_DENIED'
+                      ? 'Location Permission Required for Wi-Fi Scan'
+                      : scanAdvisory.type === 'LOCATION_DISABLED'
+                      ? 'Device Location (GPS) Is Turned Off'
+                      : 'iOS Privacy Sandboxing Restriction'}
+                  </Text>
+                  <Text style={[styles.advisoryBody, { color: subtextColor }]}>
+                    {scanAdvisory.message}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.advisoryActionsRow}>
+                {scanAdvisory.type === 'PERMISSION_DENIED' && (
+                  <>
+                    <TouchableOpacity
+                      style={[styles.advisoryBtn, { backgroundColor: teal }]}
+                      onPress={handleScanWifi}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.advisoryBtnText}>Grant Permission</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.advisoryBtn, { borderColor: borderCol, borderWidth: 1 }]}
+                      onPress={() => Linking.openSettings()}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.advisoryBtnText, { color: textColor }]}>Open Settings</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+
+                {scanAdvisory.type === 'LOCATION_DISABLED' && (
+                  <TouchableOpacity
+                    style={[styles.advisoryBtn, { backgroundColor: amber }]}
+                    onPress={() => Linking.openSettings()}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.advisoryBtnText, { color: '#000000' }]}>Open Device Settings</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          )}
+
           {/* Pre-Scan Clean Empty State (Zero Fake/Demo Data) */}
           {!hasScanned && !isScanning && (
             <View style={[styles.emptyCard, { backgroundColor: cardBg, borderColor: borderCol }]}>
@@ -466,8 +563,21 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
               </View>
 
               {/* Scanned Wi-Fi Cards */}
-              <View style={styles.networkList}>
-                {filteredHotspots.map((item) => {
+              {filteredHotspots.length === 0 ? (
+                <View style={[styles.emptyFilteredCard, { backgroundColor: cardBg, borderColor: borderCol }]}>
+                  <Text style={styles.emptyFilteredIcon}>📭</Text>
+                  <Text style={[styles.emptyFilteredTitle, { color: textColor }]}>
+                    No Wi-Fi Networks Detected
+                  </Text>
+                  <Text style={[styles.emptyFilteredText, { color: subtextColor }]}>
+                    {scanAdvisory.type !== 'NONE'
+                      ? scanAdvisory.message
+                      : 'Zero ambient 802.11 beacon frames were captured. Verify that Wi-Fi hardware and Location are enabled on your device.'}
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.networkList}>
+                  {filteredHotspots.map((item) => {
                   const vColor = getVerdictColor(item.threatVerdict);
                   const isSafe = item.threatVerdict === 'SECURE';
                   const isBlocked = !!blockedIds[item.id];
@@ -562,7 +672,8 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
                   );
                 })}
               </View>
-            </View>
+            )}
+          </View>
           )}
 
           {/* Close Sentinel Button */}
@@ -1400,5 +1511,73 @@ const styles = StyleSheet.create({
     color: '#090D16',
     fontSize: 13,
     fontWeight: '900',
+  },
+  advisoryCard: {
+    borderRadius: 16,
+    borderWidth: 1.5,
+    padding: 16,
+    marginBottom: 16,
+    gap: 12,
+  },
+  advisoryHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  advisoryIcon: {
+    fontSize: 24,
+    marginTop: 2,
+  },
+  advisoryTextContainer: {
+    flex: 1,
+  },
+  advisoryTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  advisoryBody: {
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '500',
+  },
+  advisoryActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  advisoryBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  advisoryBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  emptyFilteredCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    gap: 8,
+  },
+  emptyFilteredIcon: {
+    fontSize: 32,
+    marginBottom: 4,
+  },
+  emptyFilteredTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  emptyFilteredText: {
+    fontSize: 12.5,
+    textAlign: 'center',
+    lineHeight: 18,
+    fontWeight: '500',
   },
 });

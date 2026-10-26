@@ -2,7 +2,11 @@ import {
   evaluateWifiSecurity,
   evaluatePreConnectionHotspot,
   getNearbyHotspotBeacons,
+  scanNearbyWifiAirspace,
+  requestWifiScanPermissions,
+  isDeviceLocationEnabled,
 } from '../src/services/wifiService';
+import { Platform, PermissionsAndroid } from 'react-native';
 
 describe('Wi-Fi Security Assessment Service', () => {
   test('flags OPEN network as CRITICAL risk', () => {
@@ -75,6 +79,48 @@ describe('Wi-Fi Security Assessment Service', () => {
       const beacons = getNearbyHotspotBeacons();
       expect(beacons.length).toBeGreaterThanOrEqual(1);
       expect(beacons.some((b) => b.ssid.includes('AndroidAP') || b.ssid.includes('Neeha') || b.ssid.includes('GUEST'))).toBe(true);
+    });
+  });
+
+  describe('Native Airspace Scanner & Sandbox Fallbacks', () => {
+    test('enforces iOS privacy sandboxing without silent fake beacons', async () => {
+      const originalOs = Platform.OS;
+      (Platform as any).OS = 'ios';
+
+      const scanResult = await scanNearbyWifiAirspace();
+
+      expect(scanResult.isIosRestricted).toBe(true);
+      expect(scanResult.statusMessage).toContain('iOS Privacy Sandboxing');
+      expect(scanResult.scanSource).toBe('OFFLINE_SANDBOX');
+
+      (Platform as any).OS = originalOs;
+    });
+
+    test('requests Android FINE_LOCATION & NEARBY_WIFI_DEVICES permissions', async () => {
+      const originalOs = Platform.OS;
+      (Platform as any).OS = 'android';
+
+      const permResult = await requestWifiScanPermissions();
+      expect(permResult.granted).toBe(true);
+
+      (Platform as any).OS = originalOs;
+    });
+
+    test('returns permissionDenied when Android location permission is rejected', async () => {
+      const originalOs = Platform.OS;
+      (Platform as any).OS = 'android';
+
+      const origRequestMultiple = PermissionsAndroid.requestMultiple;
+      (PermissionsAndroid as any).requestMultiple = jest.fn(async () => ({
+        'android.permission.ACCESS_FINE_LOCATION': 'denied',
+      }));
+
+      const scanResult = await scanNearbyWifiAirspace();
+      expect(scanResult.permissionDenied).toBe(true);
+      expect(scanResult.statusMessage).toContain('Location Permission Required');
+
+      (PermissionsAndroid as any).requestMultiple = origRequestMultiple;
+      (Platform as any).OS = originalOs;
     });
   });
 });
