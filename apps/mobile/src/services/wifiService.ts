@@ -390,17 +390,7 @@ export async function scanNearbyWifiAirspace(): Promise<WifiAirspaceScanResult> 
   // Retrieve any user-configured presentation hotspot
   const savedPresentationHotspot = await getPresentationHotspot();
 
-  // Try acquiring real native SSID via react-native-wifi-reborn
   let realNativeSsid: string | null = null;
-  try {
-    const WifiManager = require('react-native-wifi-reborn').default;
-    if (WifiManager && typeof WifiManager.getCurrentWifiSSID === 'function') {
-      const cur = await WifiManager.getCurrentWifiSSID();
-      if (cur && cur !== '<unknown ssid>' && cur !== '0x' && cur.trim() !== '') {
-        realNativeSsid = cur.replace(/^"|"$/g, '').trim();
-      }
-    }
-  } catch {}
 
   let activeBeacon: NearbyHotspotBeacon | null = null;
 
@@ -448,42 +438,7 @@ export async function scanNearbyWifiAirspace(): Promise<WifiAirspaceScanResult> 
   // 2. Discover ambient nearby networks via native radio, API gateway, or audited beacons
   const ambientBeacons: NearbyHotspotBeacon[] = [];
 
-  // Try Native Android Wi-Fi scan
-  try {
-    const WifiManager = require('react-native-wifi-reborn').default;
-    if (WifiManager && typeof WifiManager.loadWifiList === 'function') {
-      const nativeList: any[] = await WifiManager.loadWifiList();
-      if (Array.isArray(nativeList) && nativeList.length > 0) {
-        for (const net of nativeList) {
-          const s = (net.SSID || '').replace(/^"|"$/g, '').trim();
-          if (!s) continue;
-          const caps = (net.capabilities || '').toUpperCase();
-          const encryption: WifiEncryption = caps.includes('WPA3') || caps.includes('SAE')
-            ? 'WPA3'
-            : caps.includes('WPA2')
-            ? 'WPA2'
-            : caps.includes('WEP')
-            ? 'WEP'
-            : caps.includes('WPA')
-            ? 'WPA'
-            : 'OPEN';
-          const pmf = caps.includes('PMF') || caps.includes('SAE');
-          const channel = net.frequency ? (net.frequency > 4000 ? 36 : 6) : 6;
-          const signalDbm = net.level || -65;
-          ambientBeacons.push(
-            evaluatePreConnectionHotspot({
-              ssid: s,
-              bssid: net.BSSID,
-              encryption,
-              pmfEnabled: pmf,
-              signalDbm,
-              channel,
-            })
-          );
-        }
-      }
-    }
-  } catch {}
+
 
   // Try API Gateway scan (e.g. if phone is attached via adb in debug mode)
   if (ambientBeacons.length === 0) {
