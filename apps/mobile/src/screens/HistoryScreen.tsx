@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { getHistoryRecords, clearAllHistoryRecords, HistoryRecord } from '../services/historyService';
+import { Alert } from 'react-native';
 import {
   StyleSheet,
   View,
@@ -13,92 +15,38 @@ import { GlassCard } from '../design-system/GlassCard';
 import { GlassPrimaryButton } from '../design-system/GlassPrimaryButton';
 import { GlassTokens } from '../design-system/glassTokens';
 
-interface HistoryItem {
-  id: string;
-  type: 'link' | 'wifi' | 'qr' | 'app';
-  icon: string;
-  title: string;
-  subtext: string;
-  time: string;
-  verdict: 'dangerous' | 'warning' | 'safe';
-  verdictLabel: string;
-  details?: {
-    threatTitle?: string;
-    consensusText?: string;
-    explanation?: string;
-    findings?: string[];
-  };
-}
-
-const REAL_DEFAULT_HISTORY: HistoryItem[] = [
-  {
-    id: 'h-1',
-    type: 'wifi',
-    icon: '📶',
-    title: 'Redmi 15C 5G',
-    subtext: 'Physical Hotspot · 2.4 GHz (Ch 1) · WPA2',
-    time: 'Recent Scan',
-    verdict: 'warning',
-    verdictLabel: 'Caution',
-    details: {
-      threatTitle: 'Ambient Wi-Fi Encryption Audit',
-      consensusText: 'Caution · WPA2 without 802.11w PMF',
-      explanation: 'Network traffic is encrypted with WPA2-Personal, but lacks 802.11w Protected Management Frames. Susceptible to deauth frame injection jamming.',
-      findings: [
-        'WPA2-PSK Authentication active',
-        '802.11w PMF Disabled (Deauth susceptible)',
-        'Radio Signal: -62 dBm (Strong proximity)',
-      ],
-    },
-  },
-  {
-    id: 'h-2',
-    type: 'app',
-    icon: '🛡️',
-    title: 'SuperVPN Client',
-    subtext: 'com.jrzheng.supervpnpayment · Overlay Right',
-    time: 'Recent Audit',
-    verdict: 'warning',
-    verdictLabel: 'Caution',
-    details: {
-      threatTitle: 'App Permission Security Audit',
-      consensusText: 'Caution · SYSTEM_ALERT_WINDOW',
-      explanation: 'Application requests permission to display overlays across all screens, creating clickjacking and credential overlay vectors.',
-      findings: [
-        'SYSTEM_ALERT_WINDOW permission granted',
-        'QUERY_ALL_PACKAGES permission scoped',
-      ],
-    },
-  },
-  {
-    id: 'h-3',
-    type: 'app',
-    icon: '💳',
-    title: 'Paytm Payments',
-    subtext: 'net.one97.paytm · Verified Financial Sandbox',
-    time: 'Recent Audit',
-    verdict: 'safe',
-    verdictLabel: 'Safe',
-    details: {
-      threatTitle: 'Verified Application Sandbox',
-      consensusText: 'Clean · Scoped sensitive permissions',
-      explanation: 'Permissions are strictly scoped to financial transactions, camera QR scanning, and user-authorized banking OTP verification.',
-      findings: [
-        'SMS access scoped to user-triggered payment verification',
-        'Zero background audio or location harvesting',
-      ],
-    },
-  },
-];
-
 interface HistoryScreenProps {
   isDark?: boolean;
 }
 
 export const HistoryScreen: React.FC<HistoryScreenProps> = ({ isDark = false }) => {
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'link' | 'wifi' | 'qr' | 'app'>('all');
-  const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
-  const [historyItems, setHistoryItems] = useState<HistoryItem[]>(REAL_DEFAULT_HISTORY);
+  const [selectedItem, setSelectedItem] = useState<HistoryRecord | null>(null);
+  const [historyItems, setHistoryRecords] = useState<HistoryRecord[]>([]);
+
+  useEffect(() => {
+    const loadHistory = async () => {
+      const records = await getHistoryRecords();
+      setHistoryRecords(records);
+    };
+    loadHistory();
+    const interval = setInterval(loadHistory, 1500);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleClearHistory = () => {
+    Alert.alert('Clear Security History', 'Are you sure you want to delete all audit logs?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Clear All',
+        style: 'destructive',
+        onPress: async () => {
+          await clearAllHistoryRecords();
+          setHistoryRecords([]);
+        },
+      },
+    ]);
+  };
 
   const theme = isDark ? GlassTokens.colors.dark : GlassTokens.colors.light;
 
@@ -115,7 +63,7 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ isDark = false }) 
     { key: 'app', label: 'Apps' },
   ] as const;
 
-  const getVerdictColors = (verdict: HistoryItem['verdict']) => {
+  const getVerdictColors = (verdict: HistoryRecord['verdict']) => {
     switch (verdict) {
       case 'dangerous':
         return {
@@ -148,9 +96,16 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ isDark = false }) 
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={[styles.title, { color: theme.textPrimary }]}>
-            Security History
-          </Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={[styles.title, { color: theme.textPrimary }]}>
+              Security History
+            </Text>
+            {historyItems.length > 0 && (
+              <TouchableOpacity onPress={handleClearHistory} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={{ color: theme.red, fontSize: 13, fontWeight: '600' }}>Clear All ✕</Text>
+              </TouchableOpacity>
+            )}
+          </View>
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
             Timeline of past Wi-Fi audits, link inspections, and on-device privacy checks.
           </Text>
@@ -227,10 +182,10 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ isDark = false }) 
               <View style={styles.emptyCardContent}>
                 <Text style={styles.emptyIcon}>🛡️</Text>
                 <Text style={[styles.emptyTitle, { color: theme.textPrimary }]}>
-                  No items in this category
+                  No Scans Recorded Yet
                 </Text>
                 <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
-                  Security audits and scans will appear here automatically.
+                  Live Link Inspector, QR Analyzer, and Wi-Fi Sentinel audits will automatically log here in real-time.
                 </Text>
               </View>
             </GlassCard>

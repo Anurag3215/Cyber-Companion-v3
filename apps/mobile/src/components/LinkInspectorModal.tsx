@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AiExplainerModal } from './AiExplainerModal';
 import { ApiClient, evaluateAutonomousUrlHeuristics } from '../services/apiClient';
+import { addHistoryRecord } from '../services/historyService';
 
 interface LinkInspectorModalProps {
   visible: boolean;
@@ -58,6 +59,21 @@ export const LinkInspectorModal: React.FC<LinkInspectorModalProps> = ({
       const threatRes = await ApiClient.inspectUrl(input.trim());
       const isMalicious = threatRes.verdict === 'MALICIOUS';
       const isSuspicious = threatRes.verdict === 'SUSPICIOUS';
+
+      addHistoryRecord({
+        type: 'link',
+        icon: '🔗',
+        title: input.trim(),
+        subtext: `Inspection: ${isMalicious ? 'MALICIOUS' : isSuspicious ? 'SUSPICIOUS' : 'SAFE'} (${threatRes.confidenceScore}/100)`,
+        verdict: isMalicious ? 'dangerous' : isSuspicious ? 'warning' : 'safe',
+        verdictLabel: isMalicious ? 'Malicious' : isSuspicious ? 'Caution' : 'Safe',
+        details: {
+          threatTitle: isMalicious ? 'High-Risk Threat Intercepted' : isSuspicious ? 'Suspicious Link Anomalies' : 'Verified Safe Link',
+          consensusText: isMalicious ? 'Verdict: MALICIOUS' : isSuspicious ? 'Verdict: SUSPICIOUS' : 'Verdict: SAFE',
+          explanation: threatRes.plainLanguageExplanation,
+          findings: threatRes.heuristicsTriggered,
+        },
+      }).catch(() => {});
 
       setResult({
         url: threatRes.target || input.trim(),
@@ -221,72 +237,6 @@ export const LinkInspectorModal: React.FC<LinkInspectorModalProps> = ({
               )}
             </TouchableOpacity>
 
-            {/* Client Demonstration Test Vectors */}
-            <View style={styles.demoSection}>
-              <Text style={[styles.demoSectionTitle, { color: teal }]}>
-                CLIENT DEMO THREAT TEST VECTORS
-              </Text>
-              <Text style={[styles.demoSectionSub, { color: subtextColor }]}>
-                Tap any test vector to evaluate live detection:
-              </Text>
-              <View style={styles.demoBtnRow}>
-                <TouchableOpacity
-                  style={[styles.demoBtn, { borderColor: danger, backgroundColor: `${danger}15` }]}
-                  onPress={() => {
-                    const u = 'http://secure-login.chase-verify-billing.com/auth';
-                    setUrlInput(u);
-                    analyzeUrl(u);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.demoBtnText, { color: danger }]}>
-                    🚨 Chase Bank Phishing
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.demoBtn, { borderColor: danger, backgroundColor: `${danger}15` }]}
-                  onPress={() => {
-                    const u = 'http://pаypal.com-account-alert.net/login';
-                    setUrlInput(u);
-                    analyzeUrl(u);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.demoBtnText, { color: danger }]}>
-                    ⚠️ PayPal Homoglyph
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.demoBtn, { borderColor: amber, backgroundColor: `${amber}15` }]}
-                  onPress={() => {
-                    const u = 'http://portal-office365-login.xyz/update';
-                    setUrlInput(u);
-                    analyzeUrl(u);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.demoBtnText, { color: amber }]}>
-                    ⚠️ Insecure Office365
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.demoBtn, { borderColor: emerald, backgroundColor: `${emerald}15` }]}
-                  onPress={() => {
-                    const u = 'https://github.com/security';
-                    setUrlInput(u);
-                    analyzeUrl(u);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.demoBtnText, { color: emerald }]}>
-                    🛡️ Verified GitHub Safe
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
           </View>
 
           {/* Pre-Inspection Clean State */}
@@ -603,36 +553,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
-  demoSection: {
-    marginTop: 16,
-    paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(56, 189, 248, 0.2)',
-    gap: 8,
-  },
-  demoSectionTitle: {
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 0.6,
-  },
-  demoSectionSub: {
-    fontSize: 12,
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-  demoBtnRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  demoBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  demoBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
+
 });

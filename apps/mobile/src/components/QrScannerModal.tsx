@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { classifyQrPayload } from '../services/qrScannerService';
+import { addHistoryRecord } from '../services/historyService';
 import { AiExplainerModal } from './AiExplainerModal';
 
 interface QrScannerModalProps {
@@ -124,6 +125,25 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
         riskReason = 'Direct script injection or embedded data URI payload detected.';
       }
     }
+
+    const targetTitle = classified.sanitizedDestination || raw;
+    addHistoryRecord({
+      type: 'qr',
+      icon: '📷',
+      title: `${classified.type} QR Code`,
+      subtext: `${targetTitle.substring(0, 32)} · ${riskLevel}`,
+      verdict: riskLevel === 'CRITICAL' ? 'dangerous' : riskLevel === 'WARNING' ? 'warning' : 'safe',
+      verdictLabel: riskLevel === 'CRITICAL' ? 'Critical' : riskLevel === 'WARNING' ? 'Caution' : 'Safe',
+      details: {
+        threatTitle: 'Sandboxed QR Optical Analysis',
+        consensusText: `Verdict: ${riskLevel}`,
+        explanation: riskReason,
+        findings: [
+          `Detected Schema: ${classified.type}`,
+          `Sanitized Target: ${targetTitle}`,
+        ],
+      },
+    }).catch(() => {});
 
     setAnalysis({
       ...classified,

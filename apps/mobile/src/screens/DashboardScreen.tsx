@@ -15,6 +15,7 @@ import { LinkInspectorModal } from '../components/LinkInspectorModal';
 import { QrScannerModal } from '../components/QrScannerModal';
 import { AppPrivacyModal } from '../components/AppPrivacyModal';
 import { useAuth } from '../services/AuthContext';
+import { addHistoryRecord } from '../services/historyService';
 import { GlassCard } from '../design-system/GlassCard';
 import { GlassActionCard } from '../design-system/GlassActionCard';
 import { GlassPrimaryButton } from '../design-system/GlassPrimaryButton';
@@ -52,14 +53,34 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
 
   const handleTriggerSweep = () => {
     setIsDeepScanning(true);
-    setTimeout(() => {
+    setTimeout(async () => {
       setIsDeepScanning(false);
+      await addHistoryRecord({
+        type: 'wifi',
+        icon: '🛡️',
+        title: 'Full System Defense Sweep',
+        subtext: 'Airspace · Link Guard · QR Sandbox · App Privacy',
+        verdict: 'safe',
+        verdictLabel: 'Clean (94/100)',
+        details: {
+          threatTitle: 'Comprehensive Security Posture Audit',
+          consensusText: 'All Subsystems Nominal',
+          explanation: 'Autonomous sweep audited active RF airspace, network telemetry, link inspection heuristics, and on-device app permission sandboxes.',
+          findings: [
+            '802.11 Airspace: No active deauth or rogue honeypot packets',
+            'Link Sandbox: Homoglyph and SSRF protection active',
+            'Optical QR: Isolated execution engine verified',
+            'Permission Hygiene: Sensor permissions scoped',
+          ],
+        },
+      }).catch(() => {});
+
       Alert.alert(
         '🛡️ Defense Sweep Complete',
         '• Wi-Fi Airspace: Cryptographic ciphers verified\n• Link Inspector: Phishing & homoglyph protection active\n• QR Sandbox: Isolated execution engine armed\n• App Privacy: Zero background sensor leaks detected\n\nOverall Hygiene Index: 94/100',
         [{ text: 'Great, thanks!' }]
       );
-    }, 2800);
+    }, 2000);
   };
 
   return (

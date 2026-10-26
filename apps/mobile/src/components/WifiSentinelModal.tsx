@@ -20,7 +20,9 @@ import {
   WifiEncryption,
   evaluatePreConnectionHotspot,
   saveAuditedWifiBeacon,
+  setPresentationHotspot,
 } from '../services/wifiService';
+import { addHistoryRecord } from '../services/historyService';
 import * as Network from 'expo-network';
 import { AiExplainerModal } from './AiExplainerModal';
 
@@ -78,12 +80,34 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
     });
 
     await saveAuditedWifiBeacon(beacon);
+    await setPresentationHotspot(beacon);
+
+    addHistoryRecord({
+      type: 'wifi',
+      icon: '📶',
+      title: beacon.ssid,
+      subtext: `Audit: ${beacon.encryption} (${beacon.frequency}) · ${beacon.threatVerdict}`,
+      verdict: beacon.threatVerdict === 'CRITICAL_THREAT' ? 'dangerous' : beacon.threatVerdict === 'HIGH_RISK' ? 'warning' : 'safe',
+      verdictLabel: beacon.threatVerdict === 'CRITICAL_THREAT' ? 'Critical' : beacon.threatVerdict === 'HIGH_RISK' ? 'Caution' : 'Safe',
+      details: {
+        threatTitle: 'Wi-Fi Hotspot Security Inspection',
+        consensusText: `Verdict: ${beacon.threatVerdict.replace(/_/g, ' ')}`,
+        explanation: beacon.preventionAdvise,
+        findings: [
+          `Cipher: ${beacon.encryption}`,
+          `Channel: ${beacon.channel} (${beacon.frequency})`,
+          `Signal: ${beacon.signalDbm} dBm`,
+          `PMF (802.11w): ${beacon.pmfEnabled ? 'Enabled' : 'Disabled'}`,
+        ],
+      },
+    }).catch(() => {});
+
     setHotspots((prev) => [beacon, ...prev.filter((p) => p.ssid !== beacon.ssid)]);
     setHasScanned(true);
     setCustomSsid('');
     setShowAddModal(false);
     Alert.alert(
-      `Audited: ${beacon.ssid}`,
+      `🎯 Presentation Hotspot Set: ${beacon.ssid}`,
       `Verdict: ${beacon.threatVerdict.replace(/_/g, ' ')}\nRisk Score: ${beacon.threatScore}/100\nCipher: ${beacon.encryption}\n\n${beacon.preventionAdvise}`
     );
   };
@@ -162,6 +186,22 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
       setHasScanned(true);
       setIsScanning(false);
       setScanStepText('');
+
+      const threatCount = result.beacons.filter((b) => b.threatVerdict === 'CRITICAL_THREAT').length;
+      addHistoryRecord({
+        type: 'wifi',
+        icon: '📶',
+        title: `Airspace Scan (${result.beacons.length} Networks)`,
+        subtext: `${result.activeConnection.type} · ${threatCount} Threat(s) Flagged`,
+        verdict: threatCount > 0 ? 'dangerous' : 'safe',
+        verdictLabel: threatCount > 0 ? 'Threat Detected' : 'Airspace Safe',
+        details: {
+          threatTitle: '802.11 Radio Airspace Audit',
+          consensusText: `${result.beacons.length} ambient networks audited`,
+          explanation: 'Passively audited 2.4 GHz and 5.0 GHz radio airspace for unencrypted honeypots, deauth vulnerabilities, and weak ciphers.',
+          findings: result.beacons.slice(0, 4).map((b) => `${b.ssid} (${b.encryption}, ${b.signalDbm} dBm) - ${b.threatVerdict}`),
+        },
+      }).catch(() => {});
     } catch {
       clearTimeout(t1);
       clearTimeout(t2);
@@ -303,7 +343,7 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
               onPress={() => setShowAddModal(true)}
               activeOpacity={0.8}
             >
-              <Text style={[styles.addWifiBtnText, { color: teal }]}>➕ Audit Custom Wi-Fi</Text>
+              <Text style={[styles.addWifiBtnText, { color: teal }]}>🎯 Set Presentation Hotspot</Text>
             </TouchableOpacity>
           </View>
 
@@ -771,7 +811,7 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
           <View style={styles.modalBackdrop}>
             <View style={[styles.customAuditCard, { backgroundColor: cardBg, borderColor: borderCol }]}>
               <Text style={[styles.customAuditTitle, { color: textColor }]}>
-                ➕ Audit Custom Wi-Fi Network
+                🎯 Set Presentation Hotspot Network
               </Text>
               <Text style={[styles.customAuditSub, { color: subtextColor }]}>
                 Pre-evaluate any venue or office hotspot before connecting:
@@ -851,7 +891,7 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
                   style={[styles.submitAuditBtn, { backgroundColor: teal }]}
                   onPress={handleAuditCustomWifi}
                 >
-                  <Text style={styles.submitAuditText}>Run Security Audit</Text>
+                  <Text style={styles.submitAuditText}>🎯 Save & Set As Presentation Hotspot</Text>
                 </TouchableOpacity>
               </View>
             </View>

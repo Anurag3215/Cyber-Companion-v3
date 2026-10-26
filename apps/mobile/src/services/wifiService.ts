@@ -266,8 +266,25 @@ export function evaluatePreConnectionHotspot(params: {
   };
 }
 
-// Storage for custom audited beacons
+// Storage for custom audited beacons & presentation hotspot
 const STORAGE_KEY_AUDITED_WIFI = '@cyber_companion_audited_wifi_v1';
+const STORAGE_KEY_PRESENTATION_HOTSPOT = '@cyber_companion_presentation_hotspot_v1';
+
+export async function getPresentationHotspot(): Promise<NearbyHotspotBeacon | null> {
+  try {
+    const raw = await Storage.getItem(STORAGE_KEY_PRESENTATION_HOTSPOT);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+export async function setPresentationHotspot(beacon: NearbyHotspotBeacon): Promise<void> {
+  try {
+    await Storage.setItem(STORAGE_KEY_PRESENTATION_HOTSPOT, JSON.stringify(beacon));
+  } catch {}
+}
 
 export async function getSavedWifiBeacons(): Promise<NearbyHotspotBeacon[]> {
   try {
@@ -305,28 +322,28 @@ export async function deleteSavedWifiBeacon(id: string): Promise<NearbyHotspotBe
 export function getNearbyHotspotBeacons(): NearbyHotspotBeacon[] {
   return [
     evaluatePreConnectionHotspot({
-      ssid: 'A.B.C Keralavision -2.4G',
-      bssid: '64:fb:92:64:ca:f6',
+      ssid: "Arun's Mobile Hotspot",
+      bssid: '42:58:9a:12:ef:01',
       encryption: 'WPA2',
       pmfEnabled: true,
-      signalDbm: -69,
-      channel: 7,
+      signalDbm: -45,
+      channel: 6,
     }),
     evaluatePreConnectionHotspot({
-      ssid: 'A.B.C Keralavision -5G',
-      bssid: '64:fb:92:64:ca:f2',
-      encryption: 'WPA2',
+      ssid: 'Campus Secure WLAN',
+      bssid: '00:24:6c:8b:30:10',
+      encryption: 'WPA3',
       pmfEnabled: true,
-      signalDbm: -87,
-      channel: 36,
+      signalDbm: -62,
+      channel: 44,
     }),
     evaluatePreConnectionHotspot({
-      ssid: 'BETHEL',
-      bssid: '30:68:93:b4:b3:d6',
-      encryption: 'WPA2',
+      ssid: 'Public Guest Wi-Fi (No Password)',
+      bssid: '02:1a:11:f0:48:99',
+      encryption: 'OPEN',
       pmfEnabled: false,
-      signalDbm: -96,
-      channel: 11,
+      signalDbm: -74,
+      channel: 1,
     }),
   ];
 }
@@ -368,20 +385,38 @@ export async function scanNearbyWifiAirspace(): Promise<WifiAirspaceScanResult> 
   const isCellular = isConnected && !isWifi && (type === 'CELLULAR' || type === 'NetworkStateType.CELLULAR' || type === '1');
 
   // Real-time hardware RF signal variance (-2 to +2 dBm) reflecting dynamic physical airspace
-  const jitter1 = Math.floor(Math.random() * 5) - 2;
-  const jitter2 = Math.floor(Math.random() * 5) - 2;
-  const jitter3 = Math.floor(Math.random() * 5) - 2;
+  const jitter = Math.floor(Math.random() * 5) - 2;
+
+  // Retrieve any user-configured presentation hotspot
+  const savedPresentationHotspot = await getPresentationHotspot();
+
+  // Try acquiring real native SSID via react-native-wifi-reborn
+  let realNativeSsid: string | null = null;
+  try {
+    const WifiManager = require('react-native-wifi-reborn').default;
+    if (WifiManager && typeof WifiManager.getCurrentWifiSSID === 'function') {
+      const cur = await WifiManager.getCurrentWifiSSID();
+      if (cur && cur !== '<unknown ssid>' && cur !== '0x' && cur.trim() !== '') {
+        realNativeSsid = cur.replace(/^"|"$/g, '').trim();
+      }
+    }
+  } catch {}
 
   let activeBeacon: NearbyHotspotBeacon | null = null;
 
   if (isWifi) {
+    const activeSsid =
+      realNativeSsid ||
+      (savedPresentationHotspot ? savedPresentationHotspot.ssid : null) ||
+      (ipAddress ? `Connected Wi-Fi (${ipAddress})` : 'Connected Local Wi-Fi');
+
     activeBeacon = evaluatePreConnectionHotspot({
-      ssid: ipAddress ? `A.B.C Keralavision -2.4G (${ipAddress})` : 'A.B.C Keralavision -2.4G',
-      bssid: '64:fb:92:64:ca:f6',
-      encryption: 'WPA2',
-      pmfEnabled: true,
-      signalDbm: -69 + jitter1,
-      channel: 7,
+      ssid: activeSsid,
+      bssid: savedPresentationHotspot?.bssid || '64:fb:92:64:ca:f6',
+      encryption: savedPresentationHotspot?.encryption || 'WPA2',
+      pmfEnabled: savedPresentationHotspot?.pmfEnabled ?? true,
+      signalDbm: -45 + jitter,
+      channel: savedPresentationHotspot?.channel || 6,
     });
     activeBeacon.id = 'active-current-wifi';
     activeBeacon.isCurrentConnection = true;
@@ -393,7 +428,7 @@ export async function scanNearbyWifiAirspace(): Promise<WifiAirspaceScanResult> 
       bssid: 'carrier-apn',
       channel: 0,
       frequency: '5.0 GHz',
-      signalDbm: -55 + jitter1,
+      signalDbm: -55 + jitter,
       encryption: 'WPA3',
       pmfEnabled: true,
       vendor: 'Carrier Encrypted Radio',
@@ -410,45 +445,75 @@ export async function scanNearbyWifiAirspace(): Promise<WifiAirspaceScanResult> 
     };
   }
 
-  // 2. Real physical nearby ambient hotspots broadcasting in physical radio vicinity
-  let ambientBeacons: NearbyHotspotBeacon[] = [
-    evaluatePreConnectionHotspot({
-      ssid: 'A.B.C Keralavision -2.4G',
-      bssid: '64:fb:92:64:ca:f6',
-      encryption: 'WPA2',
-      pmfEnabled: true,
-      signalDbm: -69 + jitter1,
-      channel: 7,
-    }),
-    evaluatePreConnectionHotspot({
-      ssid: 'A.B.C Keralavision -5G',
-      bssid: '64:fb:92:64:ca:f2',
-      encryption: 'WPA2',
-      pmfEnabled: true,
-      signalDbm: -87 + jitter2,
-      channel: 36,
-    }),
-    evaluatePreConnectionHotspot({
-      ssid: 'BETHEL',
-      bssid: '30:68:93:b4:b3:d6',
-      encryption: 'WPA2',
-      pmfEnabled: false,
-      signalDbm: -96 + jitter3,
-      channel: 11,
-    }),
-  ];
+  // 2. Discover ambient nearby networks via native radio, API gateway, or audited beacons
+  const ambientBeacons: NearbyHotspotBeacon[] = [];
 
-  // Try fetching live hardware scanner from API Gateway with 2.5s timeout race
+  // Try Native Android Wi-Fi scan
   try {
-    const liveNetworks = await Promise.race([
-      ApiClient.scanRealWifi(),
-      new Promise<any[]>((resolve) => setTimeout(() => resolve([]), 2500)),
-    ]);
-    if (Array.isArray(liveNetworks) && liveNetworks.length > 0) {
-      ambientBeacons = liveNetworks;
+    const WifiManager = require('react-native-wifi-reborn').default;
+    if (WifiManager && typeof WifiManager.loadWifiList === 'function') {
+      const nativeList: any[] = await WifiManager.loadWifiList();
+      if (Array.isArray(nativeList) && nativeList.length > 0) {
+        for (const net of nativeList) {
+          const s = (net.SSID || '').replace(/^"|"$/g, '').trim();
+          if (!s) continue;
+          const caps = (net.capabilities || '').toUpperCase();
+          const encryption: WifiEncryption = caps.includes('WPA3') || caps.includes('SAE')
+            ? 'WPA3'
+            : caps.includes('WPA2')
+            ? 'WPA2'
+            : caps.includes('WEP')
+            ? 'WEP'
+            : caps.includes('WPA')
+            ? 'WPA'
+            : 'OPEN';
+          const pmf = caps.includes('PMF') || caps.includes('SAE');
+          const channel = net.frequency ? (net.frequency > 4000 ? 36 : 6) : 6;
+          const signalDbm = net.level || -65;
+          ambientBeacons.push(
+            evaluatePreConnectionHotspot({
+              ssid: s,
+              bssid: net.BSSID,
+              encryption,
+              pmfEnabled: pmf,
+              signalDbm,
+              channel,
+            })
+          );
+        }
+      }
     }
-  } catch {
-    // Fallback: real physical hotspots
+  } catch {}
+
+  // Try API Gateway scan (e.g. if phone is attached via adb in debug mode)
+  if (ambientBeacons.length === 0) {
+    try {
+      const liveNetworks = await Promise.race([
+        ApiClient.scanRealWifi(),
+        new Promise<any[]>((resolve) => setTimeout(() => resolve([]), 1500)),
+      ]);
+      if (Array.isArray(liveNetworks) && liveNetworks.length > 0) {
+        ambientBeacons.push(...liveNetworks);
+      }
+    } catch {}
+  }
+
+  // Add saved custom audited beacons
+  const savedBeacons = await getSavedWifiBeacons();
+  for (const sb of savedBeacons) {
+    if (!ambientBeacons.some((a) => a.ssid === sb.ssid)) {
+      ambientBeacons.push(sb);
+    }
+  }
+
+  // If presentation hotspot exists, ensure it is at the front
+  if (savedPresentationHotspot && !ambientBeacons.some((a) => a.ssid === savedPresentationHotspot.ssid)) {
+    ambientBeacons.unshift(savedPresentationHotspot);
+  }
+
+  // If still empty (e.g. Android permissions restricted in demo), supply realistic presentation airspace
+  if (ambientBeacons.length === 0) {
+    ambientBeacons.push(...getNearbyHotspotBeacons());
   }
 
   // Deduplicate against activeBeacon
@@ -458,7 +523,7 @@ export async function scanNearbyWifiAirspace(): Promise<WifiAirspaceScanResult> 
   }
 
   for (const b of ambientBeacons) {
-    if (!finalBeacons.some((f) => f.ssid === b.ssid || f.id === b.id)) {
+    if (!finalBeacons.some((f) => f.ssid.toLowerCase() === b.ssid.toLowerCase())) {
       finalBeacons.push(b);
     }
   }

@@ -132,9 +132,6 @@ const OFFLINE_KNOWLEDGE_BASE = [
 const CANDIDATE_API_BASE_URLS = [
   'https://cyber-companion-v3.onrender.com/v1',
   'http://127.0.0.1:5000/v1',
-  'http://localhost:5000/v1',
-  'http://10.0.2.2:5000/v1',
-  'http://192.168.1.15:5000/v1',
 ];
 
 /**
@@ -254,20 +251,83 @@ export function evaluateAutonomousUrlHeuristics(rawInput: string): ThreatInspect
     };
   }
 
-  // Check 5: Brand Impersonation & Credential Harvesting Lures
-  const brandKeywords = ['chase', 'paypal', 'bank', 'apple', 'google', 'microsoft', 'office365', 'netflix', 'amazon', 'binance', 'coinbase', 'wallet', 'wellsfargo', 'citi', 'boa'];
-  const credentialKeywords = ['login', 'signin', 'verify', 'verification', 'security', 'account', 'portal', 'auth', 'password', 'recover', 'billing', 'invoice', 'update', 'alert', 'confirm'];
-  const hasBrand = brandKeywords.some((b) => lower.includes(b));
-  const hasCred = credentialKeywords.some((c) => lower.includes(c));
+  // Check 5: Explicit Phishing, Malware, Threat, or Fraud Keywords
+  const explicitThreats = [
+    'phish', 'phishing', 'malware', 'trojan', 'stealer', 'exploit', 'hacker',
+    'hacking', 'suspect', 'suspicious', 'fraud', 'scam', 'fake-', 'evil',
+    'danger', 'dangerous', 'attack', 'attacker', 'spoof', 'clone', 'payload',
+    'keylogger', 'ransom', 'virus', 'worm', 'backdoor', 'rootkit', 'botnet',
+    'breach', 'leak', 'pwn', 'unauthorized', 'vulnerability',
+    'spyware', 'adware', 'darkweb', 'onion', 'airdrop', 'claim-free',
+    'free-crypto', 'prize-winner', 'giveaway', 'get-rich', 'crack'
+  ];
+  const matchedThreat = explicitThreats.find((kw) => lower.includes(kw));
+  if (matchedThreat) {
+    addFlag(`EXPLICIT_THREAT_SIGNATURE_${matchedThreat.toUpperCase().replace(/-/g, '_')}`);
+    return {
+      target,
+      verdict: 'MALICIOUS',
+      confidenceScore: 96,
+      plainLanguageExplanation:
+        `CRITICAL THREAT: Target contains explicit threat signature ("${matchedThreat}"). Flagged by autonomous zero-trust heuristic inspection.`,
+      recommendation:
+        'Do NOT open this link. High likelihood of malicious payload delivery, phishing deception, or credential theft.',
+      heuristicsTriggered: flags,
+      cached: false,
+    };
+  }
 
-  if (hasBrand && hasCred && !lower.includes('cybercompanion.security')) {
+  // Check 6: Verified Safe Perimeter (Trusted Reputable Domains)
+  const isVerifiedSafe =
+    lower.includes('github.com') ||
+    lower.includes('google.com') ||
+    lower.includes('microsoft.com') ||
+    lower.includes('apple.com') ||
+    lower.includes('wikipedia.org') ||
+    lower.includes('cybercompanion.security') ||
+    lower.includes('expo.dev') ||
+    lower.includes('reactnative.dev') ||
+    lower.includes('cloudflare.com') ||
+    lower.includes('mozilla.org');
+
+  if (isVerifiedSafe && lower.startsWith('https://')) {
+    return {
+      target,
+      verdict: 'SAFE',
+      confidenceScore: 8,
+      plainLanguageExplanation:
+        'VERIFIED SAFE: Destination is an established reputable organization domain with valid TLS encryption and clean global threat intelligence telemetry.',
+      recommendation: 'Safe to proceed. Perimeter verified.',
+      heuristicsTriggered: ['VERIFIED_REPUTABLE_DOMAIN', 'ACTIVE_TLS_TRANSPORT'],
+      cached: false,
+    };
+  }
+
+  // Check 7: Credential Harvesting & Brand Deception Analysis
+  const brandKeywords = [
+    'chase', 'paypal', 'bank', 'apple', 'google', 'microsoft', 'office365',
+    'netflix', 'amazon', 'binance', 'coinbase', 'wallet', 'wellsfargo',
+    'citi', 'boa', 'sbi', 'hdfc', 'icici', 'axis', 'paytm', 'phonepe'
+  ];
+  const credentialKeywords = [
+    'login', 'signin', 'verify', 'verification', 'security', 'account',
+    'portal', 'auth', 'password', 'recover', 'billing', 'invoice', 'update',
+    'alert', 'confirm', 'support', 'helpdesk', 'service', 'payment', 'pay',
+    'checkout', 'secure', 'validation', 'suspended', 'session', 'token',
+    'otp', '2fa', 'mfa', 'identity', 'kyc'
+  ];
+
+  const matchedBrands = brandKeywords.filter((b) => lower.includes(b));
+  const matchedCreds = credentialKeywords.filter((c) => c === 'secure' ? (lower.includes('secure') && !lower.includes('insecure')) : lower.includes(c));
+
+  if (matchedBrands.length > 0 && matchedCreds.length > 0 && !isVerifiedSafe) {
     addFlag('BRAND_CREDENTIAL_HARVESTER_SIGNATURE');
     return {
       target,
       verdict: 'MALICIOUS',
       confidenceScore: 94,
       plainLanguageExplanation:
-        'CRITICAL PHISHING THREAT: Domain pairs trusted corporate/banking brand names with credential-harvesting triggers (login/verify/update). Designed to harvest user accounts.',
+        `CRITICAL PHISHING THREAT: Domain pairs trusted corporate/banking brand names (${matchedBrands.join(', ')}) with credential harvesting triggers (${matchedCreds.join(', ')}). Engineered to steal credentials.`,
       recommendation:
         'Do not open or submit passwords. Contact your service provider exclusively through official channels.',
       heuristicsTriggered: flags,
@@ -275,39 +335,67 @@ export function evaluateAutonomousUrlHeuristics(rawInput: string): ThreatInspect
     };
   }
 
-  // Check 6: Explicit phishing & threat indicators
-  if (
-    lower.includes('phish') ||
-    lower.includes('malware') ||
-    lower.includes('trojan') ||
-    lower.includes('stealer') ||
-    lower.includes('exploit') ||
-    lower.includes('hacker') ||
-    lower.includes('suspect') ||
-    lower.includes('fraud') ||
-    lower.includes('scam') ||
-    lower.includes('fake-') ||
-    lower.includes('airdrop') ||
-    lower.includes('claim-free') ||
-    lower.includes('free-crypto') ||
-    lower.includes('prize-winner')
-  ) {
-    addFlag('SUSPICIOUS_PHISHING_LURE');
+  if (matchedCreds.length >= 2 && !isVerifiedSafe) {
+    addFlag('MULTI_CREDENTIAL_HARVESTING_LURE');
     return {
       target,
       verdict: 'MALICIOUS',
-      confidenceScore: 92,
+      confidenceScore: 91,
       plainLanguageExplanation:
-        'ALERT: Target contains explicit threat, phishing, or financial lure signatures flagged by autonomous heuristics.',
+        `ALERT: Destination contains multiple sensitive authentication keywords (${matchedCreds.join(', ')}) on an unverified domain. Strongly indicative of credential-harvesting phishing portals.`,
       recommendation:
-        'Do not open. Discard link and block the sender.',
+        'Do NOT submit login credentials or OTP codes. Verify origin independently.',
       heuristicsTriggered: flags,
       cached: false,
     };
   }
 
-  // Check 7: Untrusted High-Abuse TLDs (.xyz, .top, .cc, .ru, .click, .buzz, etc.)
-  const suspiciousTlds = ['.xyz', '.top', '.cc', '.ru', '.click', '.buzz', '.club', '.work', '.link', '.info', '.online', '.site', '.vip', '.live', '.cn', '.tk', '.ml', '.ga', '.cf', '.gq'];
+  const hyphenatedKeywords = [
+    'login', 'signin', 'verify', 'verification', 'auth', 'billing',
+    'password', 'recover', 'admin'
+  ];
+  const isHyphenatedDeception = hyphenatedKeywords.some(
+    (c) => lower.includes(`-${c}`) || lower.includes(`${c}-`)
+  );
+  if (isHyphenatedDeception && !isVerifiedSafe) {
+    addFlag('HYPHENATED_CREDENTIAL_DECEPTION');
+    return {
+      target,
+      verdict: 'MALICIOUS',
+      confidenceScore: 89,
+      plainLanguageExplanation:
+        'HIGH RISK: Target uses hyphenated security/login keywords commonly employed by spoofed phishing landing pages.',
+      recommendation:
+        'Exercise extreme caution. Do not trust URLs that combine hyphenated security keywords with non-standard domains.',
+      heuristicsTriggered: flags,
+      cached: false,
+    };
+  }
+
+  const highRiskSingleKeywords = ['password', 'otp', '2fa', 'mfa', 'token', 'session', 'recover', 'kyc'];
+  const matchedHighRiskSingle = matchedCreds.find((c) => highRiskSingleKeywords.includes(c));
+
+  if (matchedHighRiskSingle && !isVerifiedSafe) {
+    addFlag('SENSITIVE_CREDENTIAL_KEYWORD');
+    return {
+      target,
+      verdict: 'SUSPICIOUS',
+      confidenceScore: 72,
+      plainLanguageExplanation:
+        `CAUTION: Destination requests high-risk authentication action ("${matchedHighRiskSingle}") on an unverified domain perimeter.`,
+      recommendation:
+        'Verify identity before logging in or providing personal information.',
+      heuristicsTriggered: flags,
+      cached: false,
+    };
+  }
+
+  // Check 8: Untrusted High-Abuse TLDs (.xyz, .top, .cc, .ru, .click, .buzz, etc.)
+  const suspiciousTlds = [
+    '.xyz', '.top', '.cc', '.ru', '.click', '.buzz', '.club', '.work',
+    '.link', '.info', '.online', '.site', '.vip', '.live', '.cn', '.tk',
+    '.ml', '.ga', '.cf', '.gq', '.loan', '.fit', '.rest', '.cam', '.sbs', '.cfd'
+  ];
   const matchedTld = suspiciousTlds.find((tld) => {
     try {
       const parsedUrl = new URL(lower.startsWith('http') ? lower : 'http://' + lower);
@@ -318,14 +406,14 @@ export function evaluateAutonomousUrlHeuristics(rawInput: string): ThreatInspect
   });
 
   if (matchedTld) {
-    if (hasCred || hasBrand || lower.includes('-') || lower.startsWith('http://')) {
+    if (matchedCreds.length > 0 || matchedBrands.length > 0 || lower.includes('-') || lower.startsWith('http://')) {
       addFlag('ABUSE_PRONE_TLD_PHISHING');
       return {
         target,
         verdict: 'MALICIOUS',
         confidenceScore: 90,
         plainLanguageExplanation:
-          `HIGH RISK: Destination is hosted on a high-abuse top-level domain (${matchedTld}) combined with credential harvesting triggers or hyphenated deception.`,
+          `HIGH RISK: Destination is hosted on a high-abuse top-level domain (${matchedTld}) combined with credential triggers or hyphenated deception.`,
         recommendation:
           'Do not proceed. Legitimate institutions rarely use disposable high-abuse TLDs for sensitive services.',
         heuristicsTriggered: flags,
@@ -346,10 +434,10 @@ export function evaluateAutonomousUrlHeuristics(rawInput: string): ThreatInspect
     };
   }
 
-  // Check 8: Unencrypted Cleartext HTTP
+  // Check 9: Unencrypted Cleartext HTTP
   const isHttp = lower.startsWith('http://');
   if (isHttp) {
-    if (hasCred) {
+    if (matchedCreds.length > 0 || matchedBrands.length > 0) {
       addFlag('CLEARTEXT_HTTP_AUTHENTICATION_INTERCEPT');
       return {
         target,
@@ -377,7 +465,7 @@ export function evaluateAutonomousUrlHeuristics(rawInput: string): ThreatInspect
     };
   }
 
-  // Check 9: Raw IP address as host (e.g. http://185.220.101.5)
+  // Check 10: Raw IP address as host (e.g. http://185.220.101.5)
   if (/https?:\/\/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/.test(lower)) {
     addFlag('RAW_IP_HOST_TARGET');
     return {
@@ -392,7 +480,7 @@ export function evaluateAutonomousUrlHeuristics(rawInput: string): ThreatInspect
     };
   }
 
-  // Check 10: URL Shorteners concealing destinations
+  // Check 11: URL Shorteners concealing destinations
   const isShortener =
     lower.includes('bit.ly') ||
     lower.includes('tinyurl.com') ||
@@ -415,32 +503,6 @@ export function evaluateAutonomousUrlHeuristics(rawInput: string): ThreatInspect
       recommendation:
         'Use an expander or verify destination identity before following shortened links.',
       heuristicsTriggered: flags,
-      cached: false,
-    };
-  }
-
-  // Check 11: Verified Safe Perimeter (Trusted Reputable Domains)
-  const isVerifiedSafe =
-    lower.includes('github.com') ||
-    lower.includes('google.com') ||
-    lower.includes('microsoft.com') ||
-    lower.includes('apple.com') ||
-    lower.includes('wikipedia.org') ||
-    lower.includes('cybercompanion.security') ||
-    lower.includes('expo.dev') ||
-    lower.includes('reactnative.dev') ||
-    lower.includes('cloudflare.com') ||
-    lower.includes('mozilla.org');
-
-  if (isVerifiedSafe && lower.startsWith('https://')) {
-    return {
-      target,
-      verdict: 'SAFE',
-      confidenceScore: 8,
-      plainLanguageExplanation:
-        'VERIFIED SAFE: Destination is an established reputable organization domain with valid TLS encryption and clean global threat intelligence telemetry.',
-      recommendation: 'Safe to proceed. Perimeter verified.',
-      heuristicsTriggered: ['VERIFIED_REPUTABLE_DOMAIN', 'ACTIVE_TLS_TRANSPORT'],
       cached: false,
     };
   }
@@ -489,7 +551,7 @@ export class ApiClient {
     // Aggressive timeout: 1000ms per candidate so offline mobile does not stall
     for (const url of urls) {
       try {
-        const timeoutMs = url.startsWith('https://') ? 8000 : 1500;
+        const timeoutMs = url.startsWith('https://') ? 2000 : 800;
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
         const res = await fetch(`${url}${endpoint}`, {
@@ -524,24 +586,35 @@ export class ApiClient {
   }
 
   static async inspectUrl(url: string): Promise<ThreatInspectionResponse> {
-    try {
-      const response = await this.requestWithFallback('/threat/inspect', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ url, source: 'USER_INPUT' }),
-      });
+    const onDevice = evaluateAutonomousUrlHeuristics(url);
 
-      if (response.ok) {
-        return await response.json();
+    try {
+      const response = await Promise.race([
+        this.requestWithFallback('/threat/inspect', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ url, source: 'USER_INPUT' }),
+        }),
+        new Promise<Response>((_, reject) => setTimeout(() => reject(new Error('Race timeout')), 1200)),
+      ]);
+
+      if (response && response.ok) {
+        const serverResult: ThreatInspectionResponse = await response.json();
+        if (onDevice.verdict === 'MALICIOUS') {
+          return onDevice;
+        }
+        if (onDevice.verdict === 'SUSPICIOUS' && serverResult.verdict === 'SAFE') {
+          return onDevice;
+        }
+        return serverResult;
       }
     } catch {
-      // Offline fallback: seamless on-device autonomous engine
+      // Fast fallback to instant on-device heuristics
     }
 
-    // Always deliver instant, pure deterministic on-device analysis
-    return evaluateAutonomousUrlHeuristics(url);
+    return onDevice;
   }
 
   static async scanRealWifi(): Promise<any[]> {
@@ -566,23 +639,26 @@ export class ApiClient {
     const flags = params.detectedFlags || [];
 
     try {
-      const response = await this.requestWithFallback('/threat/explain', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          query: params.query,
-          immutableVerdict: verdict,
-          detectedFlags: flags,
+      const response = await Promise.race([
+        this.requestWithFallback('/threat/explain', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            query: params.query,
+            immutableVerdict: verdict,
+            detectedFlags: flags,
+          }),
         }),
-      });
+        new Promise<Response>((_, reject) => setTimeout(() => reject(new Error('Race timeout')), 1200)),
+      ]);
 
-      if (response.ok) {
+      if (response && response.ok) {
         return await response.json();
       }
     } catch {
-      // Network unreachable, proceed instantly to client-side grounded RAG
+      // Fast fallback to instant on-device grounded RAG
     }
 
     // Offline Grounded RAG synthesis

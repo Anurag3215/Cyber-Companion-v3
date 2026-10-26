@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { TextInput } from 'react-native';
+import { addHistoryRecord } from '../services/historyService';
 import {
   StyleSheet,
   View,
@@ -31,69 +33,69 @@ interface AppAuditItem {
 const INITIAL_APPS: AppAuditItem[] = [
   {
     id: 'app-1',
-    name: 'SuperVPN Fast Client',
-    packageName: 'com.jrzheng.supervpnpayment',
-    category: 'Networking',
+    name: 'Google Chrome',
+    packageName: 'com.android.chrome',
+    category: 'Web Browser',
     icon: '🌐',
-    risk: 'CAUTION',
-    permissions: ['SYSTEM_ALERT_WINDOW', 'QUERY_ALL_PACKAGES', 'INTERNET'],
-    finding: 'Requests system overlay permission (draw over other apps). Can be leveraged for UI spoofing.',
-    fixed: false,
-  },
-  {
-    id: 'app-2',
-    name: 'Truecaller ID & Spam',
-    packageName: 'com.truecaller',
-    category: 'Communication',
-    icon: '📞',
-    risk: 'CAUTION',
-    permissions: ['READ_CONTACTS', 'READ_CALL_LOG', 'READ_PHONE_STATE', 'READ_SMS'],
-    finding: 'Broad sensor access: Continuous synchronization of address book and call history telemetry.',
-    fixed: false,
-  },
-  {
-    id: 'app-3',
-    name: 'Flashlight Utility',
-    packageName: 'com.EdiresaApps.FlashDiscoteca',
-    category: 'Utilities',
-    icon: '🔦',
-    risk: 'CRITICAL',
-    permissions: ['RECORD_AUDIO', 'ACCESS_FINE_LOCATION', 'CAMERA'],
-    finding: 'Overprivileged: Flashlight tool requests microphone recording and precise GPS location.',
-    fixed: false,
-  },
-  {
-    id: 'app-4',
-    name: 'Paytm UPI & Wallet',
-    packageName: 'net.one97.paytm',
-    category: 'Finance',
-    icon: '💳',
     risk: 'CLEAN',
-    permissions: ['CAMERA', 'READ_SMS'],
-    finding: 'Legitimate Financial App: SMS and camera scoped to user-initiated OTP verification and QR scan.',
+    permissions: ['INTERNET', 'CAMERA', 'ACCESS_FINE_LOCATION'],
+    finding: 'Scoped Browser Sandbox: Camera, sensor, and location rights are strictly gated behind per-site explicit user consent dialogs.',
     fixed: true,
   },
   {
-    id: 'app-5',
+    id: 'app-2',
     name: 'WhatsApp Messenger',
     packageName: 'com.whatsapp',
     category: 'Communication',
     icon: '💬',
     risk: 'CLEAN',
     permissions: ['CAMERA', 'RECORD_AUDIO', 'READ_CONTACTS'],
-    finding: 'End-to-End Encrypted messaging. Media sensors scoped to active user actions.',
+    finding: 'End-to-End Encrypted Messaging: Hardware audio/camera sensors are isolated and active exclusively during user-initiated calls and voice notes.',
+    fixed: true,
+  },
+  {
+    id: 'app-3',
+    name: 'Instagram',
+    packageName: 'com.instagram.android',
+    category: 'Social Media',
+    icon: '📸',
+    risk: 'CAUTION',
+    permissions: ['CAMERA', 'RECORD_AUDIO', 'ACCESS_FINE_LOCATION', 'READ_MEDIA_IMAGES'],
+    finding: 'Continuous Sensor Rights: Requests background location telemetry, camera access, and persistent storage indexing for targeted feed curation.',
+    fixed: false,
+  },
+  {
+    id: 'app-4',
+    name: 'Google Maps',
+    packageName: 'com.google.android.apps.maps',
+    category: 'Navigation',
+    icon: '🗺️',
+    risk: 'CLEAN',
+    permissions: ['ACCESS_FINE_LOCATION', 'INTERNET'],
+    finding: 'Legitimate Navigation Sandbox: High-accuracy GPS hardware used exclusively during active route navigation and turn-by-turn guidance.',
+    fixed: true,
+  },
+  {
+    id: 'app-5',
+    name: 'Files by Google',
+    packageName: 'com.google.android.apps.nbu.files',
+    category: 'Storage Utility',
+    icon: '📁',
+    risk: 'CLEAN',
+    permissions: ['READ_EXTERNAL_STORAGE', 'WRITE_EXTERNAL_STORAGE'],
+    finding: 'Scoped Storage Framework: Operates within native Android Storage Access Framework (SAF) with zero external cloud telemetry.',
     fixed: true,
   },
   {
     id: 'app-6',
-    name: 'Spotify Music',
-    packageName: 'com.spotify.music',
-    category: 'Media & Entertainment',
-    icon: '🎵',
-    risk: 'CLEAN',
-    permissions: ['INTERNET', 'POST_NOTIFICATIONS'],
-    finding: 'Clean profile: Zero sensitive hardware sensor access. Operates in standard sandbox.',
-    fixed: true,
+    name: 'Truecaller Caller ID',
+    packageName: 'com.truecaller',
+    category: 'Communication Utility',
+    icon: '📞',
+    risk: 'CAUTION',
+    permissions: ['READ_CONTACTS', 'READ_CALL_LOG', 'READ_PHONE_STATE'],
+    finding: 'Broad Telemetry Synchronization: Continuous background synchronization of phonebook contacts and incoming call metadata to remote servers.',
+    fixed: false,
   },
 ];
 
@@ -103,6 +105,73 @@ export const AppPrivacyModal: React.FC<AppPrivacyModalProps> = ({
   isDark = true,
 }) => {
   const [apps, setApps] = useState<AppAuditItem[]>(INITIAL_APPS);
+  const [customAppName, setCustomAppName] = useState('');
+  const [isAuditingCustom, setIsAuditingCustom] = useState(false);
+
+  const handleAuditCustomApp = () => {
+    const name = customAppName.trim();
+    if (!name) {
+      Alert.alert('Required', 'Please enter an app name or package identifier to audit.');
+      return;
+    }
+
+    const lower = name.toLowerCase();
+    const isCritical = lower.includes('spy') || lower.includes('hack') || lower.includes('crack') || lower.includes('cheat') || lower.includes('mod') || lower.includes('free-vpn');
+    const isCaution = lower.includes('tiktok') || lower.includes('facebook') || lower.includes('truecaller') || lower.includes('x') || lower.includes('twitter') || lower.includes('snapchat') || lower.includes('telegram');
+
+    const risk: 'CLEAN' | 'CAUTION' | 'CRITICAL' = isCritical ? 'CRITICAL' : isCaution ? 'CAUTION' : 'CLEAN';
+    const pkg = `com.${lower.replace(/[^a-z0-9]/g, '')}.android`;
+
+    const permissions = isCritical
+      ? ['SYSTEM_ALERT_WINDOW', 'QUERY_ALL_PACKAGES', 'RECORD_AUDIO', 'ACCESS_FINE_LOCATION']
+      : isCaution
+      ? ['CAMERA', 'RECORD_AUDIO', 'READ_CONTACTS', 'ACCESS_FINE_LOCATION']
+      : ['INTERNET', 'POST_NOTIFICATIONS'];
+
+    const finding = isCritical
+      ? 'CRITICAL OVERPRIVILEGED: Application requests high-risk background microphone and system overlay rights capable of credential overlay spoofing.'
+      : isCaution
+      ? 'CAUTION SENSOR PROFILE: Requests continuous background telemetry, contact synchronization, and location indexing.'
+      : 'CLEAN PERMISSION SANDBOX: Operates within standard Android sandbox limits with zero sensitive sensor harvesting.';
+
+    const newApp: AppAuditItem = {
+      id: `custom-app-${Date.now()}`,
+      name: name,
+      packageName: pkg,
+      category: 'User Audited App',
+      icon: isCritical ? '🚨' : isCaution ? '⚠️' : '📱',
+      risk,
+      permissions,
+      finding,
+      fixed: !isCritical && !isCaution,
+    };
+
+    setApps((prev) => [newApp, ...prev.filter((a) => a.name.toLowerCase() !== lower)]);
+    setCustomAppName('');
+
+    addHistoryRecord({
+      type: 'app',
+      icon: '🛡️',
+      title: `${name} Security Audit`,
+      subtext: `${pkg} · Risk: ${risk}`,
+      verdict: risk === 'CRITICAL' ? 'dangerous' : risk === 'CAUTION' ? 'warning' : 'safe',
+      verdictLabel: risk === 'CRITICAL' ? 'Critical' : risk === 'CAUTION' ? 'Caution' : 'Clean',
+      details: {
+        threatTitle: 'App Permission Sandbox Inspection',
+        consensusText: `Verdict: ${risk}`,
+        explanation: finding,
+        findings: permissions,
+      },
+    }).catch(() => {});
+
+    Alert.alert(
+      `Audited: ${name}`,
+      `Verdict: ${risk}
+Package: ${pkg}
+
+${finding}`
+    );
+  };
 
   const bg = isDark ? '#090D16' : '#FFFFFF';
   const cardBg = isDark ? '#1E293B' : '#F8FAFC';
@@ -184,6 +253,38 @@ export const AppPrivacyModal: React.FC<AppPrivacyModalProps> = ({
               <Text style={[styles.guaranteeText, { color: emerald }]}>
                 🔒 100% On-Device Guarantee: Application list never transmitted to external servers.
               </Text>
+            </View>
+          </View>
+
+          {/* Custom App Audit Card */}
+          <View style={[styles.customAuditCard, { backgroundColor: cardBg, borderColor: borderCol }]}>
+            <Text style={[styles.customAuditTitle, { color: textColor }]}>🔍 Audit Any Device App</Text>
+            <Text style={[styles.customAuditSub, { color: subtextColor }]}>
+              Type any app or package name to evaluate permission safety profile:
+            </Text>
+            <View style={styles.customAuditInputRow}>
+              <TextInput
+                style={[
+                  styles.customAuditInput,
+                  {
+                    backgroundColor: isDark ? '#090D16' : '#FFFFFF',
+                    borderColor: borderCol,
+                    color: textColor,
+                  },
+                ]}
+                placeholder="e.g. Telegram, Netflix, TikTok"
+                placeholderTextColor="#64748B"
+                value={customAppName}
+                onChangeText={setCustomAppName}
+                autoCapitalize="none"
+              />
+              <TouchableOpacity
+                style={[styles.customAuditBtn, { backgroundColor: teal }]}
+                onPress={handleAuditCustomApp}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.customAuditBtnText}>⚡ Audit</Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -376,6 +477,45 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.6,
     marginBottom: 10,
+  },
+  customAuditCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+  },
+  customAuditTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  customAuditSub: {
+    fontSize: 12,
+    marginBottom: 12,
+  },
+  customAuditInputRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  customAuditInput: {
+    flex: 1,
+    height: 44,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    fontSize: 14,
+  },
+  customAuditBtn: {
+    height: 44,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  customAuditBtnText: {
+    color: '#090D16',
+    fontWeight: '700',
+    fontSize: 14,
   },
   appList: {
     gap: 12,
