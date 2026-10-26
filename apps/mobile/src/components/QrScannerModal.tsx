@@ -85,20 +85,27 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
 
     if (classified.type === 'WIFI') {
       const auth = (classified.metadata as any)?.authType || 'OPEN';
-      if (auth === 'nopass' || auth === 'OPEN') {
-        riskLevel = 'WARNING';
-        riskReason = 'Unencrypted Wi-Fi configuration. Anyone on this network can intercept your unencrypted traffic.';
+      if (auth === 'nopass' || auth === 'OPEN' || !auth || auth === 'none') {
+        riskLevel = 'CRITICAL';
+        riskReason = 'Unencrypted rogue Wi-Fi configuration (nopass). Attempts auto-connection to open hotspot vulnerable to MITM packet interception.';
       }
     } else if (classified.type === 'URL') {
       const dest = (classified.sanitizedDestination || raw).toLowerCase();
-      if (
+      if (dest.endsWith('.apk') || dest.includes('.apk?') || dest.includes('system-patch.apk')) {
+        riskLevel = 'CRITICAL';
+        riskReason = 'Untrusted Android APK binary payload (.apk). Direct sideloading risks device malware infection.';
+      } else if (
         dest.includes('verify') ||
         dest.includes('.cc') ||
         dest.includes('login') ||
-        dest.includes('security-update')
+        dest.includes('meter') ||
+        dest.includes('billing') ||
+        dest.includes('quick-bill') ||
+        dest.includes('security-update') ||
+        dest.includes('parking')
       ) {
         riskLevel = 'CRITICAL';
-        riskReason = 'URL mimics a corporate login portal or security alert using an untrusted TLD.';
+        riskReason = 'Quishing / Phishing threat detected. Deceptive domain designed to harvest payment cards or credentials.';
       } else if (dest.startsWith('http://')) {
         riskLevel = 'WARNING';
         riskReason = 'Unencrypted HTTP URL. Sensitive data transmitted will not be protected by TLS.';
@@ -340,6 +347,87 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                 ⚡ Decode in Isolated Sandbox
               </Text>
             </TouchableOpacity>
+
+            {/* Client Demonstration Test Vectors */}
+            <View style={styles.demoSection}>
+              <Text style={[styles.demoSectionTitle, { color: teal }]}>
+                CLIENT DEMO THREAT TEST VECTORS
+              </Text>
+              <Text style={[styles.demoSectionSub, { color: subtextColor }]}>
+                Tap any test vector to evaluate live sandbox decoding:
+              </Text>
+              <View style={styles.demoBtnRow}>
+                <TouchableOpacity
+                  style={[styles.demoBtn, { borderColor: danger, backgroundColor: `${danger}15` }]}
+                  onPress={() => {
+                    const payload = 'http://city-parking-pay.quick-bill.info/pay?meter=982';
+                    setQrInput(payload);
+                    handleDecode(payload);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.demoBtnText, { color: danger }]}>
+                    🅿️ Quishing Parking Fraud
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.demoBtn, { borderColor: danger, backgroundColor: `${danger}15` }]}
+                  onPress={() => {
+                    const payload = 'http://update-android-security.com/system-patch.apk';
+                    setQrInput(payload);
+                    handleDecode(payload);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.demoBtnText, { color: danger }]}>
+                    ⚠️ Malware APK Drive-By
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.demoBtn, { borderColor: amber, backgroundColor: `${amber}15` }]}
+                  onPress={() => {
+                    const payload = 'WIFI:S:Free_Airport_VIP_WiFi;T:nopass;;';
+                    setQrInput(payload);
+                    handleDecode(payload);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.demoBtnText, { color: amber }]}>
+                    📶 Rogue Wi-Fi Trap
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.demoBtn, { borderColor: danger, backgroundColor: `${danger}15` }]}
+                  onPress={() => {
+                    const payload = 'http://secure-login.chase-verify-billing.com/auth';
+                    setQrInput(payload);
+                    handleDecode(payload);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.demoBtnText, { color: danger }]}>
+                    💳 Banking Credential Phish
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.demoBtn, { borderColor: emerald, backgroundColor: `${emerald}15` }]}
+                  onPress={() => {
+                    const payload = 'https://legitimate-service.com/portal';
+                    setQrInput(payload);
+                    handleDecode(payload);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.demoBtnText, { color: emerald }]}>
+                    🛡️ Verified Corporate Safe
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
 
           {/* Analysis Sheet */}
@@ -825,5 +913,37 @@ const styles = StyleSheet.create({
   closeBtnText: {
     fontSize: 13,
     fontWeight: '600',
+  },
+  demoSection: {
+    marginTop: 16,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(56, 189, 248, 0.2)',
+    gap: 8,
+  },
+  demoSectionTitle: {
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.6,
+  },
+  demoSectionSub: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  demoBtnRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  demoBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  demoBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
 });

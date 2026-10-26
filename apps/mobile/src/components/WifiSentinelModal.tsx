@@ -8,6 +8,8 @@ import {
   Modal,
   ActivityIndicator,
   Animated,
+  TextInput,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -15,6 +17,9 @@ import {
   scanNearbyWifiAirspace,
   getNearbyHotspotBeacons,
   WifiAirspaceScanResult,
+  WifiEncryption,
+  evaluatePreConnectionHotspot,
+  saveAuditedWifiBeacon,
 } from '../services/wifiService';
 import * as Network from 'expo-network';
 import { AiExplainerModal } from './AiExplainerModal';
@@ -49,6 +54,39 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
   const [blockedIds, setBlockedIds] = useState<Record<string, boolean>>({});
   const [approvedIds, setApprovedIds] = useState<Record<string, boolean>>({});
   const [showAiModal, setShowAiModal] = useState(false);
+
+  // Custom Wi-Fi audit state
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [customSsid, setCustomSsid] = useState('');
+  const [customEncryption, setCustomEncryption] = useState<WifiEncryption>('WPA2');
+  const [customFrequency, setCustomFrequency] = useState<'2.4 GHz' | '5.0 GHz'>('5.0 GHz');
+  const [customPmf, setCustomPmf] = useState(false);
+
+  const handleAuditCustomWifi = async () => {
+    const ssid = customSsid.trim();
+    if (!ssid) {
+      Alert.alert('Required', 'Please enter a Wi-Fi Network Name (SSID).');
+      return;
+    }
+
+    const beacon = evaluatePreConnectionHotspot({
+      ssid,
+      encryption: customEncryption,
+      pmfEnabled: customPmf,
+      channel: customFrequency === '5.0 GHz' ? 44 : 6,
+      signalDbm: customFrequency === '5.0 GHz' ? -52 : -58,
+    });
+
+    await saveAuditedWifiBeacon(beacon);
+    setHotspots((prev) => [beacon, ...prev.filter((p) => p.ssid !== beacon.ssid)]);
+    setHasScanned(true);
+    setCustomSsid('');
+    setShowAddModal(false);
+    Alert.alert(
+      `Audited: ${beacon.ssid}`,
+      `Verdict: ${beacon.threatVerdict.replace(/_/g, ' ')}\nRisk Score: ${beacon.threatScore}/100\nCipher: ${beacon.encryption}\n\n${beacon.preventionAdvise}`
+    );
+  };
 
   const pulseAnim = useRef(new Animated.Value(0)).current;
 
@@ -237,24 +275,34 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
             </View>
           </View>
 
-          {/* Primary Wi-Fi Scan Trigger */}
-          <TouchableOpacity
-            style={[styles.scanBtn, { backgroundColor: teal }]}
-            onPress={handleScanWifi}
-            disabled={isScanning}
-            activeOpacity={0.85}
-          >
-            {isScanning ? (
-              <View style={styles.scanningRow}>
-                <ActivityIndicator size="small" color="#FFFFFF" />
-                <Text style={styles.scanBtnText}> {scanStepText || 'Scanning Airspace...'}</Text>
-              </View>
-            ) : (
-              <Text style={styles.scanBtnText}>
-                {hasScanned ? '🔄 Re-Scan Nearby Wi-Fi' : '📡 Scan Nearby Wi-Fi'}
-              </Text>
-            )}
-          </TouchableOpacity>
+          {/* Scan Actions Row */}
+          <View style={styles.scanActionsRow}>
+            <TouchableOpacity
+              style={[styles.scanBtn, { backgroundColor: teal, flex: 1 }]}
+              onPress={handleScanWifi}
+              disabled={isScanning}
+              activeOpacity={0.85}
+            >
+              {isScanning ? (
+                <View style={styles.scanningRow}>
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <Text style={styles.scanBtnText}> {scanStepText || 'Scanning Airspace...'}</Text>
+                </View>
+              ) : (
+                <Text style={styles.scanBtnText}>
+                  {hasScanned ? '🔄 Re-Scan Airspace' : '📡 Scan Nearby Wi-Fi'}
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.addWifiBtn, { borderColor: teal, backgroundColor: `${teal}15` }]}
+              onPress={() => setShowAddModal(true)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.addWifiBtnText, { color: teal }]}>➕ Audit Custom Wi-Fi</Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Pre-Scan Clean Empty State (Zero Fake/Demo Data) */}
           {!hasScanned && !isScanning && (
@@ -709,6 +757,103 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
             asOverlay={true}
           />
         )}
+
+        {/* Custom Wi-Fi Audit Modal */}
+        <Modal
+          visible={showAddModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowAddModal(false)}
+        >
+          <View style={styles.modalBackdrop}>
+            <View style={[styles.customAuditCard, { backgroundColor: cardBg, borderColor: borderCol }]}>
+              <Text style={[styles.customAuditTitle, { color: textColor }]}>
+                ➕ Audit Custom Wi-Fi Network
+              </Text>
+              <Text style={[styles.customAuditSub, { color: subtextColor }]}>
+                Pre-evaluate any venue or office hotspot before connecting:
+              </Text>
+
+              <Text style={[styles.inputLabel, { color: subtextColor }]}>NETWORK NAME (SSID):</Text>
+              <TextInput
+                style={[styles.customInput, { backgroundColor: isDark ? '#090D16' : '#FFFFFF', borderColor: borderCol, color: textColor }]}
+                placeholder="e.g. Client_Office_Guest, Hotel_5G"
+                placeholderTextColor="#64748B"
+                value={customSsid}
+                onChangeText={setCustomSsid}
+                autoCapitalize="none"
+              />
+
+              <Text style={[styles.inputLabel, { color: subtextColor, marginTop: 10 }]}>ENCRYPTION CIPHER:</Text>
+              <View style={styles.cipherPillsRow}>
+                {(['OPEN', 'WEP', 'WPA2', 'WPA3'] as WifiEncryption[]).map((c) => (
+                  <TouchableOpacity
+                    key={c}
+                    style={[
+                      styles.cipherPill,
+                      {
+                        backgroundColor: customEncryption === c ? teal : isDark ? '#090D16' : '#F1F5F9',
+                        borderColor: customEncryption === c ? teal : borderCol,
+                      },
+                    ]}
+                    onPress={() => setCustomEncryption(c)}
+                  >
+                    <Text
+                      style={[
+                        styles.cipherPillText,
+                        { color: customEncryption === c ? '#090D16' : textColor },
+                      ]}
+                    >
+                      {c}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={[styles.inputLabel, { color: subtextColor, marginTop: 10 }]}>FREQUENCY BAND:</Text>
+              <View style={styles.cipherPillsRow}>
+                {(['2.4 GHz', '5.0 GHz'] as const).map((f) => (
+                  <TouchableOpacity
+                    key={f}
+                    style={[
+                      styles.cipherPill,
+                      {
+                        backgroundColor: customFrequency === f ? teal : isDark ? '#090D16' : '#F1F5F9',
+                        borderColor: customFrequency === f ? teal : borderCol,
+                      },
+                    ]}
+                    onPress={() => setCustomFrequency(f)}
+                  >
+                    <Text
+                      style={[
+                        styles.cipherPillText,
+                        { color: customFrequency === f ? '#090D16' : textColor },
+                      ]}
+                    >
+                      {f}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <View style={styles.customModalActions}>
+                <TouchableOpacity
+                  style={[styles.cancelBtn, { borderColor: borderCol }]}
+                  onPress={() => setShowAddModal(false)}
+                >
+                  <Text style={[styles.cancelBtnText, { color: subtextColor }]}>Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.submitAuditBtn, { backgroundColor: teal }]}
+                  onPress={handleAuditCustomWifi}
+                >
+                  <Text style={styles.submitAuditText}>Run Security Audit</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </Modal>
   );
@@ -1115,5 +1260,102 @@ const styles = StyleSheet.create({
   closeDetailBtnText: {
     fontSize: 13,
     fontWeight: '700',
+  },
+  scanActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16,
+  },
+  addWifiBtn: {
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addWifiBtnText: {
+    fontSize: 12.5,
+    fontWeight: '800',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  customAuditCard: {
+    width: '100%',
+    borderRadius: 20,
+    borderWidth: 1.5,
+    padding: 20,
+    gap: 8,
+  },
+  customAuditTitle: {
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  customAuditSub: {
+    fontSize: 12.5,
+    lineHeight: 17,
+    fontWeight: '500',
+    marginBottom: 6,
+  },
+  inputLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  customInput: {
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    fontSize: 14,
+  },
+  cipherPillsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  cipherPill: {
+    flex: 1,
+    height: 36,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cipherPillText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  customModalActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+  },
+  cancelBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  submitAuditBtn: {
+    flex: 1.4,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  submitAuditText: {
+    color: '#090D16',
+    fontSize: 13,
+    fontWeight: '900',
   },
 });

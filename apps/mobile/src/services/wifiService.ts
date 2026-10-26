@@ -1,3 +1,7 @@
+import * as Network from 'expo-network';
+import { ApiClient } from './apiClient';
+import { Storage } from '../storage/StorageAdapter';
+
 export type WifiEncryption = 'OPEN' | 'WEP' | 'WPA' | 'WPA2' | 'WPA3' | 'UNKNOWN';
 
 export interface WifiRiskAssessment {
@@ -135,7 +139,7 @@ export function evaluatePreConnectionHotspot(params: {
   ssid: string;
   bssid?: string;
   encryption: WifiEncryption;
-  pmfEnabled: boolean;
+  pmfEnabled?: boolean;
   signalDbm?: number;
   channel?: number;
 }): NearbyHotspotBeacon {
@@ -144,6 +148,7 @@ export function evaluatePreConnectionHotspot(params: {
   const signalDbm = params.signalDbm ?? -55;
   const channel = params.channel ?? (params.encryption === 'WPA3' ? 44 : 6);
   const frequency = channel > 14 ? '5.0 GHz' : '2.4 GHz';
+  const pmfEnabled = params.pmfEnabled ?? (params.encryption === 'WPA3');
 
   const lowerSsid = ssid.toLowerCase();
   const isSuspiciousName =
@@ -164,17 +169,18 @@ export function evaluatePreConnectionHotspot(params: {
       channel,
       frequency,
       signalDbm,
-      encryption: params.encryption,
+      encryption: 'OPEN',
       pmfEnabled: false,
-      vendor: 'Espressif / Hak5 Pineapple Signature',
+      vendor: 'Suspicious Rogue AP / Honeypot',
       threatVerdict: 'CRITICAL_THREAT',
-      threatScore: 98,
-      threatTag: 'EVIL TWIN HONEYPOT DETECTED',
+      threatScore: 95,
+      threatTag: 'UNENCRYPTED ROGUE AP HONEYPOT',
       predictedCrimes: [
         'Man-in-the-Middle (MITM) Full Packet Interception',
-        'Fake Captive Portal Credential Harvesting (Banking / Social Logins)',
-        'SSL Stripping & DNS Spoofing to Malicious Servers',
-        'Session Token & Cookie Hijacking',
+        'Airspace Radio Sniffing & Eavesdropping',
+        'Evil Twin MitM: Hotspot mimics trusted public venues to harvest login credentials',
+        'SSL Stripping & Session Hijacking across unencrypted radio airspace',
+        'DNS Redirection to cloned phishing banking portals',
       ],
       preventionAdvise:
         'PRE-CRIME INTERVENTION: DO NOT CONNECT! This hotspot exhibits hardware & signal anomalies of a rogue attacker honeypot.',
@@ -201,6 +207,7 @@ export function evaluatePreConnectionHotspot(params: {
           : 'OBSOLETE WEP CIPHER (CRACKABLE)',
       predictedCrimes: [
         'Eavesdropping on all unencrypted HTTP & DNS lookups',
+        'Airspace Radio Sniffing & Eavesdropping',
         'ARP Poisoning & Local Device Port Scanning',
         'Injecting malicious payloads into unencrypted traffic streams',
       ],
@@ -210,7 +217,7 @@ export function evaluatePreConnectionHotspot(params: {
     };
   }
 
-  if (params.encryption === 'WPA2' && !params.pmfEnabled) {
+  if (params.encryption === 'WPA2' && !pmfEnabled) {
     return {
       id: `beacon-${Date.now()}-${Math.random()}`,
       ssid,
@@ -220,7 +227,7 @@ export function evaluatePreConnectionHotspot(params: {
       signalDbm,
       encryption: 'WPA2',
       pmfEnabled: false,
-      vendor: 'TP-Link / Consumer Router',
+      vendor: 'Consumer Router / AP',
       threatVerdict: isSuspiciousName ? 'HIGH_RISK' : 'MODERATE',
       threatScore: isSuspiciousName ? 68 : 42,
       threatTag: isSuspiciousName
@@ -259,11 +266,84 @@ export function evaluatePreConnectionHotspot(params: {
   };
 }
 
-import * as Network from 'expo-network';
-import { ApiClient } from './apiClient';
+// Storage for custom audited beacons
+const STORAGE_KEY_AUDITED_WIFI = '@cyber_companion_audited_wifi_v1';
+
+export async function getSavedWifiBeacons(): Promise<NearbyHotspotBeacon[]> {
+  try {
+    const raw = await Storage.getItem(STORAGE_KEY_AUDITED_WIFI);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function saveAuditedWifiBeacon(beacon: NearbyHotspotBeacon): Promise<NearbyHotspotBeacon[]> {
+  try {
+    const existing = await getSavedWifiBeacons();
+    const updated = [beacon, ...existing.filter((b) => b.id !== beacon.id && b.ssid !== beacon.ssid)];
+    await Storage.setItem(STORAGE_KEY_AUDITED_WIFI, JSON.stringify(updated));
+    return updated;
+  } catch {
+    return [beacon];
+  }
+}
+
+export async function deleteSavedWifiBeacon(id: string): Promise<NearbyHotspotBeacon[]> {
+  try {
+    const existing = await getSavedWifiBeacons();
+    const updated = existing.filter((b) => b.id !== id);
+    await Storage.setItem(STORAGE_KEY_AUDITED_WIFI, JSON.stringify(updated));
+    return updated;
+  } catch {
+    return [];
+  }
+}
 
 export function getNearbyHotspotBeacons(): NearbyHotspotBeacon[] {
   return [
+    evaluatePreConnectionHotspot({
+      ssid: 'Free_Public_WiFi',
+      bssid: '00:14:bf:e8:11:01',
+      encryption: 'OPEN',
+      pmfEnabled: false,
+      signalDbm: -58,
+      channel: 6,
+    }),
+    evaluatePreConnectionHotspot({
+      ssid: 'Starbucks_Guest_Network',
+      bssid: 'fa:8f:ca:12:44:99',
+      encryption: 'WPA2',
+      pmfEnabled: false,
+      signalDbm: -64,
+      channel: 1,
+    }),
+    evaluatePreConnectionHotspot({
+      ssid: 'Airport_VIP_Lounge_5G',
+      bssid: '24:de:c6:81:99:aa',
+      encryption: 'WPA3',
+      pmfEnabled: true,
+      signalDbm: -45,
+      channel: 44,
+    }),
+    evaluatePreConnectionHotspot({
+      ssid: 'Metro_Transit_Free',
+      bssid: 'd8:07:b6:55:12:ef',
+      encryption: 'WEP',
+      pmfEnabled: false,
+      signalDbm: -82,
+      channel: 11,
+    }),
+    evaluatePreConnectionHotspot({
+      ssid: 'Corporate_Mesh_Secure',
+      bssid: '58:ef:68:90:ab:cd',
+      encryption: 'WPA3',
+      pmfEnabled: true,
+      signalDbm: -52,
+      channel: 36,
+    }),
     evaluatePreConnectionHotspot({
       ssid: 'Redmi 15C 5G',
       bssid: '4e:2e:5e:d0:54:d2',
@@ -357,19 +437,25 @@ export async function scanNearbyWifiAirspace(): Promise<WifiAirspaceScanResult> 
     };
   }
 
-  // 2. Fetch ambient beacons (from API Gateway if available, or local airspace beacons)
-  let ambientBeacons: NearbyHotspotBeacon[] = [];
+  // 2. Fetch ambient beacons
+  let ambientBeacons = getNearbyHotspotBeacons();
+
   try {
     const liveNetworks = await ApiClient.scanRealWifi();
     if (Array.isArray(liveNetworks) && liveNetworks.length > 0) {
-      ambientBeacons = liveNetworks;
+      ambientBeacons = [...liveNetworks, ...ambientBeacons];
     }
   } catch {
     // Fallback if API Gateway is unreachable
   }
 
-  if (ambientBeacons.length === 0) {
-    ambientBeacons = getNearbyHotspotBeacons();
+  try {
+    const savedBeacons = await getSavedWifiBeacons();
+    if (Array.isArray(savedBeacons) && savedBeacons.length > 0) {
+      ambientBeacons = [...savedBeacons, ...ambientBeacons];
+    }
+  } catch {
+    // Ignore storage error
   }
 
   // Filter out any duplicates
