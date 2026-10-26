@@ -74,7 +74,7 @@ describe('Wi-Fi Security Assessment Service', () => {
     test('retrieves default nearby airspace beacons for passive scanning', () => {
       const beacons = getNearbyHotspotBeacons();
       expect(beacons.length).toBeGreaterThanOrEqual(1);
-      expect(beacons.some((b) => b.ssid.includes('DESKTOP') || b.ssid.includes('vivo'))).toBe(true);
+      expect(beacons.some((b) => b.ssid.includes('Keralavision') || b.ssid.includes('BETHEL'))).toBe(true);
     });
   });
 });

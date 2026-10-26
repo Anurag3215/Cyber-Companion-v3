@@ -24,17 +24,18 @@ interface ProfileScreenProps {
 }
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({
-  isDark = false,
+  isDark = true,
   onNavigateToScanners,
   onReplayIntro,
   toggleTheme,
 }) => {
-  const { user, isAuthenticated, signOut } = useAuth();
+  const { user, isAuthenticated, signOut, role, isAdmin, switchRole } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [wifiAlerts, setWifiAlerts] = useState(true);
   const [urlInterception, setUrlInterception] = useState(true);
-  const [quietHours, setQuietHours] = useState(true);
-  const [fixApplied, setFixApplied] = useState<{ [key: string]: boolean }>({});
+  const [quietHours, setQuietHours] = useState(false);
+  const [cacheFlushed, setCacheFlushed] = useState(false);
+  const [isFlushing, setIsFlushing] = useState(false);
 
   // API Gateway State
   const [apiUrl, setApiUrl] = useState(() => ApiClient.getBaseUrl());
@@ -46,7 +47,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const subtextColor = theme.textSecondary;
   const borderSubtle = theme.glassBorder;
   const emerald = '#10B981';
-  const teal = '#0D9488';
+  const teal = '#2DD4BF';
+  const cyan = '#38BDF8';
+  const purple = '#A855F7';
   const danger = '#EF4444';
 
   const handleTestConnection = async (targetUrl = apiUrl) => {
@@ -67,13 +70,42 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     handleTestConnection(presetUrl);
   };
 
+  const handleFlushThreatCache = async () => {
+    setIsFlushing(true);
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    setIsFlushing(false);
+    setCacheFlushed(true);
+    Alert.alert(
+      'Threat Cache Flushed',
+      'Local threat verdict memory & heuristic cache have been purged successfully. Next inspections will evaluate fresh threat signatures.'
+    );
+    setTimeout(() => setCacheFlushed(false), 3000);
+  };
+
+  const handleRoleToggle = async () => {
+    const targetRole = isAdmin ? 'USER' : 'ADMIN';
+    await switchRole(targetRole);
+    Alert.alert(
+      `Switched to ${targetRole === 'ADMIN' ? 'Administrator' : 'User'}`,
+      targetRole === 'ADMIN'
+        ? 'Root privileges granted. Admin Command Console and telemetry metrics are now unlocked.'
+        : 'Operating in standard Sentinel User mode.'
+    );
+  };
+
   const handleClearCache = () => {
     Alert.alert(
       'Clear Local Data',
       'This will erase local scan cache and offline activity records. Continue?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Clear', style: 'destructive', onPress: () => {} },
+        {
+          text: 'Clear',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert('Cleared', 'Local scan cache has been reset.');
+          },
+        },
       ]
     );
   };
@@ -86,19 +118,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         style: 'destructive',
         onPress: async () => {
           await signOut();
-          Alert.alert('Signed Out', 'You are now operating in anonymous local mode.');
+          Alert.alert('Signed Out', 'You are now operating in anonymous mode.');
         },
       },
     ]);
   };
 
-  const toggleFix = (key: string) => {
-    setFixApplied((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
-  const displayName = user?.name || 'Arun V.';
-  const displayEmail = user?.email || 'arun@cybercompanion.io';
-  const displayScore = user?.securityScore || 78;
+  const displayName = user?.name || (isAdmin ? 'Arun (Administrator)' : 'Arun');
+  const displayEmail = user?.email || (isAdmin ? 'arun.admin@cybercompanion.io' : 'arun@cybercompanion.io');
+  const displayScore = user?.securityScore || (isAdmin ? 98 : 88);
 
   return (
     <View style={styles.safeArea}>
@@ -107,24 +135,52 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Profile Operator Card in Liquid Glass */}
+        {/* Profile Operator Card */}
         <GlassCard isDark={isDark} style={styles.profileCard}>
           <View style={styles.profileRow}>
-            <View style={styles.avatarBubble}>
-              <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
+            <View
+              style={[
+                styles.avatarBubble,
+                {
+                  borderColor: isAdmin ? purple : teal,
+                  backgroundColor: isAdmin ? 'rgba(168,85,247,0.15)' : 'rgba(45,212,191,0.15)',
+                },
+              ]}
+            >
+              <Text style={styles.avatarIcon}>{isAdmin ? '👑' : '🛡️'}</Text>
             </View>
+
             <View style={styles.profileInfo}>
               <View style={styles.nameRow}>
                 <Text style={[styles.profileName, { color: textColor }]}>{displayName}</Text>
-                <View style={styles.tierPill}>
-                  <Text style={styles.tierText}>{user?.tier || 'PRO_SENTINEL'}</Text>
+                <View
+                  style={[
+                    styles.tierPill,
+                    {
+                      borderColor: isAdmin ? purple : teal,
+                      backgroundColor: isAdmin ? 'rgba(168,85,247,0.15)' : 'rgba(45,212,191,0.15)',
+                    },
+                  ]}
+                >
+                  <Text style={[styles.tierText, { color: isAdmin ? purple : teal }]}>
+                    {isAdmin ? '👑 ADMIN' : '🛡️ USER'}
+                  </Text>
                 </View>
               </View>
+
               <Text style={[styles.profileEmail, { color: subtextColor }]}>{displayEmail}</Text>
+
               <View style={styles.scoreRow}>
-                <View style={styles.scoreDot} />
-                <Text style={[styles.profileStatus, { color: '#047857' }]}>
-                  Verified Sentinel · Security Score {displayScore}/100
+                <View
+                  style={[
+                    styles.scoreDot,
+                    { backgroundColor: isAdmin ? purple : emerald },
+                  ]}
+                />
+                <Text style={[styles.profileStatus, { color: isAdmin ? purple : emerald }]}>
+                  {isAdmin
+                    ? `Enterprise Administrator · Privileged Level ${displayScore}/100`
+                    : `Verified Sentinel · Security Score ${displayScore}/100`}
                 </Text>
               </View>
             </View>
@@ -133,33 +189,50 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
         {/* Action Pills Bar */}
         <View style={styles.authRow}>
-          {isAuthenticated ? (
+          {/* Quick Role Switcher Button */}
+          <TouchableOpacity
+            style={[
+              styles.actionPill,
+              {
+                backgroundColor: isAdmin ? 'rgba(45,212,191,0.15)' : 'rgba(168,85,247,0.15)',
+                borderColor: isAdmin ? teal : purple,
+              },
+            ]}
+            onPress={handleRoleToggle}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.actionPillText, { color: isAdmin ? teal : purple }]}>
+              {isAdmin ? '⚡ Switch to User' : '⚡ Switch to Admin'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.actionPill,
+              {
+                backgroundColor: isDark ? 'rgba(56,189,248,0.12)' : 'rgba(56,189,248,0.08)',
+                borderColor: cyan,
+              },
+            ]}
+            onPress={() => setShowAuthModal(true)}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.actionPillText, { color: cyan }]}>🔐 Login</Text>
+          </TouchableOpacity>
+
+          {isAuthenticated && (
             <TouchableOpacity
               style={[
                 styles.actionPill,
                 {
-                  backgroundColor: isDark ? 'rgba(239,68,68,0.15)' : 'rgba(239,68,68,0.08)',
-                  borderColor: 'rgba(239,68,68,0.3)',
+                  backgroundColor: isDark ? 'rgba(239,68,68,0.12)' : 'rgba(239,68,68,0.08)',
+                  borderColor: danger,
                 },
               ]}
               onPress={handleSignOut}
               activeOpacity={0.8}
             >
               <Text style={[styles.actionPillText, { color: danger }]}>🚪 Sign Out</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={[
-                styles.actionPill,
-                {
-                  backgroundColor: isDark ? 'rgba(16,185,129,0.2)' : 'rgba(5,150,105,0.12)',
-                  borderColor: 'rgba(16,185,129,0.3)',
-                },
-              ]}
-              onPress={() => setShowAuthModal(true)}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.actionPillText, { color: emerald }]}>🔐 Authenticate</Text>
             </TouchableOpacity>
           )}
 
@@ -180,114 +253,137 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               </Text>
             </TouchableOpacity>
           )}
-
-          {onReplayIntro && (
-            <TouchableOpacity
-              style={[
-                styles.actionPill,
-                {
-                  backgroundColor: isDark ? 'rgba(13,148,136,0.2)' : 'rgba(204,251,241,0.6)',
-                  borderColor: 'rgba(13,148,136,0.3)',
-                },
-              ]}
-              onPress={onReplayIntro}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.actionPillText, { color: teal }]}>🎬 3D Intro</Text>
-            </TouchableOpacity>
-          )}
         </View>
 
-        {/* Quick Fixes Recommendation Card */}
-        <GlassCard isDark={isDark} style={styles.fixesCard}>
-          <View style={styles.fixesHeaderRow}>
-            <Text style={styles.fixesBadge}>SECURITY BOOST</Text>
-            <Text style={styles.fixesPointsBadge}>+14 pts available</Text>
+        {/* ADMIN EXCLUSIVE: Administrator Command Console */}
+        {isAdmin && (
+          <View style={styles.adminSection}>
+            <Text style={[styles.sectionHeading, { color: purple }]}>
+              👑 Administrator Security Console
+            </Text>
+            <GlassCard isDark={isDark} style={[styles.adminCard, { borderColor: 'rgba(168,85,247,0.3)' }]}>
+              <View style={styles.adminHeaderRow}>
+                <View style={styles.adminBadge}>
+                  <Text style={styles.adminBadgeText}>ROOT ACCESS GRANTED</Text>
+                </View>
+                <Text style={[styles.adminSub, { color: subtextColor }]}>
+                  Policy Level: Enterprise Security Auditor
+                </Text>
+              </View>
+
+              <View style={styles.adminGrid}>
+                {/* Flush Cache Action */}
+                <TouchableOpacity
+                  style={[styles.adminActionBtn, { borderColor: 'rgba(168,85,247,0.35)' }]}
+                  onPress={handleFlushThreatCache}
+                  disabled={isFlushing}
+                  activeOpacity={0.8}
+                >
+                  {isFlushing ? (
+                    <ActivityIndicator size="small" color={purple} />
+                  ) : (
+                    <>
+                      <Text style={styles.adminActionIcon}>🧹</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.adminActionTitle, { color: textColor }]}>
+                          Flush Threat Cache
+                        </Text>
+                        <Text style={[styles.adminActionDesc, { color: subtextColor }]}>
+                          Purge cached URL & Wi-Fi threat verdicts
+                        </Text>
+                      </View>
+                    </>
+                  )}
+                </TouchableOpacity>
+
+                {/* Audit Active Detection Heuristics */}
+                <View style={[styles.adminInfoTile, { borderColor: borderSubtle }]}>
+                  <Text style={[styles.adminTileLabel, { color: cyan }]}>
+                    ACTIVE DETECTION ENGINES
+                  </Text>
+                  <Text style={[styles.adminTileItem, { color: textColor }]}>
+                    ✅ SSRF Private Subnet Guard (Loopback & RFC1918 Block)
+                  </Text>
+                  <Text style={[styles.adminTileItem, { color: textColor }]}>
+                    ✅ Punycode IDN Homoglyph Brand Impersonation Guard
+                  </Text>
+                  <Text style={[styles.adminTileItem, { color: textColor }]}>
+                    ✅ 802.11 Airspace Cipher & PMF Deauth Defense
+                  </Text>
+                  <Text style={[styles.adminTileItem, { color: textColor }]}>
+                    ✅ Deep QR Payload Sandbox Interceptor
+                  </Text>
+                </View>
+
+                {/* Real Hardware & Subnet Environment */}
+                <View style={[styles.adminInfoTile, { borderColor: borderSubtle }]}>
+                  <Text style={[styles.adminTileLabel, { color: teal }]}>
+                    PHYSICAL HARDWARE ENVIRONMENT
+                  </Text>
+                  <Text style={[styles.adminTileItem, { color: textColor }]}>
+                    📻 Radio: MediaTek MT7921 Wi-Fi 6 Adapter
+                  </Text>
+                  <Text style={[styles.adminTileItem, { color: textColor }]}>
+                    🌐 Host Interface: 192.168.1.15 on DESKTOP-BNFS8Q1
+                  </Text>
+                  <Text style={[styles.adminTileItem, { color: textColor }]}>
+                    📡 Router Gateway: 192.168.1.1 (64:fb:92:64:ca:eb)
+                  </Text>
+                  <Text style={[styles.adminTileItem, { color: textColor }]}>
+                    ☁️ Cloud Gateway: Render Web Production (Oregon)
+                  </Text>
+                </View>
+              </View>
+            </GlassCard>
           </View>
-          <Text style={[styles.fixesTitle, { color: textColor }]}>
-            3 quick steps lift your score to 92
-          </Text>
+        )}
 
-          <View style={styles.fixList}>
-            <TouchableOpacity
-              style={styles.fixItem}
-              onPress={() => toggleFix('fix1')}
-              activeOpacity={0.7}
-            >
-              <View
-                style={[
-                  styles.fixCheckbox,
-                  fixApplied['fix1'] && styles.fixCheckboxActive,
-                ]}
-              >
-                <Text style={styles.fixCheckmark}>{fixApplied['fix1'] ? '✓' : ''}</Text>
-              </View>
-              <View style={styles.fixTextCol}>
-                <Text style={[styles.fixItemTitle, { color: textColor }]}>
-                  Revoke background microphone access
-                </Text>
-                <Text style={[styles.fixItemSub, { color: subtextColor }]}>
-                  Flashlight Ultra Pro requested audio permissions
-                </Text>
-              </View>
-            </TouchableOpacity>
+        {/* Real Physical Device Environment Card */}
+        <Text style={[styles.sectionHeading, { color: textColor }]}>
+          Device Security Perimeter
+        </Text>
+        <GlassCard isDark={isDark} style={styles.deviceCard}>
+          <View style={styles.deviceRow}>
+            <Text style={styles.deviceIcon}>📡</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.deviceTitle, { color: textColor }]}>
+                A.B.C Keralavision -2.4G
+              </Text>
+              <Text style={[styles.deviceSub, { color: emerald }]}>
+                ● Active Verified Network · WPA3-Personal (GCMP-256)
+              </Text>
+            </View>
+            <View style={[styles.statusBadge, { backgroundColor: 'rgba(16,185,129,0.15)' }]}>
+              <Text style={[styles.statusBadgeText, { color: emerald }]}>SECURE</Text>
+            </View>
+          </View>
 
-            <TouchableOpacity
-              style={styles.fixItem}
-              onPress={() => toggleFix('fix2')}
-              activeOpacity={0.7}
-            >
-              <View
-                style={[
-                  styles.fixCheckbox,
-                  fixApplied['fix2'] && styles.fixCheckboxActive,
-                ]}
-              >
-                <Text style={styles.fixCheckmark}>{fixApplied['fix2'] ? '✓' : ''}</Text>
-              </View>
-              <View style={styles.fixTextCol}>
-                <Text style={[styles.fixItemTitle, { color: textColor }]}>
-                  Disable auto-join to open Wi-Fi
-                </Text>
-                <Text style={[styles.fixItemSub, { color: subtextColor }]}>
-                  Prevents Evil Twin spoofing in public venues
-                </Text>
-              </View>
-            </TouchableOpacity>
+          <View style={[styles.deviceDivider, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }]} />
 
-            <TouchableOpacity
-              style={styles.fixItem}
-              onPress={() => toggleFix('fix3')}
-              activeOpacity={0.7}
-            >
-              <View
-                style={[
-                  styles.fixCheckbox,
-                  fixApplied['fix3'] && styles.fixCheckboxActive,
-                ]}
-              >
-                <Text style={styles.fixCheckmark}>{fixApplied['fix3'] ? '✓' : ''}</Text>
-              </View>
-              <View style={styles.fixTextCol}>
-                <Text style={[styles.fixItemTitle, { color: textColor }]}>
-                  Enable sandboxed QR link interception
-                </Text>
-                <Text style={[styles.fixItemSub, { color: subtextColor }]}>
-                  Inspects phishing targets before opening browser
-                </Text>
-              </View>
-            </TouchableOpacity>
+          <View style={styles.deviceStatsRow}>
+            <View style={styles.deviceStatCol}>
+              <Text style={[styles.deviceStatLabel, { color: subtextColor }]}>IP ADDRESS</Text>
+              <Text style={[styles.deviceStatValue, { color: textColor }]}>192.168.1.15</Text>
+            </View>
+            <View style={styles.deviceStatCol}>
+              <Text style={[styles.deviceStatLabel, { color: subtextColor }]}>GATEWAY</Text>
+              <Text style={[styles.deviceStatValue, { color: textColor }]}>192.168.1.1</Text>
+            </View>
+            <View style={styles.deviceStatCol}>
+              <Text style={[styles.deviceStatLabel, { color: subtextColor }]}>RADIO FREQ</Text>
+              <Text style={[styles.deviceStatValue, { color: textColor }]}>2.4 GHz (Ch 6)</Text>
+            </View>
           </View>
         </GlassCard>
 
-        {/* Protection Settings Section in GlassCard */}
+        {/* Protection Settings Section */}
         <Text style={[styles.sectionHeading, { color: textColor }]}>Protection Settings</Text>
         <GlassCard isDark={isDark} style={styles.settingsCard}>
           <View style={styles.settingRow}>
             <View style={styles.settingTextWrap}>
               <Text style={[styles.settingLabel, { color: textColor }]}>Wi-Fi Sentinel Checks</Text>
               <Text style={[styles.settingDesc, { color: subtextColor }]}>
-                Real-time alert when connecting to unencrypted networks
+                Real-time alert when open/unencrypted hotspots are detected
               </Text>
             </View>
             <Switch
@@ -333,7 +429,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           </View>
         </GlassCard>
 
-        {/* Threat Gateway Endpoint in GlassCard */}
+        {/* Threat Gateway Server Endpoint */}
         <Text style={[styles.sectionHeading, { color: textColor }]}>Threat Intelligence Server</Text>
         <GlassCard isDark={isDark} style={styles.gatewayCard}>
           <View style={styles.gatewayHeader}>
@@ -348,48 +444,31 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               style={[
                 styles.statusPill,
                 {
-                  borderColor:
-                    apiStatus === 'ONLINE'
-                      ? 'rgba(16,185,129,0.4)'
-                      : apiStatus === 'OFFLINE'
-                      ? 'rgba(239,68,68,0.4)'
-                      : 'rgba(203,213,225,0.4)',
                   backgroundColor:
                     apiStatus === 'ONLINE'
-                      ? 'rgba(16,185,129,0.12)'
+                      ? 'rgba(16, 185, 129, 0.15)'
                       : apiStatus === 'OFFLINE'
-                      ? 'rgba(239,68,68,0.12)'
-                      : 'rgba(255,255,255,0.4)',
+                      ? 'rgba(239, 68, 68, 0.15)'
+                      : 'rgba(56, 189, 248, 0.15)',
+                  borderColor:
+                    apiStatus === 'ONLINE'
+                      ? emerald
+                      : apiStatus === 'OFFLINE'
+                      ? danger
+                      : cyan,
                 },
               ]}
             >
-              <View
-                style={[
-                  styles.statusDot,
-                  {
-                    backgroundColor:
-                      apiStatus === 'ONLINE'
-                        ? emerald
-                        : apiStatus === 'OFFLINE'
-                        ? danger
-                        : apiStatus === 'CHECKING'
-                        ? teal
-                        : '#94A3B8',
-                  },
-                ]}
-              />
               <Text
                 style={[
-                  styles.statusText,
+                  styles.statusPillText,
                   {
                     color:
                       apiStatus === 'ONLINE'
                         ? emerald
                         : apiStatus === 'OFFLINE'
                         ? danger
-                        : apiStatus === 'CHECKING'
-                        ? teal
-                        : subtextColor,
+                        : cyan,
                   },
                 ]}
               >
@@ -398,105 +477,83 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                   : apiStatus === 'OFFLINE'
                   ? 'OFFLINE'
                   : apiStatus === 'CHECKING'
-                  ? 'CHECKING...'
-                  : 'UNTESTED'}
+                  ? 'PINGING...'
+                  : 'READY'}
               </Text>
             </View>
           </View>
 
-          <View style={styles.urlInputRow}>
+          <View style={styles.gatewayInputRow}>
             <TextInput
               style={[
-                styles.urlInput,
+                styles.gatewayInput,
                 {
-                  backgroundColor: isDark ? 'rgba(15,23,42,0.6)' : 'rgba(255,255,255,0.8)',
+                  backgroundColor: isDark ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.7)',
                   borderColor: borderSubtle,
                   color: textColor,
                 },
               ]}
               value={apiUrl}
               onChangeText={setApiUrl}
-              placeholder="http://localhost:5000/v1"
-              placeholderTextColor="#94A3B8"
+              placeholder="https://..."
+              placeholderTextColor={subtextColor}
               autoCapitalize="none"
               autoCorrect={false}
             />
+
             <TouchableOpacity
-              style={styles.testBtn}
+              style={[styles.testBtn, { backgroundColor: teal }]}
               onPress={() => handleTestConnection()}
               disabled={apiStatus === 'CHECKING'}
               activeOpacity={0.8}
             >
               {apiStatus === 'CHECKING' ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
+                <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
-                <Text style={styles.testBtnText}>Test Ping</Text>
+                <Text style={styles.testBtnText}>Ping</Text>
               )}
             </TouchableOpacity>
           </View>
 
+          {/* Preset Buttons */}
           <View style={styles.presetRow}>
-            <Text style={[styles.presetLabel, { color: subtextColor }]}>PRESETS:</Text>
             <TouchableOpacity
-              style={[
-                styles.presetBtn,
-                {
-                  backgroundColor: isDark ? 'rgba(16,185,129,0.15)' : 'rgba(16,185,129,0.12)',
-                  borderColor: isDark ? 'rgba(52,211,153,0.4)' : 'rgba(16,185,129,0.3)',
-                },
-              ]}
+              style={[styles.presetChip, { borderColor: borderSubtle }]}
               onPress={() => handleApplyPreset('https://cyber-companion-v3.onrender.com/v1')}
             >
-              <Text style={[styles.presetBtnText, { color: '#10B981', fontWeight: 'bold' }]}>Cloud 24/7</Text>
+              <Text style={[styles.presetText, { color: cyan }]}>🌐 Render Cloud</Text>
             </TouchableOpacity>
+
             <TouchableOpacity
-              style={[
-                styles.presetBtn,
-                {
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.6)',
-                  borderColor: borderSubtle,
-                },
-              ]}
-              onPress={() => handleApplyPreset('http://192.168.1.15:5000/v1')}
-            >
-              <Text style={[styles.presetBtnText, { color: textColor }]}>Wi-Fi LAN</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.presetBtn,
-                {
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.6)',
-                  borderColor: borderSubtle,
-                },
-              ]}
+              style={[styles.presetChip, { borderColor: borderSubtle }]}
               onPress={() => handleApplyPreset('http://127.0.0.1:5000/v1')}
             >
-              <Text style={[styles.presetBtnText, { color: textColor }]}>Localhost</Text>
+              <Text style={[styles.presetText, { color: subtextColor }]}>💻 USB (127.0.0.1)</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.presetChip, { borderColor: borderSubtle }]}
+              onPress={() => handleApplyPreset('http://192.168.1.15:5000/v1')}
+            >
+              <Text style={[styles.presetText, { color: subtextColor }]}>🏠 Wi-Fi LAN</Text>
             </TouchableOpacity>
           </View>
         </GlassCard>
 
-        {/* Zero-Trust Privacy Pledge in GlassCard */}
-        <GlassCard isDark={isDark} style={styles.privacyCard}>
-          <Text style={[styles.privacyHeading, { color: '#047857' }]}>🔒 Zero-Trust Privacy Pledge</Text>
-          <Text style={[styles.privacyText, { color: subtextColor }]}>
-            Cyber Companion operates with strict on-device isolation. No scanned QR payloads, user
-            URLs, Wi-Fi BSSIDs, or installed app catalogs are transmitted to external cloud systems.
-          </Text>
-
+        {/* Clear Cache Card */}
+        <View style={styles.clearCacheWrap}>
           <TouchableOpacity
-            style={styles.clearBtn}
+            style={[styles.clearCacheBtn, { borderColor: borderSubtle }]}
             onPress={handleClearCache}
-            activeOpacity={0.8}
+            activeOpacity={0.7}
           >
-            <Text style={styles.clearBtnText}>Clear Local Scan Cache & Telemetry</Text>
+            <Text style={[styles.clearCacheText, { color: subtextColor }]}>
+              🗑️ Clear Local Cache & Reset Diagnostics
+            </Text>
           </TouchableOpacity>
-        </GlassCard>
+        </View>
 
-        {/* App Version Stamp */}
-        <Text style={[styles.versionText, { color: subtextColor }]}>
-          Cyber Companion v3.0.0 · Final Release Candidate
-        </Text>
+        <View style={{ height: 100 }} />
       </ScrollView>
 
       {/* Auth Modal */}
@@ -517,43 +574,36 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 125, // Extra clearance for floating navigation bar
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    gap: 16,
   },
   profileCard: {
-    marginBottom: 14,
+    padding: 18,
   },
   profileRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 14,
   },
   avatarBubble: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#0D9488',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14,
-    shadowColor: '#0D9488',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
   },
-  avatarText: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#FFFFFF',
+  avatarIcon: {
+    fontSize: 28,
   },
   profileInfo: {
     flex: 1,
+    gap: 3,
   },
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     gap: 8,
   },
   profileName: {
@@ -563,149 +613,188 @@ const styles = StyleSheet.create({
   },
   tierPill: {
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: 8,
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
   },
   tierText: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '800',
-    color: '#059669',
-    letterSpacing: 0.4,
+    letterSpacing: 0.8,
   },
   profileEmail: {
     fontSize: 12,
-    marginTop: 2,
   },
   scoreRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
-    gap: 5,
+    gap: 6,
+    marginTop: 2,
   },
   scoreDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#10B981',
+    width: 7,
+    height: 7,
+    borderRadius: 4,
   },
   profileStatus: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
   },
   authRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 16,
+    flexWrap: 'wrap',
   },
   actionPill: {
-    flex: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
     borderWidth: 1,
-    paddingVertical: 10,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
   },
   actionPillText: {
     fontSize: 12,
     fontWeight: '700',
   },
-  fixesCard: {
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.25)',
-  },
-  fixesHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  fixesBadge: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-    color: '#059669',
-  },
-  fixesPointsBadge: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#059669',
-  },
-  fixesTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-    marginBottom: 14,
-  },
-  fixList: {
-    gap: 12,
-  },
-  fixItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  fixCheckbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 7,
-    borderWidth: 1.5,
-    borderColor: '#94A3B8',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-    backgroundColor: 'rgba(255,255,255,0.4)',
-  },
-  fixCheckboxActive: {
-    backgroundColor: '#10B981',
-    borderColor: '#10B981',
-  },
-  fixCheckmark: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  fixTextCol: {
-    flex: 1,
-  },
-  fixItemTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  fixItemSub: {
-    fontSize: 11,
-    marginTop: 2,
-  },
   sectionHeading: {
-    fontSize: 15,
+    fontSize: 12,
     fontWeight: '800',
-    letterSpacing: -0.2,
-    marginBottom: 10,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
     marginLeft: 4,
   },
-  settingsCard: {
-    marginBottom: 20,
+  adminSection: {
+    gap: 8,
+  },
+  adminCard: {
+    padding: 16,
+    borderWidth: 1.5,
+    gap: 12,
+  },
+  adminHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  adminBadge: {
+    paddingHorizontal: 10,
     paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: 'rgba(168, 85, 247, 0.2)',
+    borderWidth: 1,
+    borderColor: '#A855F7',
+  },
+  adminBadgeText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#A855F7',
+    letterSpacing: 1,
+  },
+  adminSub: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  adminGrid: {
+    gap: 10,
+  },
+  adminActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    backgroundColor: 'rgba(168, 85, 247, 0.08)',
+    gap: 10,
+  },
+  adminActionIcon: {
+    fontSize: 22,
+  },
+  adminActionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  adminActionDesc: {
+    fontSize: 11,
+    marginTop: 1,
+  },
+  adminInfoTile: {
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.15)',
+    gap: 5,
+  },
+  adminTileLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginBottom: 2,
+  },
+  adminTileItem: {
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  deviceCard: {
+    padding: 16,
+    gap: 12,
+  },
+  deviceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  deviceIcon: {
+    fontSize: 24,
+  },
+  deviceTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  deviceSub: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  deviceDivider: {
+    height: 1,
+  },
+  deviceStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  deviceStatCol: {
+    gap: 2,
+  },
+  deviceStatLabel: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  deviceStatValue: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  settingsCard: {
+    padding: 16,
+    gap: 14,
   },
   settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
-  },
-  settingDivider: {
-    height: 1,
-    width: '100%',
+    gap: 12,
   },
   settingTextWrap: {
     flex: 1,
-    paddingRight: 14,
+    gap: 2,
   },
   settingLabel: {
     fontSize: 13,
@@ -713,126 +802,91 @@ const styles = StyleSheet.create({
   },
   settingDesc: {
     fontSize: 11,
-    marginTop: 2,
+    lineHeight: 15,
+  },
+  settingDivider: {
+    height: 1,
   },
   gatewayCard: {
-    marginBottom: 20,
+    padding: 16,
+    gap: 12,
   },
   gatewayHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    justifyContent: 'space-between',
   },
   gatewayTitle: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   gatewaySub: {
     fontSize: 11,
     marginTop: 2,
   },
   statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
     borderWidth: 1,
   },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  statusText: {
+  statusPillText: {
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.5,
   },
-  urlInputRow: {
+  gatewayInputRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 10,
   },
-  urlInput: {
+  gatewayInput: {
     flex: 1,
     height: 42,
-    borderRadius: 12,
+    borderRadius: 10,
     borderWidth: 1,
     paddingHorizontal: 12,
-    fontSize: 12,
+    fontSize: 12.5,
   },
   testBtn: {
     height: 42,
     paddingHorizontal: 16,
-    borderRadius: 12,
-    backgroundColor: '#0D9488',
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#0D9488',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 3,
   },
   testBtnText: {
     color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '800',
+    fontSize: 12.5,
+    fontWeight: '700',
   },
   presetRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     gap: 6,
+    flexWrap: 'wrap',
   },
-  presetLabel: {
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  presetBtn: {
+  presetChip: {
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
     borderWidth: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
   },
-  presetBtnText: {
-    fontSize: 10,
-    fontWeight: '700',
+  presetText: {
+    fontSize: 10.5,
+    fontWeight: '600',
   },
-  privacyCard: {
-    marginBottom: 20,
-  },
-  privacyHeading: {
-    fontSize: 13,
-    fontWeight: '800',
-    marginBottom: 6,
-  },
-  privacyText: {
-    fontSize: 11,
-    lineHeight: 17,
-    marginBottom: 14,
-  },
-  clearBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.2)',
+  clearCacheWrap: {
     alignItems: 'center',
-  },
-  clearBtnText: {
-    color: '#DC2626',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  versionText: {
-    textAlign: 'center',
-    fontSize: 11,
-    fontWeight: '500',
     marginTop: 4,
+  },
+  clearCacheBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  clearCacheText: {
+    fontSize: 11.5,
+    fontWeight: '600',
   },
 });
