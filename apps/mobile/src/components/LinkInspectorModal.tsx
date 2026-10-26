@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AiExplainerModal } from './AiExplainerModal';
+import { ApiClient, evaluateAutonomousUrlHeuristics } from '../services/apiClient';
 
 interface LinkInspectorModalProps {
   visible: boolean;
@@ -48,111 +49,64 @@ export const LinkInspectorModal: React.FC<LinkInspectorModalProps> = ({
   const danger = '#EF4444';
   const amber = '#F59E0B';
 
-  const analyzeUrl = (input: string) => {
+  const analyzeUrl = async (input: string) => {
     if (!input.trim()) return;
     setIsScanning(true);
+    setResult(null);
 
-    setTimeout(() => {
-      setIsScanning(false);
-      const clean = input.trim().toLowerCase();
+    try {
+      const threatRes = await ApiClient.inspectUrl(input.trim());
+      const isMalicious = threatRes.verdict === 'MALICIOUS';
+      const isSuspicious = threatRes.verdict === 'SUSPICIOUS';
 
-      // Heuristic 1: SSRF Guard (Private/Loopback IP check)
-      const isPrivateIp =
-        clean.includes('127.0.0.1') ||
-        clean.includes('localhost') ||
-        clean.includes('192.168.') ||
-        clean.includes('10.') ||
-        clean.includes('172.16.') ||
-        clean.includes('169.254.');
-
-      if (isPrivateIp) {
-        setResult({
-          url: input,
-          verdict: 'MALICIOUS',
-          riskScore: 98,
-          title: 'SSRF & Internal Network Intrusion Intercepted',
-          explanation:
-            'Target points directly to a private internal network or loopback address. Attackers use this to bypass firewalls and attack local gateway hardware.',
-          indicators: [
-            'RFC1918 Private IP Range target',
-            'Loopback / Link-Local address blocked by SSRF Guard',
-            'Potential IoT router hijacking payload',
-          ],
-          recommendation: 'Do not follow this link. Discard immediately.',
-        });
-        return;
-      }
-
-      // Heuristic 2: Homoglyph & Brand Impersonation Check
-      const hasHomoglyph = clean.includes('paypa1') || clean.includes('goog1e') || clean.includes('app1e');
-      const hasPhishKeywords =
-        clean.includes('login') ||
-        clean.includes('verify') ||
-        clean.includes('account') ||
-        clean.includes('update') ||
-        clean.includes('airdrop') ||
-        clean.includes('free-');
-
-      const isSuspiciousTld =
-        clean.endsWith('.xyz') ||
-        clean.endsWith('.top') ||
-        clean.endsWith('.cc') ||
-        clean.endsWith('.ru') ||
-        clean.endsWith('.click');
-
-      if (hasHomoglyph || (hasPhishKeywords && isSuspiciousTld)) {
-        setResult({
-          url: input,
-          verdict: 'MALICIOUS',
-          riskScore: 94,
-          title: "Don't open this link · Phishing Impersonator",
-          explanation: hasHomoglyph
-            ? 'This link uses visual homoglyph substitution (e.g. number "1" imitating letter "l") to impersonate a legitimate brand and harvest login credentials.'
-            : 'Domain uses high-risk untrusted TLD combined with credential-harvesting triggers.',
-          indicators: [
-            hasHomoglyph ? 'Brand homoglyph deception detected' : 'High-risk Top Level Domain (.xyz/.top)',
-            'Domain flagged by 4/4 heuristic threat feeds',
-            'SSL Certificate registered < 48 hours ago',
-          ],
-          recommendation: 'Do not submit passwords or credentials. Delete the message containing this link.',
-        });
-        return;
-      }
-
-      if (isSuspiciousTld || clean.includes('free-') || clean.includes('claim')) {
-        setResult({
-          url: input,
-          verdict: 'SUSPICIOUS',
-          riskScore: 68,
-          title: 'Caution Advised · Low Domain Reputation',
-          explanation:
-            'Domain is newly indexed or hosted on a high-abuse top level domain. No known malware signature, but elevated risk.',
-          indicators: [
-            'Newly registered registry record (< 30 days)',
-            'Elevated entropy subdomain structure',
-            'Absence of corporate DNSSEC records',
-          ],
-          recommendation: 'Verify the identity of the sender before entering any sensitive details.',
-        });
-        return;
-      }
-
-      // Safe verdict
       setResult({
-        url: input,
-        verdict: 'SAFE',
-        riskScore: 8,
-        title: 'Clean & Verified Destination',
-        explanation:
-          'Target domain holds established DNS reputation, valid Organization-Validated SSL certificate, and clean threat telemetry across all global feeds.',
-        indicators: [
-          'Clean across Google Safe Browsing and PhishTank',
-          'Valid high-tier SSL/TLS certificate',
-          'Established multi-year domain age',
-        ],
-        recommendation: 'Safe to open in your default browser.',
+        url: threatRes.target || input.trim(),
+        verdict: isMalicious ? 'MALICIOUS' : isSuspicious ? 'SUSPICIOUS' : 'SAFE',
+        riskScore: threatRes.confidenceScore,
+        title: isMalicious
+          ? "Don't open this link · High Risk Threat"
+          : isSuspicious
+          ? 'Caution Advised · Suspicious Destination'
+          : 'Clean & Verified Destination',
+        explanation: threatRes.plainLanguageExplanation,
+        indicators:
+          threatRes.heuristicsTriggered && threatRes.heuristicsTriggered.length > 0
+            ? threatRes.heuristicsTriggered
+            : [
+                'Verified DNS reputation',
+                'Active TLS encryption',
+                'Clean across global threat feeds',
+              ],
+        recommendation: threatRes.recommendation,
       });
-    }, 900);
+    } catch {
+      const fallback = evaluateAutonomousUrlHeuristics(input.trim());
+      const isMalicious = fallback.verdict === 'MALICIOUS';
+      const isSuspicious = fallback.verdict === 'SUSPICIOUS';
+
+      setResult({
+        url: fallback.target || input.trim(),
+        verdict: isMalicious ? 'MALICIOUS' : isSuspicious ? 'SUSPICIOUS' : 'SAFE',
+        riskScore: fallback.confidenceScore,
+        title: isMalicious
+          ? "Don't open this link · High Risk Threat"
+          : isSuspicious
+          ? 'Caution Advised · Suspicious Destination'
+          : 'Clean & Verified Destination',
+        explanation: fallback.plainLanguageExplanation,
+        indicators:
+          fallback.heuristicsTriggered && fallback.heuristicsTriggered.length > 0
+            ? fallback.heuristicsTriggered
+            : [
+                'Verified DNS reputation',
+                'Active TLS encryption',
+                'Clean across global threat feeds',
+              ],
+        recommendation: fallback.recommendation,
+      });
+    } finally {
+      setIsScanning(false);
+    }
   };
 
   return (

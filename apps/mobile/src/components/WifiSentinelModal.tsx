@@ -145,31 +145,31 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
     setIsScanning(true);
     setScanStepText('Auditing 2.4 GHz & 5.0 GHz radio channels...');
 
-    setTimeout(() => {
+    const t1 = setTimeout(() => {
       setScanStepText('Capturing 802.11 beacon frames & cipher suites...');
-    }, 400);
+    }, 350);
 
-    setTimeout(() => {
+    const t2 = setTimeout(() => {
       setScanStepText('Analyzing WPA3/WPA2/PMF security parameters...');
-    }, 800);
+    }, 700);
 
     try {
       const result: WifiAirspaceScanResult = await scanNearbyWifiAirspace();
-      setTimeout(() => {
-        setDeviceNetwork(result.activeConnection);
-        setHotspots(result.beacons);
-        setHasScanned(true);
-        setIsScanning(false);
-        setScanStepText('');
-      }, 1100);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      setDeviceNetwork(result.activeConnection);
+      setHotspots(result.beacons);
+      setHasScanned(true);
+      setIsScanning(false);
+      setScanStepText('');
     } catch {
-      setTimeout(() => {
-        const fallback = getNearbyHotspotBeacons();
-        setHotspots(fallback);
-        setHasScanned(true);
-        setIsScanning(false);
-        setScanStepText('');
-      }, 1100);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      const fallback = getNearbyHotspotBeacons();
+      setHotspots(fallback);
+      setHasScanned(true);
+      setIsScanning(false);
+      setScanStepText('');
     }
   };
 

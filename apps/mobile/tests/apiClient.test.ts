@@ -39,8 +39,23 @@ describe('ApiClient & AI Explainer Client Suite', () => {
     expect(maliciousResult.verdict).toBe('MALICIOUS');
     expect(maliciousResult.heuristicsTriggered).toContain('OFFLINE_HEURISTIC_FLAG');
 
+    const chaseResult = await ApiClient.inspectUrl('http://secure-login.chase-verify-billing.com/auth');
+    expect(chaseResult.verdict).toBe('MALICIOUS');
+
+    const officeResult = await ApiClient.inspectUrl('http://portal-office365-login.xyz/update');
+    expect(officeResult.verdict).toBe('MALICIOUS');
+
+    const apkResult = await ApiClient.inspectUrl('http://update-android-security.com/system-patch.apk');
+    expect(apkResult.verdict).toBe('MALICIOUS');
+
+    const cleartextResult = await ApiClient.inspectUrl('http://insecure-news-site.com');
+    expect(cleartextResult.verdict).toBe('SUSPICIOUS');
+
     const safeResult = await ApiClient.inspectUrl('https://valid-portal.com');
     expect(safeResult.verdict).toBe('SAFE');
+
+    const githubResult = await ApiClient.inspectUrl('https://github.com/security');
+    expect(githubResult.verdict).toBe('SAFE');
   });
 
   it('performs grounded RAG explanation with citations offline', async () => {

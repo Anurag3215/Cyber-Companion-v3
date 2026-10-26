@@ -6,12 +6,9 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  Linking,
-  Share,
 } from 'react-native';
 import { CyberLogo } from '../components/CyberLogo';
 import { Cyber3DShieldCore } from '../components/Cyber3DShieldCore';
-import { ThreatRadar3D } from '../components/ThreatRadar3D';
 import { FloatingParticles3D } from '../components/FloatingParticles3D';
 import { WifiSentinelModal } from '../components/WifiSentinelModal';
 import { LinkInspectorModal } from '../components/LinkInspectorModal';
@@ -46,28 +43,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   const [showQrModal, setShowQrModal] = useState(false);
   const [showAppPrivacyModal, setShowAppPrivacyModal] = useState(false);
   const [isDeepScanning, setIsDeepScanning] = useState(false);
-
-  const APK_DOWNLOAD_URL =
-    'https://expo.dev/artifacts/eas/yP0ubYV4CM7u-TQj3d2JAsOjVvfUPocDhWYRHMcc8vg.apk';
-
-  const handleDownloadApk = async () => {
-    try {
-      await Linking.openURL(APK_DOWNLOAD_URL);
-    } catch {
-      Alert.alert('Download APK', 'Open link in your browser:\n' + APK_DOWNLOAD_URL);
-    }
-  };
-
-  const handleShareApk = async () => {
-    try {
-      await Share.share({
-        title: 'Cyber Companion Android APK v1.0.0',
-        message: 'Download Cyber Companion v1.0.0 APK (94.6 MB Standalone Release):\n' + APK_DOWNLOAD_URL,
-      });
-    } catch (_err) {
-      Alert.alert('APK Download Link', APK_DOWNLOAD_URL);
-    }
-  };
 
   // Time-based friendly greeting
   const hour = new Date().getHours();
@@ -282,19 +257,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
           </View>
         </View>
 
-        {/* 3D Threat Radar Container */}
-        <View style={styles.radarWrapper}>
-          <ThreatRadar3D
-            isDark={isDark}
-            onSelectSector={(sector) => {
-              if (sector === 'wifi') setShowWifiModal(true);
-              else if (sector === 'url') setShowLinkModal(true);
-              else if (sector === 'qr') setShowQrModal(true);
-              else if (sector === 'apps') setShowAppPrivacyModal(true);
-            }}
-          />
-        </View>
-
         {/* Daily Cybersecurity Tip (GlassTipCard) */}
         <GlassTipCard
           category="TODAY'S SAFETY ADVICE"
@@ -330,58 +292,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
           </View>
         </GlassCard>
 
-        {/* Standalone Native APK Card */}
-        <GlassCard
-          isDark={isDark}
-          elevation="soft"
-          borderRadius={GlassTokens.radii.lg}
-          style={styles.apkCard}
-        >
-          <View style={styles.apkCardInner}>
-            <View style={styles.apkIconBubble}>
-              <Text style={{ fontSize: 24 }}>📦</Text>
-            </View>
-            <View style={{ flex: 1, gap: 2 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={[styles.apkTitle, { color: theme.textPrimary }]}>
-                  Native Android APK
-                </Text>
-                <View style={styles.apkBadge}>
-                  <Text style={styles.apkBadgeText}>v1.0.0</Text>
-                </View>
-              </View>
-              <Text style={[styles.apkSub, { color: theme.textSecondary }]}>
-                94.6 MB · Standalone Production Build
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.apkActionsRow}>
-            <TouchableOpacity
-              style={styles.apkDownloadBtn}
-              onPress={handleDownloadApk}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.apkDownloadBtnText}>⬇️ Download APK</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.apkShareBtn,
-                {
-                  backgroundColor: isDark ? 'rgba(14, 27, 56, 0.8)' : '#FFFFFF',
-                  borderColor: isDark ? 'rgba(56, 189, 248, 0.25)' : '#DCE6F0',
-                },
-              ]}
-              onPress={handleShareApk}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.apkShareBtnText, { color: theme.textPrimary }]}>
-                🔗 Share APK
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </GlassCard>
       </ScrollView>
 
       {/* Feature Modals */}
@@ -556,9 +466,7 @@ const styles = StyleSheet.create({
   gridCol: {
     flex: 1,
   },
-  radarWrapper: {
-    marginVertical: 4,
-  },
+
   learnCard: {
     marginVertical: 4,
   },
@@ -596,71 +504,5 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
   },
-  apkCard: {
-    padding: 16,
-    marginTop: 10,
-    marginBottom: 8,
-    gap: 12,
-  },
-  apkCardInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  apkIconBubble: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(56, 189, 248, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  apkTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  apkBadge: {
-    backgroundColor: '#0284C7',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  apkBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '900',
-  },
-  apkSub: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  apkActionsRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  apkDownloadBtn: {
-    flex: 1,
-    backgroundColor: '#0284C7',
-    height: 42,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  apkDownloadBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  apkShareBtn: {
-    flex: 1,
-    height: 42,
-    borderRadius: 14,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  apkShareBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
+
 });

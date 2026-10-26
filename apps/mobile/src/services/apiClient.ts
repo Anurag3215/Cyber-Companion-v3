@@ -171,9 +171,9 @@ export function evaluateAutonomousUrlHeuristics(rawInput: string): ThreatInspect
     return {
       target,
       verdict: 'MALICIOUS',
-      confidenceScore: 96,
+      confidenceScore: 98,
       plainLanguageExplanation:
-        'CRITICAL: Target resolves directly to a loopback or private network subnet (Server-Side Request Forgery vector). Intended to probe internal infrastructure.',
+        'CRITICAL: Target resolves directly to a loopback or private network subnet (Server-Side Request Forgery vector). Attackers use this to bypass firewalls and attack local gateway hardware.',
       recommendation:
         'Block immediately. Never permit inbound untrusted requests to target private network addresses.',
       heuristicsTriggered: flags,
@@ -181,29 +181,26 @@ export function evaluateAutonomousUrlHeuristics(rawInput: string): ThreatInspect
     };
   }
 
-  // Check 2: Punycode & IDN Homoglyph brand impersonation (e.g. Cyrillic 'а', 'р', 'о', 'xn--')
+  // Check 2: Punycode & IDN Homoglyph brand impersonation (e.g. Cyrillic 'а', 'р', 'о', 'xn--', leetspeak)
   const hasPunycode = lower.includes('xn--');
   const hasCyrillicHomoglyph = /[\u0400-\u04FF\u0370-\u03FF]/.test(target);
-  const spoofedBrandWords = [
-    'paypal',
-    'chase',
-    'apple',
-    'google',
-    'microsoft',
-    'amazon',
-    'netflix',
-    'bankofamerica',
-    'wellsfargo',
-  ];
+  const hasLeetspeakHomoglyph =
+    lower.includes('paypa1') ||
+    lower.includes('goog1e') ||
+    lower.includes('app1e') ||
+    lower.includes('micros0ft') ||
+    lower.includes('netf1ix') ||
+    lower.includes('amaz0n') ||
+    lower.includes('wellsfarg0');
 
-  if (hasPunycode || hasCyrillicHomoglyph) {
+  if (hasPunycode || hasCyrillicHomoglyph || hasLeetspeakHomoglyph) {
     addFlag('IDN_HOMOGLYPH_BRAND_IMPERSONATION');
     return {
       target,
       verdict: 'MALICIOUS',
       confidenceScore: 98,
       plainLanguageExplanation:
-        'SEVERE: Internationalized Domain Name (IDN) / Punycode homoglyph detected. The domain uses lookalike Cyrillic or Greek characters to spoof a trusted brand identity.',
+        'SEVERE: Homoglyph or brand impersonation detected. The domain uses lookalike characters or visual substitutions (e.g. "1" for "l" or Cyrillic letters) to spoof a legitimate brand identity and steal credentials.',
       recommendation:
         'DO NOT OPEN. This is a weaponized phishing lure engineered to steal credentials or payment tokens.',
       heuristicsTriggered: flags,
@@ -218,60 +215,36 @@ export function evaluateAutonomousUrlHeuristics(rawInput: string): ThreatInspect
     lower.includes('.scr') ||
     lower.includes('.bat') ||
     lower.includes('.vbs') ||
-    lower.includes('.msi')
+    lower.includes('.msi') ||
+    lower.includes('.cmd') ||
+    lower.includes('.dmg') ||
+    lower.includes('.jar') ||
+    lower.includes('.iso')
   ) {
     addFlag('UNVERIFIED_BINARY_PAYLOAD_DOWNLOAD');
     return {
       target,
       verdict: 'MALICIOUS',
-      confidenceScore: 94,
+      confidenceScore: 95,
       plainLanguageExplanation:
-        'HIGH THREAT: Target points directly to an unverified binary payload or Android APK package. Sideloading untrusted packages risks full device compromise.',
+        'HIGH THREAT: Target points directly to an unverified binary payload or executable package (.apk, .exe, .scr). Sideloading untrusted packages risks full device compromise and malware infection.',
       recommendation:
-        'Reject download immediately. Do not grant installation permissions or execute unknown APK files.',
+        'Reject download immediately. Do not grant installation permissions or execute unknown binary packages.',
       heuristicsTriggered: flags,
       cached: false,
     };
   }
 
-  // Check 4: Unencrypted HTTP carrying authentication or financial endpoints
-  const isHttp = lower.startsWith('http://');
-  const hasAuthKeywords =
-    lower.includes('login') ||
-    lower.includes('signin') ||
-    lower.includes('bank') ||
-    lower.includes('verify') ||
-    lower.includes('account') ||
-    lower.includes('portal') ||
-    lower.includes('secure') ||
-    lower.includes('wallet');
-
-  if (isHttp && hasAuthKeywords) {
-    addFlag('CLEARTEXT_HTTP_AUTHENTICATION_INTERCEPT');
-    addFlag('CREDENTIAL_HARVESTER_SIGNATURE');
-    return {
-      target,
-      verdict: 'MALICIOUS',
-      confidenceScore: 92,
-      plainLanguageExplanation:
-        'CRITICAL: Cleartext HTTP protocol detected on an authentication endpoint. Credentials and session tokens will be transmitted in plaintext across the local airspace.',
-      recommendation:
-        'Halt immediately. Legitimate banking and authentication portals enforce strict HTTPS/TLS.',
-      heuristicsTriggered: flags,
-      cached: false,
-    };
-  }
-
-  // Check 5: Quishing parking meter / payment lure
+  // Check 4: Quishing parking meter / payment lure
   if (
     lower.includes('park') &&
-    (lower.includes('pay') || lower.includes('meter') || lower.includes('quickpay'))
+    (lower.includes('pay') || lower.includes('meter') || lower.includes('quickpay') || lower.includes('quick-bill'))
   ) {
     addFlag('QUISHING_PAYMENT_STICKER_SPOOF');
     return {
       target,
       verdict: 'MALICIOUS',
-      confidenceScore: 90,
+      confidenceScore: 92,
       plainLanguageExplanation:
         'ALERT: QR code payment destination matches known parking meter quishing patterns. Fraudsters replace physical municipal stickers to harvest credit card data.',
       recommendation:
@@ -281,30 +254,145 @@ export function evaluateAutonomousUrlHeuristics(rawInput: string): ThreatInspect
     };
   }
 
-  // Check 6: Known phishing keywords & brand lures
-  if (
-    lower.includes('phish') ||
-    lower.includes('malware') ||
-    lower.includes('chase-security') ||
-    lower.includes('bank-verify') ||
-    lower.includes('account-alert') ||
-    lower.includes('update-billing')
-  ) {
-    addFlag('SUSPICIOUS_PHISHING_LURE');
+  // Check 5: Brand Impersonation & Credential Harvesting Lures
+  const brandKeywords = ['chase', 'paypal', 'bank', 'apple', 'google', 'microsoft', 'office365', 'netflix', 'amazon', 'binance', 'coinbase', 'wallet', 'wellsfargo', 'citi', 'boa'];
+  const credentialKeywords = ['login', 'signin', 'verify', 'verification', 'security', 'account', 'portal', 'auth', 'password', 'recover', 'billing', 'invoice', 'update', 'alert', 'confirm'];
+  const hasBrand = brandKeywords.some((b) => lower.includes(b));
+  const hasCred = credentialKeywords.some((c) => lower.includes(c));
+
+  if (hasBrand && hasCred && !lower.includes('cybercompanion.security')) {
+    addFlag('BRAND_CREDENTIAL_HARVESTER_SIGNATURE');
     return {
       target,
       verdict: 'MALICIOUS',
-      confidenceScore: 90,
+      confidenceScore: 94,
       plainLanguageExplanation:
-        'ALERT: Domain contains known phishing indicators and deceptive credential harvesting keywords.',
+        'CRITICAL PHISHING THREAT: Domain pairs trusted corporate/banking brand names with credential-harvesting triggers (login/verify/update). Designed to harvest user accounts.',
       recommendation:
-        'Do not open. Discard link and contact your service provider through official verified channels.',
+        'Do not open or submit passwords. Contact your service provider exclusively through official channels.',
       heuristicsTriggered: flags,
       cached: false,
     };
   }
 
-  // Check 7: URL Shorteners concealing destinations
+  // Check 6: Explicit phishing & threat indicators
+  if (
+    lower.includes('phish') ||
+    lower.includes('malware') ||
+    lower.includes('trojan') ||
+    lower.includes('stealer') ||
+    lower.includes('exploit') ||
+    lower.includes('hacker') ||
+    lower.includes('suspect') ||
+    lower.includes('fraud') ||
+    lower.includes('scam') ||
+    lower.includes('fake-') ||
+    lower.includes('airdrop') ||
+    lower.includes('claim-free') ||
+    lower.includes('free-crypto') ||
+    lower.includes('prize-winner')
+  ) {
+    addFlag('SUSPICIOUS_PHISHING_LURE');
+    return {
+      target,
+      verdict: 'MALICIOUS',
+      confidenceScore: 92,
+      plainLanguageExplanation:
+        'ALERT: Target contains explicit threat, phishing, or financial lure signatures flagged by autonomous heuristics.',
+      recommendation:
+        'Do not open. Discard link and block the sender.',
+      heuristicsTriggered: flags,
+      cached: false,
+    };
+  }
+
+  // Check 7: Untrusted High-Abuse TLDs (.xyz, .top, .cc, .ru, .click, .buzz, etc.)
+  const suspiciousTlds = ['.xyz', '.top', '.cc', '.ru', '.click', '.buzz', '.club', '.work', '.link', '.info', '.online', '.site', '.vip', '.live', '.cn', '.tk', '.ml', '.ga', '.cf', '.gq'];
+  const matchedTld = suspiciousTlds.find((tld) => {
+    try {
+      const parsedUrl = new URL(lower.startsWith('http') ? lower : 'http://' + lower);
+      return parsedUrl.hostname.endsWith(tld);
+    } catch {
+      return lower.includes(tld);
+    }
+  });
+
+  if (matchedTld) {
+    if (hasCred || hasBrand || lower.includes('-') || lower.startsWith('http://')) {
+      addFlag('ABUSE_PRONE_TLD_PHISHING');
+      return {
+        target,
+        verdict: 'MALICIOUS',
+        confidenceScore: 90,
+        plainLanguageExplanation:
+          `HIGH RISK: Destination is hosted on a high-abuse top-level domain (${matchedTld}) combined with credential harvesting triggers or hyphenated deception.`,
+        recommendation:
+          'Do not proceed. Legitimate institutions rarely use disposable high-abuse TLDs for sensitive services.',
+        heuristicsTriggered: flags,
+        cached: false,
+      };
+    }
+
+    addFlag('UNTRUSTED_REGISTRY_TLD');
+    return {
+      target,
+      verdict: 'SUSPICIOUS',
+      confidenceScore: 68,
+      plainLanguageExplanation:
+        `CAUTION: Domain utilizes an untrusted registry extension (${matchedTld}) with elevated historic spam and malware distribution records.`,
+      recommendation: 'Exercise high caution. Verify destination identity before entering information.',
+      heuristicsTriggered: flags,
+      cached: false,
+    };
+  }
+
+  // Check 8: Unencrypted Cleartext HTTP
+  const isHttp = lower.startsWith('http://');
+  if (isHttp) {
+    if (hasCred) {
+      addFlag('CLEARTEXT_HTTP_AUTHENTICATION_INTERCEPT');
+      return {
+        target,
+        verdict: 'MALICIOUS',
+        confidenceScore: 92,
+        plainLanguageExplanation:
+          'CRITICAL: Cleartext HTTP protocol detected on an authentication endpoint. Credentials and session tokens will be transmitted in plaintext across the local airspace.',
+        recommendation:
+          'Halt immediately. Legitimate banking and authentication portals enforce strict HTTPS/TLS.',
+        heuristicsTriggered: flags,
+        cached: false,
+      };
+    }
+
+    addFlag('CLEARTEXT_HTTP_TRANSPORT');
+    return {
+      target,
+      verdict: 'SUSPICIOUS',
+      confidenceScore: 62,
+      plainLanguageExplanation:
+        'CAUTION: Target communicates over unencrypted cleartext HTTP. Network packets are readable by any local observer or rogue Wi-Fi access point in your physical vicinity.',
+      recommendation: 'Never submit passwords, personal data, or credit card numbers on unencrypted HTTP pages.',
+      heuristicsTriggered: flags,
+      cached: false,
+    };
+  }
+
+  // Check 9: Raw IP address as host (e.g. http://185.220.101.5)
+  if (/https?:\/\/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/.test(lower)) {
+    addFlag('RAW_IP_HOST_TARGET');
+    return {
+      target,
+      verdict: 'SUSPICIOUS',
+      confidenceScore: 74,
+      plainLanguageExplanation:
+        'WARNING: Target uses a raw numerical IP address instead of a registered domain name. Legitimate web services use verified DNS hostnames.',
+      recommendation: 'Avoid opening numeric IP links from unsolicited sources.',
+      heuristicsTriggered: flags,
+      cached: false,
+    };
+  }
+
+  // Check 10: URL Shorteners concealing destinations
   const isShortener =
     lower.includes('bit.ly') ||
     lower.includes('tinyurl.com') ||
@@ -312,7 +400,9 @@ export function evaluateAutonomousUrlHeuristics(rawInput: string): ThreatInspect
     lower.includes('goo.gl') ||
     lower.includes('ow.ly') ||
     lower.includes('is.gd') ||
-    lower.includes('buff.ly');
+    lower.includes('buff.ly') ||
+    lower.includes('cutt.ly') ||
+    lower.includes('rebrand.ly');
 
   if (isShortener) {
     addFlag('URL_SHORTENER_OBSCURATION');
@@ -323,30 +413,48 @@ export function evaluateAutonomousUrlHeuristics(rawInput: string): ThreatInspect
       plainLanguageExplanation:
         'CAUTION: Shortened URL conceals final destination host, preventing static domain reputation verification.',
       recommendation:
-        'Use an expander to reveal full destination before proceeding.',
+        'Use an expander or verify destination identity before following shortened links.',
       heuristicsTriggered: flags,
       cached: false,
     };
   }
 
-  // Check 8: Verified Safe Perimeter (Trusted Reputable Domains)
+  // Check 11: Verified Safe Perimeter (Trusted Reputable Domains)
   const isVerifiedSafe =
     lower.includes('github.com') ||
     lower.includes('google.com') ||
     lower.includes('microsoft.com') ||
     lower.includes('apple.com') ||
     lower.includes('wikipedia.org') ||
-    lower.includes('cybercompanion.security');
+    lower.includes('cybercompanion.security') ||
+    lower.includes('expo.dev') ||
+    lower.includes('reactnative.dev') ||
+    lower.includes('cloudflare.com') ||
+    lower.includes('mozilla.org');
 
   if (isVerifiedSafe && lower.startsWith('https://')) {
     return {
       target,
       verdict: 'SAFE',
-      confidenceScore: 10,
+      confidenceScore: 8,
       plainLanguageExplanation:
-        'VERIFIED SAFE: Destination is a reputable domain with active TLS encryption and zero reported threat flags.',
+        'VERIFIED SAFE: Destination is an established reputable organization domain with valid TLS encryption and clean global threat intelligence telemetry.',
       recommendation: 'Safe to proceed. Perimeter verified.',
-      heuristicsTriggered: [],
+      heuristicsTriggered: ['VERIFIED_REPUTABLE_DOMAIN', 'ACTIVE_TLS_TRANSPORT'],
+      cached: false,
+    };
+  }
+
+  // Check 12: General Clean HTTPS
+  if (lower.startsWith('https://')) {
+    return {
+      target,
+      verdict: 'SAFE',
+      confidenceScore: 16,
+      plainLanguageExplanation:
+        'Autonomous on-device inspection completed. Target uses encrypted HTTPS protocol with zero detected homoglyphs, malware payloads, or phishing keywords.',
+      recommendation: 'Standard web navigation safety observed.',
+      heuristicsTriggered: ['ACTIVE_TLS_TRANSPORT'],
       cached: false,
     };
   }
@@ -355,7 +463,7 @@ export function evaluateAutonomousUrlHeuristics(rawInput: string): ThreatInspect
   return {
     target,
     verdict: 'SAFE',
-    confidenceScore: 18,
+    confidenceScore: 20,
     plainLanguageExplanation:
       'Autonomous on-device inspection completed. No malicious patterns, homoglyphs, or credential interceptors detected.',
     recommendation: 'Proceed with standard cybersecurity awareness.',
@@ -381,7 +489,7 @@ export class ApiClient {
     // Aggressive timeout: 1000ms per candidate so offline mobile does not stall
     for (const url of urls) {
       try {
-        const timeoutMs = url.startsWith('https://') ? 4000 : 1500;
+        const timeoutMs = url.startsWith('https://') ? 8000 : 1500;
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
         const res = await fetch(`${url}${endpoint}`, {

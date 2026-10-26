@@ -3,7 +3,6 @@ import {
   StyleSheet,
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   Modal,
   ScrollView,
@@ -53,6 +52,9 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
     if (visible) {
       setScanned(false);
       setCameraError(null);
+      if (!permission?.granted) {
+        requestPermission();
+      }
     }
   }, [visible]);
 
@@ -130,11 +132,16 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
     });
   };
 
-  const handleBarcodeScanned = (result: BarcodeScanningResult) => {
-    if (scanned || !result || !result.data) return;
+  const handleBarcodeScanned = (result: any) => {
+    if (scanned || !result) return;
+    const rawData =
+      typeof result === 'string'
+        ? result
+        : result.data || result.raw || (result as any).value || '';
+    if (!rawData || !rawData.trim()) return;
     setScanned(true);
-    setQrInput(result.data);
-    handleDecode(result.data);
+    setQrInput(rawData.trim());
+    handleDecode(rawData.trim());
   };
 
   const handleRescan = () => {
@@ -146,22 +153,6 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
     inputRange: [0, 1],
     outputRange: [-90, 90],
   });
-
-  const getFormatBadge = (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed) return null;
-    if (trimmed.startsWith('WIFI:') || trimmed.startsWith('wifi:'))
-      return { label: 'Wi-Fi Network Configuration', icon: '📶', color: emerald };
-    if (trimmed.startsWith('http://') || trimmed.startsWith('https://'))
-      return { label: 'Web URL Destination', icon: '🌐', color: teal };
-    if (trimmed.startsWith('upi://') || trimmed.startsWith('bitcoin:') || trimmed.startsWith('ethereum:'))
-      return { label: 'Payment / Financial Intent', icon: '💳', color: amber };
-    if (trimmed.startsWith('smsto:') || trimmed.startsWith('tel:') || trimmed.startsWith('mailto:'))
-      return { label: 'Communication Intent', icon: '💬', color: amber };
-    return { label: 'Data / Text Payload', icon: '📝', color: subtextColor };
-  };
-
-  const detectedBadge = getFormatBadge(qrInput);
 
   return (
     <Modal
@@ -216,7 +207,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                   facing={facing}
                   enableTorch={torch}
                   barcodeScannerSettings={{
-                    barcodeTypes: ['qr'],
+                    barcodeTypes: ['qr', 'aztec', 'datamatrix', 'pdf417', 'code128', 'code39'],
                   }}
                   onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
                   onMountError={(e) => setCameraError(e.message)}
@@ -293,142 +284,16 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
             </View>
           )}
 
-          {/* Manual Input Box (Universal fallback for manual or clipboard entry) */}
-          <View style={[styles.inputCard, { backgroundColor: cardBg, borderColor: borderCol }]}>
-            <View style={styles.inputHeaderRow}>
-              <Text style={[styles.inputHeader, { color: subtextColor }]}>
-                MANUAL / CLIPBOARD PAYLOAD INPUT
+          {/* Hardware Camera Status & Instructions (Zero Demo Data) */}
+          {!analysis && (
+            <View style={[styles.readyCard, { backgroundColor: cardBg, borderColor: borderCol }]}>
+              <Text style={styles.readyIcon}>📷</Text>
+              <Text style={[styles.readyTitle, { color: textColor }]}>Hardware Scanner Armed</Text>
+              <Text style={[styles.readyDesc, { color: subtextColor }]}>
+                Point your camera viewfinder directly at any physical QR code, Wi-Fi badge, payment code, or web URL. The zero-trust optical engine will instantly isolate and decode the payload with zero automatic execution.
               </Text>
-              {qrInput.length > 0 && (
-                <TouchableOpacity onPress={() => setQrInput('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Text style={[styles.clearBtnText, { color: teal }]}>Clear ✕</Text>
-                </TouchableOpacity>
-              )}
             </View>
-
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: isDark ? '#090D16' : '#FFFFFF',
-                  borderColor: detectedBadge ? detectedBadge.color : borderCol,
-                  color: textColor,
-                },
-              ]}
-              placeholder="Paste raw QR data or URL to analyze..."
-              placeholderTextColor="#64748B"
-              value={qrInput}
-              onChangeText={setQrInput}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-
-            {detectedBadge && (
-              <View style={[styles.formatBadgeRow, { backgroundColor: `${detectedBadge.color}15`, borderColor: detectedBadge.color }]}>
-                <Text style={styles.formatBadgeIcon}>{detectedBadge.icon}</Text>
-                <Text style={[styles.formatBadgeText, { color: detectedBadge.color }]}>
-                  {detectedBadge.label}
-                </Text>
-              </View>
-            )}
-
-            <TouchableOpacity
-              style={[
-                styles.decodeBtn,
-                {
-                  backgroundColor: qrInput.trim() ? teal : isDark ? '#334155' : '#CBD5E1',
-                },
-              ]}
-              onPress={() => handleDecode(qrInput)}
-              disabled={!qrInput.trim()}
-              activeOpacity={0.85}
-            >
-              <Text style={[styles.decodeBtnText, { color: qrInput.trim() ? '#FFFFFF' : '#94A3B8' }]}>
-                ⚡ Decode in Isolated Sandbox
-              </Text>
-            </TouchableOpacity>
-
-            {/* Client Demonstration Test Vectors */}
-            <View style={styles.demoSection}>
-              <Text style={[styles.demoSectionTitle, { color: teal }]}>
-                CLIENT DEMO THREAT TEST VECTORS
-              </Text>
-              <Text style={[styles.demoSectionSub, { color: subtextColor }]}>
-                Tap any test vector to evaluate live sandbox decoding:
-              </Text>
-              <View style={styles.demoBtnRow}>
-                <TouchableOpacity
-                  style={[styles.demoBtn, { borderColor: danger, backgroundColor: `${danger}15` }]}
-                  onPress={() => {
-                    const payload = 'http://city-parking-pay.quick-bill.info/pay?meter=982';
-                    setQrInput(payload);
-                    handleDecode(payload);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.demoBtnText, { color: danger }]}>
-                    🅿️ Quishing Parking Fraud
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.demoBtn, { borderColor: danger, backgroundColor: `${danger}15` }]}
-                  onPress={() => {
-                    const payload = 'http://update-android-security.com/system-patch.apk';
-                    setQrInput(payload);
-                    handleDecode(payload);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.demoBtnText, { color: danger }]}>
-                    ⚠️ Malware APK Drive-By
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.demoBtn, { borderColor: amber, backgroundColor: `${amber}15` }]}
-                  onPress={() => {
-                    const payload = 'WIFI:S:Free_Airport_VIP_WiFi;T:nopass;;';
-                    setQrInput(payload);
-                    handleDecode(payload);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.demoBtnText, { color: amber }]}>
-                    📶 Rogue Wi-Fi Trap
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.demoBtn, { borderColor: danger, backgroundColor: `${danger}15` }]}
-                  onPress={() => {
-                    const payload = 'http://secure-login.chase-verify-billing.com/auth';
-                    setQrInput(payload);
-                    handleDecode(payload);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.demoBtnText, { color: danger }]}>
-                    💳 Banking Credential Phish
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.demoBtn, { borderColor: emerald, backgroundColor: `${emerald}15` }]}
-                  onPress={() => {
-                    const payload = 'https://legitimate-service.com/portal';
-                    setQrInput(payload);
-                    handleDecode(payload);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.demoBtnText, { color: emerald }]}>
-                    🛡️ Verified Corporate Safe
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
+          )}
 
           {/* Analysis Sheet */}
           {analysis && (
@@ -616,8 +481,29 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 4,
   },
+  readyCard: {
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 8,
+  },
+  readyIcon: {
+    fontSize: 28,
+  },
+  readyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  readyDesc: {
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: 'center',
+  },
   viewfinderCard: {
-    height: 260,
+    height: 300,
     borderRadius: 20,
     borderWidth: 2,
     position: 'relative',
