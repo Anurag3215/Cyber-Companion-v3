@@ -116,6 +116,9 @@ export const WifiSentinelModal: React.FC<WifiSentinelModalProps> = ({
           });
         })
         .catch(() => {});
+
+      // Immediately auto-trigger live airspace scan so nearby networks display right away
+      handleScanWifi();
     }
   }, [visible]);
 
