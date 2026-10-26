@@ -305,52 +305,76 @@ export async function deleteSavedWifiBeacon(id: string): Promise<NearbyHotspotBe
 export function getNearbyHotspotBeacons(): NearbyHotspotBeacon[] {
   return [
     evaluatePreConnectionHotspot({
-      ssid: 'Free_Public_WiFi',
-      bssid: '00:14:bf:e8:11:01',
-      encryption: 'OPEN',
-      pmfEnabled: false,
-      signalDbm: -58,
+      ssid: 'A.B.C Keralavision -2.4G',
+      bssid: '64:fb:92:64:ca:eb',
+      encryption: 'WPA3',
+      pmfEnabled: true,
+      signalDbm: -42,
       channel: 6,
     }),
     evaluatePreConnectionHotspot({
-      ssid: 'Starbucks_Guest_Network',
-      bssid: 'fa:8f:ca:12:44:99',
-      encryption: 'WPA2',
-      pmfEnabled: false,
-      signalDbm: -64,
-      channel: 1,
-    }),
-    evaluatePreConnectionHotspot({
-      ssid: 'Airport_VIP_Lounge_5G',
-      bssid: '24:de:c6:81:99:aa',
+      ssid: 'A.B.C Keralavision -5G',
+      bssid: '64:fb:92:64:ca:ec',
       encryption: 'WPA3',
       pmfEnabled: true,
-      signalDbm: -45,
+      signalDbm: -48,
       channel: 44,
     }),
     evaluatePreConnectionHotspot({
-      ssid: 'Metro_Transit_Free',
-      bssid: 'd8:07:b6:55:12:ef',
-      encryption: 'WEP',
+      ssid: 'anurag',
+      bssid: '36:3d:3c:2d:e5:a3',
+      encryption: 'OPEN',
       pmfEnabled: false,
-      signalDbm: -82,
-      channel: 11,
+      signalDbm: -50,
+      channel: 1,
     }),
     evaluatePreConnectionHotspot({
-      ssid: 'Corporate_Mesh_Secure',
-      bssid: '58:ef:68:90:ab:cd',
+      ssid: "AFLAH's A34",
+      bssid: '5a:42:1b:88:ef:21',
+      encryption: 'OPEN',
+      pmfEnabled: false,
+      signalDbm: -55,
+      channel: 6,
+    }),
+    evaluatePreConnectionHotspot({
+      ssid: 'POCO M6 Pro 5G',
+      bssid: '4e:2e:5e:d0:54:d2',
       encryption: 'WPA3',
       pmfEnabled: true,
-      signalDbm: -52,
+      signalDbm: -58,
       channel: 36,
     }),
     evaluatePreConnectionHotspot({
-      ssid: 'Redmi 15C 5G',
-      bssid: '4e:2e:5e:d0:54:d2',
+      ssid: 'Keralavision.Sandhya',
+      bssid: '80:8d:b7:11:32:04',
       encryption: 'WPA2',
       pmfEnabled: false,
-      signalDbm: -62,
-      channel: 1,
+      signalDbm: -68,
+      channel: 11,
+    }),
+    evaluatePreConnectionHotspot({
+      ssid: 'IDEA LAB',
+      bssid: '24:de:c6:81:99:aa',
+      encryption: 'WPA2',
+      pmfEnabled: true,
+      signalDbm: -60,
+      channel: 6,
+    }),
+    evaluatePreConnectionHotspot({
+      ssid: 'GRAND COMPUTERS 5G',
+      bssid: '58:ef:68:90:ab:cd',
+      encryption: 'WPA2',
+      pmfEnabled: false,
+      signalDbm: -65,
+      channel: 40,
+    }),
+    evaluatePreConnectionHotspot({
+      ssid: 'BSNL_AJIMOL-5G',
+      bssid: 'd8:07:b6:55:12:ef',
+      encryption: 'WPA2',
+      pmfEnabled: false,
+      signalDbm: -72,
+      channel: 149,
     }),
     evaluatePreConnectionHotspot({
       ssid: 'DESKTOP-BNFS8Q1 4220',
@@ -403,16 +427,16 @@ export async function scanNearbyWifiAirspace(): Promise<WifiAirspaceScanResult> 
 
   if (isWifi) {
     activeBeacon = evaluatePreConnectionHotspot({
-      ssid: ipAddress ? `Connected Wi-Fi (${ipAddress})` : 'Active Wi-Fi Network',
-      bssid: 'fa:28:90:7e:11:bc',
-      encryption: 'WPA2',
+      ssid: ipAddress ? `A.B.C Keralavision -2.4G (${ipAddress})` : 'A.B.C Keralavision -2.4G',
+      bssid: '64:fb:92:64:ca:eb',
+      encryption: 'WPA3',
       pmfEnabled: true,
       signalDbm: -38,
       channel: 6,
     });
     activeBeacon.id = 'active-current-wifi';
     activeBeacon.isCurrentConnection = true;
-    activeBeacon.ipAddress = ipAddress;
+    activeBeacon.ipAddress = ipAddress || '192.168.1.15';
   } else if (isCellular) {
     activeBeacon = {
       id: 'active-cellular',
