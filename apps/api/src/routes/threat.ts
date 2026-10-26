@@ -4,6 +4,7 @@ import { promptInjectionGuardMiddleware } from '../middleware/promptInjectionGua
 import { VerdictService } from '../services/verdictService.js';
 import { evaluateWifiRisk, WifiEncryption } from '../services/wifiRiskService.js';
 import { aiExplainerService } from '../services/aiExplainerService.js';
+import { scanRealAirspaceHardware } from '../services/realWifiScanner.js';
 
 export const threatRouter = Router();
 
@@ -25,26 +26,26 @@ threatRouter.post('/inspect', ssrfGuardMiddleware, async (req: Request, res: Res
   }
 });
 
-import { parseAdbScanResults } from '../services/realWifiScanner.js';
-
-// Real Device Wi-Fi Scan Endpoint
+// Real Hardware Wi-Fi Airspace Scan Endpoint
 threatRouter.get('/wifi/scan', (_req: Request, res: Response) => {
-  const networks = parseAdbScanResults();
+  const result = scanRealAirspaceHardware();
   return res.status(200).json({
     status: 'success',
-    source: 'ANDROID_HARDWARE_RADIO',
-    count: networks.length,
-    networks,
+    source: result.source,
+    count: result.networks.length,
+    activeConnection: result.activeConnection,
+    networks: result.networks,
   });
 });
 
 threatRouter.post('/wifi/scan', (_req: Request, res: Response) => {
-  const networks = parseAdbScanResults();
+  const result = scanRealAirspaceHardware();
   return res.status(200).json({
     status: 'success',
-    source: 'ANDROID_HARDWARE_RADIO',
-    count: networks.length,
-    networks,
+    source: result.source,
+    count: result.networks.length,
+    activeConnection: result.activeConnection,
+    networks: result.networks,
   });
 });
 

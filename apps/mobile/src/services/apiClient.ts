@@ -130,8 +130,10 @@ const OFFLINE_KNOWLEDGE_BASE = [
 ];
 
 const CANDIDATE_API_BASE_URLS = [
-  'https://cyber-companion-v3.onrender.com/v1',
   'http://127.0.0.1:5000/v1',
+  'http://192.168.250.108:5000/v1',
+  'http://10.0.2.2:5000/v1',
+  'https://cyber-companion-v3.onrender.com/v1',
 ];
 
 /**
@@ -617,16 +619,19 @@ export class ApiClient {
     return onDevice;
   }
 
-  static async scanRealWifi(): Promise<any[]> {
+  static async scanRealWifi(): Promise<{ activeConnection?: any; networks: any[] }> {
     try {
       const response = await this.requestWithFallback('/threat/wifi/scan', {
         method: 'GET',
       });
-      if (!response.ok) return [];
+      if (!response.ok) return { networks: [] };
       const data = await response.json();
-      return Array.isArray(data.networks) ? data.networks : [];
+      return {
+        activeConnection: data.activeConnection,
+        networks: Array.isArray(data.networks) ? data.networks : [],
+      };
     } catch {
-      return [];
+      return { networks: [] };
     }
   }
 

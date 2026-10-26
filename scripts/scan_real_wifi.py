@@ -1,6 +1,10 @@
 import ctypes
 from ctypes import wintypes
 import time
+import sys
+import json
+
+as_json = '--json' in sys.argv
 
 wlan = ctypes.windll.wlanapi
 
@@ -63,28 +67,38 @@ handle = wintypes.HANDLE()
 negotiated_version = wintypes.DWORD()
 ret = wlan.WlanOpenHandle(2, None, ctypes.byref(negotiated_version), ctypes.byref(handle))
 if ret != 0:
-    print('Failed open handle:', ret)
-    exit(1)
+    if as_json:
+        print(json.dumps([]))
+    else:
+        print('Failed open handle:', ret)
+    sys.exit(1)
 
 pInterfaceList = ctypes.POINTER(WLAN_INTERFACE_INFO_LIST)()
 ret = wlan.WlanEnumInterfaces(handle, None, ctypes.byref(pInterfaceList))
 if ret != 0:
-    print('Failed enum interfaces:', ret)
-    exit(1)
+    if as_json:
+        print(json.dumps([]))
+    else:
+        print('Failed enum interfaces:', ret)
+    wlan.WlanCloseHandle(handle, None)
+    sys.exit(1)
 
 info = pInterfaceList.contents.InterfaceInfo[0]
 guid = info.InterfaceGuid
 
 # Trigger hardware scan
 wlan.WlanScan(handle, ctypes.byref(guid), None, None, None)
-time.sleep(2)
+time.sleep(1.2)
 
 pBssList = ctypes.POINTER(WLAN_BSS_LIST)()
 ret = wlan.WlanGetNetworkBssList(handle, ctypes.byref(guid), None, 1, 0, None, ctypes.byref(pBssList))
 
+results = []
+
 if ret == 0:
     count = pBssList.contents.dwNumberOfItems
-    print(f'REAL PHYSICAL HARDWARE BSSID AIRSPACE BEACONS: {count}')
+    if not as_json:
+        print(f'REAL PHYSICAL HARDWARE BSSID AIRSPACE BEACONS: {count}')
     
     class FULL_BSS_LIST(ctypes.Structure):
         _fields_ = [
@@ -106,9 +120,28 @@ if ret == 0:
         freq_mhz = freq_khz // 1000 if freq_khz > 100000 else freq_khz
         
         band = '5.0 GHz' if freq_mhz > 5000 else '2.4 GHz'
-        key = (ssid, bssid)
+        channel = 1
+        if 2412 <= freq_mhz <= 2484:
+            channel = round((freq_mhz - 2407) / 5)
+        elif 5170 <= freq_mhz <= 5825:
+            channel = round((freq_mhz - 5000) / 5)
+
+        key = (ssid, band)
         if key not in seen:
             seen.add(key)
-            print(f'SSID: \"{ssid}\" | BSSID: {bssid} | Signal: {rssi} dBm ({quality}%) | Freq: {band} ({freq_mhz} MHz)')
+            results.append({
+                'ssid': ssid,
+                'bssid': bssid,
+                'signalDbm': rssi,
+                'quality': quality,
+                'frequency': band,
+                'channel': channel,
+                'freqMhz': freq_mhz
+            })
+            if not as_json:
+                print(f'SSID: "{ssid}" | BSSID: {bssid} | Signal: {rssi} dBm ({quality}%) | Freq: {band} (Ch {channel})')
 
 wlan.WlanCloseHandle(handle, None)
+
+if as_json:
+    print(json.dumps(results))

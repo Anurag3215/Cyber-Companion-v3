@@ -74,7 +74,7 @@ describe('Wi-Fi Security Assessment Service', () => {
     test('retrieves default nearby airspace beacons for passive scanning', () => {
       const beacons = getNearbyHotspotBeacons();
       expect(beacons.length).toBeGreaterThanOrEqual(1);
-      expect(beacons.some((b) => b.ssid.includes('Hotspot') || b.ssid.includes('Campus') || b.ssid.includes('Wi-Fi'))).toBe(true);
+      expect(beacons.some((b) => b.ssid.includes('AndroidAP') || b.ssid.includes('Neeha') || b.ssid.includes('GUEST'))).toBe(true);
     });
   });
 });
