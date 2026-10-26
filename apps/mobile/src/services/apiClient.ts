@@ -37,7 +37,7 @@ const OFFLINE_KNOWLEDGE_BASE = [
     threatVector: 'DOMAIN_SPOOFING',
     defenseGuidance:
       'Inspect the raw Punycode domain. Look for unexpected character sets or slight font rendering variations in the browser address bar.',
-    keywords: ['punycode', 'homoglyph', 'cyrillic', 'idn', 'lookalike', 'typosquatting', 'spoof', 'paypal', 'apple'],
+    keywords: ['punycode', 'homoglyph', 'cyrillic', 'idn', 'lookalike', 'typosquatting', 'spoof', 'paypal', 'apple', 'chase'],
   },
   {
     id: 'KB-003',
@@ -130,15 +130,242 @@ const OFFLINE_KNOWLEDGE_BASE = [
 ];
 
 const CANDIDATE_API_BASE_URLS = [
-  'https://cyber-companion-v3.onrender.com/v1',
-  'http://192.168.1.15:5000/v1',
   'http://127.0.0.1:5000/v1',
   'http://localhost:5000/v1',
+  'https://cyber-companion-v3.onrender.com/v1',
+  'http://192.168.1.15:5000/v1',
   'http://10.0.2.2:5000/v1',
 ];
 
+/**
+ * Pure Deterministic Autonomous On-Device Threat Intelligence Engine
+ * Evaluates target URLs and domains locally with zero cloud or laptop dependency.
+ */
+export function evaluateAutonomousUrlHeuristics(rawInput: string): ThreatInspectionResponse {
+  const target = (rawInput || '').trim();
+  const lower = target.toLowerCase();
+  const flags: string[] = [];
+  const addFlag = (name: string) => {
+    if (!flags.includes('OFFLINE_HEURISTIC_FLAG')) {
+      flags.push('OFFLINE_HEURISTIC_FLAG');
+    }
+    if (!flags.includes(name)) {
+      flags.push(name);
+    }
+  };
+
+  // Check 1: Private Subnet / SSRF Guards
+  const isLoopback =
+    lower.includes('127.0.0.1') ||
+    lower.includes('localhost') ||
+    lower.includes('0.0.0.0');
+  const isPrivateSubnet =
+    /10\.\d{1,3}\.\d{1,3}\.\d{1,3}/.test(lower) ||
+    /192\.168\.\d{1,3}\.\d{1,3}/.test(lower) ||
+    /172\.(1[6-9]|2[0-9]|3[0-1])\.\d{1,3}\.\d{1,3}/.test(lower) ||
+    lower.includes('169.254.169.254') ||
+    lower.includes('169.254.');
+
+  if (isLoopback || isPrivateSubnet) {
+    addFlag('SSRF_INTERNAL_NETWORK_TARGET');
+    return {
+      target,
+      verdict: 'MALICIOUS',
+      confidenceScore: 96,
+      plainLanguageExplanation:
+        'CRITICAL: Target resolves directly to a loopback or private network subnet (Server-Side Request Forgery vector). Intended to probe internal infrastructure.',
+      recommendation:
+        'Block immediately. Never permit inbound untrusted requests to target private network addresses.',
+      heuristicsTriggered: flags,
+      cached: false,
+    };
+  }
+
+  // Check 2: Punycode & IDN Homoglyph brand impersonation (e.g. Cyrillic 'а', 'р', 'о', 'xn--')
+  const hasPunycode = lower.includes('xn--');
+  const hasCyrillicHomoglyph = /[\u0400-\u04FF\u0370-\u03FF]/.test(target);
+  const spoofedBrandWords = [
+    'paypal',
+    'chase',
+    'apple',
+    'google',
+    'microsoft',
+    'amazon',
+    'netflix',
+    'bankofamerica',
+    'wellsfargo',
+  ];
+
+  if (hasPunycode || hasCyrillicHomoglyph) {
+    addFlag('IDN_HOMOGLYPH_BRAND_IMPERSONATION');
+    return {
+      target,
+      verdict: 'MALICIOUS',
+      confidenceScore: 98,
+      plainLanguageExplanation:
+        'SEVERE: Internationalized Domain Name (IDN) / Punycode homoglyph detected. The domain uses lookalike Cyrillic or Greek characters to spoof a trusted brand identity.',
+      recommendation:
+        'DO NOT OPEN. This is a weaponized phishing lure engineered to steal credentials or payment tokens.',
+      heuristicsTriggered: flags,
+      cached: false,
+    };
+  }
+
+  // Check 3: Weaponized executable or mobile malware packages
+  if (
+    lower.includes('.apk') ||
+    lower.includes('.exe') ||
+    lower.includes('.scr') ||
+    lower.includes('.bat') ||
+    lower.includes('.vbs') ||
+    lower.includes('.msi')
+  ) {
+    addFlag('UNVERIFIED_BINARY_PAYLOAD_DOWNLOAD');
+    return {
+      target,
+      verdict: 'MALICIOUS',
+      confidenceScore: 94,
+      plainLanguageExplanation:
+        'HIGH THREAT: Target points directly to an unverified binary payload or Android APK package. Sideloading untrusted packages risks full device compromise.',
+      recommendation:
+        'Reject download immediately. Do not grant installation permissions or execute unknown APK files.',
+      heuristicsTriggered: flags,
+      cached: false,
+    };
+  }
+
+  // Check 4: Unencrypted HTTP carrying authentication or financial endpoints
+  const isHttp = lower.startsWith('http://');
+  const hasAuthKeywords =
+    lower.includes('login') ||
+    lower.includes('signin') ||
+    lower.includes('bank') ||
+    lower.includes('verify') ||
+    lower.includes('account') ||
+    lower.includes('portal') ||
+    lower.includes('secure') ||
+    lower.includes('wallet');
+
+  if (isHttp && hasAuthKeywords) {
+    addFlag('CLEARTEXT_HTTP_AUTHENTICATION_INTERCEPT');
+    addFlag('CREDENTIAL_HARVESTER_SIGNATURE');
+    return {
+      target,
+      verdict: 'MALICIOUS',
+      confidenceScore: 92,
+      plainLanguageExplanation:
+        'CRITICAL: Cleartext HTTP protocol detected on an authentication endpoint. Credentials and session tokens will be transmitted in plaintext across the local airspace.',
+      recommendation:
+        'Halt immediately. Legitimate banking and authentication portals enforce strict HTTPS/TLS.',
+      heuristicsTriggered: flags,
+      cached: false,
+    };
+  }
+
+  // Check 5: Quishing parking meter / payment lure
+  if (
+    lower.includes('park') &&
+    (lower.includes('pay') || lower.includes('meter') || lower.includes('quickpay'))
+  ) {
+    addFlag('QUISHING_PAYMENT_STICKER_SPOOF');
+    return {
+      target,
+      verdict: 'MALICIOUS',
+      confidenceScore: 90,
+      plainLanguageExplanation:
+        'ALERT: QR code payment destination matches known parking meter quishing patterns. Fraudsters replace physical municipal stickers to harvest credit card data.',
+      recommendation:
+        'Verify physical signage or use the official municipal parking app directly.',
+      heuristicsTriggered: flags,
+      cached: false,
+    };
+  }
+
+  // Check 6: Known phishing keywords & brand lures
+  if (
+    lower.includes('phish') ||
+    lower.includes('malware') ||
+    lower.includes('chase-security') ||
+    lower.includes('bank-verify') ||
+    lower.includes('account-alert') ||
+    lower.includes('update-billing')
+  ) {
+    addFlag('SUSPICIOUS_PHISHING_LURE');
+    return {
+      target,
+      verdict: 'MALICIOUS',
+      confidenceScore: 90,
+      plainLanguageExplanation:
+        'ALERT: Domain contains known phishing indicators and deceptive credential harvesting keywords.',
+      recommendation:
+        'Do not open. Discard link and contact your service provider through official verified channels.',
+      heuristicsTriggered: flags,
+      cached: false,
+    };
+  }
+
+  // Check 7: URL Shorteners concealing destinations
+  const isShortener =
+    lower.includes('bit.ly') ||
+    lower.includes('tinyurl.com') ||
+    lower.includes('t.co') ||
+    lower.includes('goo.gl') ||
+    lower.includes('ow.ly') ||
+    lower.includes('is.gd') ||
+    lower.includes('buff.ly');
+
+  if (isShortener) {
+    addFlag('URL_SHORTENER_OBSCURATION');
+    return {
+      target,
+      verdict: 'SUSPICIOUS',
+      confidenceScore: 68,
+      plainLanguageExplanation:
+        'CAUTION: Shortened URL conceals final destination host, preventing static domain reputation verification.',
+      recommendation:
+        'Use an expander to reveal full destination before proceeding.',
+      heuristicsTriggered: flags,
+      cached: false,
+    };
+  }
+
+  // Check 8: Verified Safe Perimeter (Trusted Reputable Domains)
+  const isVerifiedSafe =
+    lower.includes('github.com') ||
+    lower.includes('google.com') ||
+    lower.includes('microsoft.com') ||
+    lower.includes('apple.com') ||
+    lower.includes('wikipedia.org') ||
+    lower.includes('cybercompanion.security');
+
+  if (isVerifiedSafe && lower.startsWith('https://')) {
+    return {
+      target,
+      verdict: 'SAFE',
+      confidenceScore: 10,
+      plainLanguageExplanation:
+        'VERIFIED SAFE: Destination is a reputable domain with active TLS encryption and zero reported threat flags.',
+      recommendation: 'Safe to proceed. Perimeter verified.',
+      heuristicsTriggered: [],
+      cached: false,
+    };
+  }
+
+  // Default clean URL
+  return {
+    target,
+    verdict: 'SAFE',
+    confidenceScore: 18,
+    plainLanguageExplanation:
+      'Autonomous on-device inspection completed. No malicious patterns, homoglyphs, or credential interceptors detected.',
+    recommendation: 'Proceed with standard cybersecurity awareness.',
+    heuristicsTriggered: [],
+    cached: false,
+  };
+}
+
 export class ApiClient {
-  private static baseUrl = 'https://cyber-companion-v3.onrender.com/v1';
+  private static baseUrl = 'http://127.0.0.1:5000/v1';
 
   static setBaseUrl(url: string) {
     this.baseUrl = url;
@@ -151,10 +378,11 @@ export class ApiClient {
   private static async requestWithFallback(endpoint: string, options?: RequestInit): Promise<Response> {
     const urls = [this.baseUrl, ...CANDIDATE_API_BASE_URLS.filter((u) => u !== this.baseUrl)];
 
+    // Aggressive timeout: 1000ms per candidate so offline mobile does not stall
     for (const url of urls) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3500);
+        const timeoutId = setTimeout(() => controller.abort(), 1000);
         const res = await fetch(`${url}${endpoint}`, {
           ...options,
           signal: controller.signal,
@@ -165,7 +393,7 @@ export class ApiClient {
           return res;
         }
       } catch {
-        // Try next candidate URL
+        // Try next candidate URL or drop into autonomous engine
       }
     }
     throw new Error(`Failed to reach API gateway at ${endpoint}`);
@@ -196,28 +424,15 @@ export class ApiClient {
         body: JSON.stringify({ url, source: 'USER_INPUT' }),
       });
 
-      if (!response.ok) {
-        throw new Error(`Gateway returned HTTP ${response.status}`);
+      if (response.ok) {
+        return await response.json();
       }
-
-      return await response.json();
     } catch {
-      // Graceful offline fallback: evaluate with basic heuristics
-      const isMalicious = url.includes('phish') || url.includes('malware') || url.includes('bank-verify');
-      return {
-        target: url,
-        verdict: isMalicious ? 'MALICIOUS' : 'SAFE',
-        confidenceScore: 70,
-        plainLanguageExplanation: isMalicious
-          ? 'Offline heuristic check detected suspicious phishing patterns in domain name.'
-          : 'Offline check found no immediate structural anomalies.',
-        recommendation: isMalicious
-          ? 'Do not open this URL.'
-          : 'Proceed with standard caution while offline.',
-        heuristicsTriggered: isMalicious ? ['OFFLINE_HEURISTIC_FLAG'] : [],
-        cached: false,
-      };
+      // Offline fallback: seamless on-device autonomous engine
     }
+
+    // Always deliver instant, pure deterministic on-device analysis
+    return evaluateAutonomousUrlHeuristics(url);
   }
 
   static async scanRealWifi(): Promise<any[]> {
@@ -258,7 +473,7 @@ export class ApiClient {
         return await response.json();
       }
     } catch {
-      // Network failed, proceed to client-side grounded RAG fallback
+      // Network unreachable, proceed instantly to client-side grounded RAG
     }
 
     // Offline Grounded RAG synthesis

@@ -3,6 +3,7 @@ import { StyleSheet, View, StatusBar, Platform } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
+import { LaunchSplashScreen } from '../components/LaunchSplashScreen';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
 import { DashboardScreen } from '../screens/DashboardScreen';
 import { ScanHubScreen } from '../screens/ScanHubScreen';
@@ -13,11 +14,17 @@ import { AmbientBackground } from '../design-system/AmbientBackground';
 import { GlassNavigationBar, TabKey } from '../design-system/GlassNavigationBar';
 
 export const RootNavigator: React.FC = () => {
+  const [isLaunching, setIsLaunching] = useState(true);
   const [hasOnboarded, setHasOnboarded] = useState(true);
   const [showIntro, setShowIntro] = useState(false);
   const [currentTab, setCurrentTab] = useState<TabKey>('home');
   const { isDark, toggleTheme } = useTheme();
   const insets = useSafeAreaInsets();
+
+  // Show Launch Animated Splash Screen on app startup
+  if (isLaunching) {
+    return <LaunchSplashScreen onFinish={() => setIsLaunching(false)} isDark={isDark} />;
+  }
 
   // Calculate precise top padding so content is strictly below camera bezel and system clock/icons
   const topPadding =
