@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -8,10 +8,16 @@ import {
   ScrollView,
   Animated,
   ActivityIndicator,
-  Platform,
+  Alert,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
+import {
+  CameraView,
+  useCameraPermissions,
+  type BarcodeScanningResult,
+  type BarcodeSettings,
+} from 'expo-camera';
 import { classifyQrPayload } from '../services/qrScannerService';
 import { addHistoryRecord } from '../services/historyService';
 import { AiExplainerModal } from './AiExplainerModal';
@@ -21,6 +27,11 @@ interface QrScannerModalProps {
   onClose: () => void;
   isDark?: boolean;
 }
+
+// 1. Memoized Barcode Scanner Settings outside the component to prevent camera teardown loops
+const BARCODE_SCANNER_SETTINGS: BarcodeSettings = {
+  barcodeTypes: ['qr', 'aztec', 'datamatrix', 'pdf417', 'code128', 'code39'],
+};
 
 export const QrScannerModal: React.FC<QrScannerModalProps> = ({
   visible,
@@ -49,16 +60,18 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
   const danger = '#EF4444';
   const amber = '#F59E0B';
 
+  // 2. Camera permission handling on visibility change
   useEffect(() => {
     if (visible) {
       setScanned(false);
       setCameraError(null);
-      if (!permission?.granted) {
+      if (permission && !permission.granted && permission.canAskAgain) {
         requestPermission();
       }
     }
-  }, [visible]);
+  }, [visible, permission?.granted, permission?.canAskAgain]);
 
+  // Laser animation loop running on native driver
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
@@ -78,7 +91,50 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
     return () => loop.stop();
   }, [laserAnim]);
 
-  const handleDecode = (payload: string) => {
+  // Request camera permission or guide user to device settings if permanently denied
+  const handleRequestPermission = useCallback(async () => {
+    if (!permission) {
+      await requestPermission();
+      return;
+    }
+
+    if (!permission.granted) {
+      if (!permission.canAskAgain) {
+        Alert.alert(
+          'Camera Permission Required',
+          'Camera access is permanently disabled for Cyber Companion. Please enable camera permission in device settings to scan QR codes.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Open Settings',
+              onPress: () => {
+                Linking.openSettings().catch(() => {});
+              },
+            },
+          ]
+        );
+      } else {
+        const res = await requestPermission();
+        if (!res.granted && !res.canAskAgain) {
+          Alert.alert(
+            'Camera Permission Required',
+            'Camera access was denied. Please enable camera permission in device settings to scan QR codes.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Open Settings',
+                onPress: () => {
+                  Linking.openSettings().catch(() => {});
+                },
+              },
+            ]
+          );
+        }
+      }
+    }
+  }, [permission, requestPermission]);
+
+  const handleDecode = useCallback((payload: string) => {
     if (!payload.trim()) return;
     const raw = payload.trim();
     const classified = classifyQrPayload(raw);
@@ -90,13 +146,15 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
       const auth = (classified.metadata as any)?.authType || 'OPEN';
       if (auth === 'nopass' || auth === 'OPEN' || !auth || auth === 'none') {
         riskLevel = 'CRITICAL';
-        riskReason = 'Unencrypted rogue Wi-Fi configuration (nopass). Attempts auto-connection to open hotspot vulnerable to MITM packet interception.';
+        riskReason =
+          'Unencrypted rogue Wi-Fi configuration (nopass). Attempts auto-connection to open hotspot vulnerable to MITM packet interception.';
       }
     } else if (classified.type === 'URL') {
       const dest = (classified.sanitizedDestination || raw).toLowerCase();
       if (dest.endsWith('.apk') || dest.includes('.apk?') || dest.includes('system-patch.apk')) {
         riskLevel = 'CRITICAL';
-        riskReason = 'Untrusted Android APK binary payload (.apk). Direct sideloading risks device malware infection.';
+        riskReason =
+          'Untrusted Android APK binary payload (.apk). Direct sideloading risks device malware infection.';
       } else if (
         dest.includes('verify') ||
         dest.includes('.cc') ||
@@ -108,7 +166,8 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
         dest.includes('parking')
       ) {
         riskLevel = 'CRITICAL';
-        riskReason = 'Quishing / Phishing threat detected. Deceptive domain designed to harvest payment cards or credentials.';
+        riskReason =
+          'Quishing / Phishing threat detected. Deceptive domain designed to harvest payment cards or credentials.';
       } else if (dest.startsWith('http://')) {
         riskLevel = 'WARNING';
         riskReason = 'Unencrypted HTTP URL. Sensitive data transmitted will not be protected by TLS.';
@@ -150,24 +209,29 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
       riskLevel,
       riskReason,
     });
-  };
+  }, []);
 
-  const handleBarcodeScanned = (result: any) => {
-    if (scanned || !result) return;
-    const rawData =
-      typeof result === 'string'
-        ? result
-        : result.data || result.raw || (result as any).value || '';
-    if (!rawData || !rawData.trim()) return;
-    setScanned(true);
-    setQrInput(rawData.trim());
-    handleDecode(rawData.trim());
-  };
+  // 3. Callback wrapped in useCallback and guarded against duplicate triggers
+  const handleBarcodeScanned = useCallback(
+    (result: BarcodeScanningResult) => {
+      if (scanned || !result) return;
+      const rawData =
+        typeof result === 'string'
+          ? (result as string)
+          : result.data || result.raw || (result as any).value || '';
+      if (!rawData || !rawData.trim()) return;
 
-  const handleRescan = () => {
+      setScanned(true);
+      setQrInput(rawData.trim());
+      handleDecode(rawData.trim());
+    },
+    [scanned, handleDecode]
+  );
+
+  const handleRescan = useCallback(() => {
     setScanned(false);
     setAnalysis(null);
-  };
+  }, []);
 
   const laserTranslateY = laserAnim.interpolate({
     inputRange: [0, 1],
@@ -210,14 +274,18 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                 </View>
                 <Text style={[styles.permTitle, { color: '#FFFFFF' }]}>Hardware Camera Scanner</Text>
                 <Text style={[styles.permDesc, { color: '#94A3B8' }]}>
-                  Enable camera access to scan physical QR codes in real-time with zero-trust optical sandboxing.
+                  {permission.canAskAgain
+                    ? 'Enable camera access to scan physical QR codes in real-time with zero-trust optical sandboxing.'
+                    : 'Camera permission has been permanently disabled for Cyber Companion. Please enable camera access in device settings to use the scanner.'}
                 </Text>
                 <TouchableOpacity
                   style={[styles.grantBtn, { backgroundColor: teal }]}
-                  onPress={requestPermission}
+                  onPress={handleRequestPermission}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.grantBtnText}>🔓 Enable Camera Scanner</Text>
+                  <Text style={styles.grantBtnText}>
+                    {permission.canAskAgain ? '🔓 Enable Camera Scanner' : '⚙️ Open System Settings'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -226,9 +294,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                   style={StyleSheet.absoluteFill}
                   facing={facing}
                   enableTorch={torch}
-                  barcodeScannerSettings={{
-                    barcodeTypes: ['qr', 'aztec', 'datamatrix', 'pdf417', 'code128', 'code39'],
-                  }}
+                  barcodeScannerSettings={BARCODE_SCANNER_SETTINGS}
                   onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
                   onMountError={(e) => setCameraError(e.message)}
                 />
@@ -463,7 +529,6 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
         )}
       </SafeAreaView>
     </Modal>
-
   );
 };
 
