@@ -136,8 +136,6 @@ const DEFAULT_API_BASE_URL =
 const CANDIDATE_API_BASE_URLS = [
   DEFAULT_API_BASE_URL,
   'https://cyber-companion-v3.onrender.com/v1',
-  'http://10.0.2.2:5000/v1',
-  'http://127.0.0.1:5000/v1',
 ];
 
 /**
