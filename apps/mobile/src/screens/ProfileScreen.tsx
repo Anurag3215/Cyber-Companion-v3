@@ -526,16 +526,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
             <TouchableOpacity
               style={[styles.presetChip, { borderColor: borderSubtle }]}
-              onPress={() => handleApplyPreset('http://127.0.0.1:5000/v1')}
+              onPress={() => handleApplyPreset(ApiClient.getBaseUrl())}
             >
-              <Text style={[styles.presetText, { color: subtextColor }]}>💻 USB (127.0.0.1)</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.presetChip, { borderColor: borderSubtle }]}
-              onPress={() => handleApplyPreset('http://192.168.1.15:5000/v1')}
-            >
-              <Text style={[styles.presetText, { color: subtextColor }]}>🏠 Wi-Fi LAN</Text>
+              <Text style={[styles.presetText, { color: subtextColor }]}>↺ Reset Default</Text>
             </TouchableOpacity>
           </View>
         </GlassCard>
