@@ -51,6 +51,10 @@ describe('ApiClient & AI Explainer Client Suite', () => {
     const cleartextResult = await ApiClient.inspectUrl('http://insecure-news-site.com');
     expect(cleartextResult.verdict).toBe('SUSPICIOUS');
 
+    const suspiciousLoginResult = await ApiClient.inspectUrl('http://suspicious-login.com');
+    expect(suspiciousLoginResult.verdict).toBe('MALICIOUS');
+    expect(suspiciousLoginResult.confidenceScore).toBeGreaterThanOrEqual(90);
+
     const safeResult = await ApiClient.inspectUrl('https://valid-portal.com');
     expect(safeResult.verdict).toBe('UNKNOWN');
     expect(safeResult.confidenceScore).toBe(50);

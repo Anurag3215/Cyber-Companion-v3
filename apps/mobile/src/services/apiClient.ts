@@ -281,7 +281,7 @@ export function evaluateAutonomousUrlHeuristics(rawInput: string): ThreatInspect
     };
   }
 
-  // Check 6: Verified Safe Perimeter (Explicitly Whitelisted Reputable Organizations)
+  // Check 6: Verified Safe Perimeter (Explicitly Whitelisted Reputable Organizations on HTTPS)
   const isVerifiedSafe =
     lower.includes('github.com') ||
     lower.includes('google.com') ||
@@ -307,7 +307,7 @@ export function evaluateAutonomousUrlHeuristics(rawInput: string): ThreatInspect
     };
   }
 
-  // Check 7: Credential Harvesting & Brand Deception Analysis
+  // Keywords for Brand & Credential Deception
   const brandKeywords = [
     'chase', 'paypal', 'bank', 'apple', 'google', 'microsoft', 'office365',
     'netflix', 'amazon', 'binance', 'coinbase', 'wallet', 'wellsfargo',
@@ -322,7 +322,60 @@ export function evaluateAutonomousUrlHeuristics(rawInput: string): ThreatInspect
   ];
 
   const matchedBrands = brandKeywords.filter((b) => lower.includes(b));
-  const matchedCreds = credentialKeywords.filter((c) => c === 'secure' ? (lower.includes('secure') && !lower.includes('insecure')) : lower.includes(c));
+  const matchedCreds = credentialKeywords.filter((c) =>
+    c === 'secure' ? (lower.includes('secure') && !lower.includes('insecure')) : lower.includes(c)
+  );
+
+  // Check 7: Strict HTTP Rule - Cleartext HTTP is ALWAYS DANGER / HIGH RISK. Never SAFE!
+  const isHttp = lower.startsWith('http://');
+  if (isHttp) {
+    const hyphenatedAuthKeywords = [
+      'login', 'signin', 'verify', 'auth', 'billing', 'password', 'recover',
+      'admin', 'secure', 'update', 'account', 'banking', 'otp'
+    ];
+    const isHyphenatedAuth = hyphenatedAuthKeywords.some(
+      (h) =>
+        h === 'secure'
+          ? lower.includes('-secure') || (lower.includes('secure-') && !lower.includes('insecure-'))
+          : lower.includes(`-${h}`) || lower.includes(`${h}-`)
+    );
+
+    const hasSuspiciousCombination =
+      matchedCreds.length > 0 ||
+      matchedBrands.length > 0 ||
+      isHyphenatedAuth ||
+      explicitThreats.some((t) => lower.includes(t));
+
+    if (hasSuspiciousCombination) {
+      addFlag('CLEARTEXT_HTTP_AUTHENTICATION_INTERCEPT');
+      return {
+        target,
+        verdict: 'MALICIOUS',
+        confidenceScore: 95,
+        plainLanguageExplanation:
+          'CRITICAL DANGER: Unencrypted cleartext HTTP protocol combined with authentication/brand targets. Passwords, session cookies, and credentials will be transmitted in plaintext across the airspace and easily intercepted by attackers.',
+        recommendation:
+          'DANGER: Halt immediately. Do not submit passwords or sensitive data. Legitimate services enforce strict HTTPS/TLS encryption.',
+        heuristicsTriggered: flags,
+        cached: false,
+      };
+    }
+
+    addFlag('CLEARTEXT_HTTP_TRANSPORT');
+    return {
+      target,
+      verdict: 'SUSPICIOUS',
+      confidenceScore: 82,
+      plainLanguageExplanation:
+        'HIGH RISK (UNENCRYPTED HTTP): Target communicates over unencrypted cleartext HTTP. Network packets are readable and modifiable by any local observer or rogue Wi-Fi access point in your physical vicinity. It is NEVER marked as safe.',
+      recommendation:
+        'HIGH RISK: Never submit passwords, personal data, or credit card numbers on unencrypted HTTP pages.',
+      heuristicsTriggered: flags,
+      cached: false,
+    };
+  }
+
+  // Check 8: Credential Harvesting & Brand Deception Analysis
 
   if (matchedBrands.length > 0 && matchedCreds.length > 0 && !isVerifiedSafe) {
     addFlag('BRAND_CREDENTIAL_HARVESTER_SIGNATURE');
@@ -433,37 +486,6 @@ export function evaluateAutonomousUrlHeuristics(rawInput: string): ThreatInspect
       plainLanguageExplanation:
         `CAUTION: Domain utilizes an untrusted registry extension (${matchedTld}) with elevated historic spam and malware distribution records.`,
       recommendation: 'Exercise high caution. Verify destination identity before entering information.',
-      heuristicsTriggered: flags,
-      cached: false,
-    };
-  }
-
-  // Check 9: Unencrypted Cleartext HTTP
-  const isHttp = lower.startsWith('http://');
-  if (isHttp) {
-    if (matchedCreds.length > 0 || matchedBrands.length > 0) {
-      addFlag('CLEARTEXT_HTTP_AUTHENTICATION_INTERCEPT');
-      return {
-        target,
-        verdict: 'MALICIOUS',
-        confidenceScore: 92,
-        plainLanguageExplanation:
-          'CRITICAL: Cleartext HTTP protocol detected on an authentication endpoint. Credentials and session tokens will be transmitted in plaintext across the local airspace.',
-        recommendation:
-          'Halt immediately. Legitimate banking and authentication portals enforce strict HTTPS/TLS.',
-        heuristicsTriggered: flags,
-        cached: false,
-      };
-    }
-
-    addFlag('CLEARTEXT_HTTP_TRANSPORT');
-    return {
-      target,
-      verdict: 'SUSPICIOUS',
-      confidenceScore: 62,
-      plainLanguageExplanation:
-        'CAUTION: Target communicates over unencrypted cleartext HTTP. Network packets are readable by any local observer or rogue Wi-Fi access point in your physical vicinity.',
-      recommendation: 'Never submit passwords, personal data, or credit card numbers on unencrypted HTTP pages.',
       heuristicsTriggered: flags,
       cached: false,
     };
@@ -643,7 +665,12 @@ export class ApiClient {
 
       if (response && response.ok) {
         const serverResult: ThreatInspectionResponse = await response.json();
-        if (onDevice.verdict === 'SUSPICIOUS' && serverResult.verdict === 'SAFE') {
+        // ZERO-TRUST GUARD: If on-device heuristics flagged SUSPICIOUS,
+        // or if the target is unencrypted cleartext HTTP, never permit a cloud server to downgrade it to SAFE!
+        if (
+          (onDevice.verdict === 'SUSPICIOUS' || url.toLowerCase().startsWith('http://')) &&
+          serverResult.verdict === 'SAFE'
+        ) {
           return onDevice;
         }
         return serverResult;

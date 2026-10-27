@@ -1,4 +1,5 @@
 import {
+  evaluateAirspaceBeacon,
   evaluateWifiSecurity,
   evaluatePreConnectionHotspot,
   getNearbyHotspotBeacons,
@@ -34,6 +35,72 @@ describe('Wi-Fi Security Assessment Service', () => {
   });
 
   describe('Pre-Connection Airspace Threat Prevention', () => {
+    test('parameter-based evaluation: OPEN network flags CRITICAL_THREAT (DANGER)', () => {
+      const res = evaluateAirspaceBeacon({
+        ssid: 'CoffeeShop_Free',
+        bssid: '00:11:22:33:44:55',
+        capabilities: '[ESS]',
+        level: -60,
+        frequency: 2412,
+      });
+      expect(res.threatVerdict).toBe('CRITICAL_THREAT');
+      expect(res.threatScore).toBe(95);
+      expect(res.threatTag).toContain('DANGER');
+      expect(res.isRogueAp).toBe(true);
+    });
+
+    test('parameter-based evaluation: WEP network flags CRITICAL_THREAT (DANGER)', () => {
+      const res = evaluateAirspaceBeacon({
+        ssid: 'Old_Router_WEP',
+        bssid: '00:11:22:33:44:66',
+        capabilities: '[WEP][ESS]',
+        level: -65,
+        frequency: 2437,
+      });
+      expect(res.threatVerdict).toBe('CRITICAL_THREAT');
+      expect(res.threatScore).toBe(92);
+      expect(res.threatTag).toContain('DANGER');
+    });
+
+    test('parameter-based evaluation: WPA-TKIP flags MODERATE (WARNING)', () => {
+      const res = evaluateAirspaceBeacon({
+        ssid: 'Legacy_Office_TKIP',
+        bssid: '00:11:22:33:44:77',
+        capabilities: '[WPA-PSK-TKIP][ESS]',
+        level: -70,
+        frequency: 5180,
+      });
+      expect(res.threatVerdict).toBe('MODERATE');
+      expect(res.threatScore).toBe(65);
+      expect(res.threatTag).toContain('WARNING');
+    });
+
+    test('parameter-based evaluation: WPA2-CCMP flags SECURE (SAFE)', () => {
+      const res = evaluateAirspaceBeacon({
+        ssid: 'Secure_Home_WPA2',
+        bssid: '00:11:22:33:44:88',
+        capabilities: '[WPA2-PSK-CCMP][ESS]',
+        level: -50,
+        frequency: 5240,
+      });
+      expect(res.threatVerdict).toBe('SECURE');
+      expect(res.threatScore).toBe(20);
+      expect(res.threatTag).toContain('SAFE');
+    });
+
+    test('parameter-based evaluation: WPA3-SAE flags SECURE (SAFE)', () => {
+      const res = evaluateAirspaceBeacon({
+        ssid: 'NextGen_Lab_WPA3',
+        bssid: '00:11:22:33:44:99',
+        capabilities: '[WPA3-SAE-CCMP][ESS]',
+        level: -45,
+        frequency: 5745,
+      });
+      expect(res.threatVerdict).toBe('SECURE');
+      expect(res.threatScore).toBe(8);
+      expect(res.threatTag).toContain('SAFE');
+    });
+
     test('detects Evil Twin / Rogue Pineapple honeypot before connecting', () => {
       const beacon = evaluatePreConnectionHotspot({
         ssid: 'Free_Airport_FastWiFi',

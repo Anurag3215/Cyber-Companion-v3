@@ -127,31 +127,140 @@ export function isDeviceLocationEnabled(): boolean {
 export function parseCapabilities(capabilities: string): {
   encryption: WifiEncryption;
   pmfEnabled: boolean;
+  cipher: 'CCMP' | 'TKIP' | 'WEP' | 'NONE';
 } {
   const caps = (capabilities || '').toUpperCase();
   const isWpa3 = caps.includes('WPA3') || caps.includes('SAE');
   const isWpa2 = caps.includes('WPA2') || caps.includes('PSK');
   const isWep = caps.includes('WEP');
   const isWpa = caps.includes('WPA');
+  const isTkip = caps.includes('TKIP');
+  const isCcmp = caps.includes('CCMP');
 
-  const encryption: WifiEncryption = isWpa3
-    ? 'WPA3'
-    : isWpa2
-    ? 'WPA2'
-    : isWep
-    ? 'WEP'
-    : isWpa
-    ? 'WPA'
-    : 'OPEN';
+  let encryption: WifiEncryption = 'OPEN';
+  let cipher: 'CCMP' | 'TKIP' | 'WEP' | 'NONE' = 'NONE';
+
+  if (isWpa3) {
+    encryption = 'WPA3';
+    cipher = 'CCMP';
+  } else if (isWpa2) {
+    encryption = 'WPA2';
+    cipher = isTkip && !isCcmp ? 'TKIP' : 'CCMP';
+  } else if (isWpa) {
+    encryption = 'WPA';
+    cipher = 'TKIP';
+  } else if (isWep) {
+    encryption = 'WEP';
+    cipher = 'WEP';
+  }
 
   const pmfEnabled = isWpa3 || caps.includes('PMF') || caps.includes('MANAGEMENT-FRAME');
 
-  return { encryption, pmfEnabled };
+  return { encryption, pmfEnabled, cipher };
 }
 
 /**
  * Calculate standard Wi-Fi frequency band and channel number from radio frequency in MHz.
  */
+
+export function getVendorFromBssid(bssid: string): string {
+  const clean = (bssid || '').replace(/[:-]/g, '').toUpperCase();
+  if (clean.startsWith('001337') || clean.startsWith('00C0CA')) return 'Hak5 WiFi Pineapple / Rogue AP';
+  if (clean.startsWith('3A27AC') || clean.startsWith('FA86DA')) return 'MediaTek / Realtek AP';
+  if (clean.startsWith('C074AD') || clean.startsWith('C674AD')) return 'Cisco Systems / Meraki';
+  if (clean.startsWith('40E3D6')) return 'TP-Link Technologies';
+  return 'Standard 802.11 Access Point';
+}
+
+/**
+ * Parameter-Based 802.11 Airspace Security Evaluator.
+ * Pure deterministic evaluation based strictly on broadcast parameters:
+ * - OPEN / None = DANGER (CRITICAL_THREAT)
+ * - WEP = DANGER (CRITICAL_THREAT)
+ * - WPA / WPA2 TKIP = WARNING (MODERATE)
+ * - WPA2-PSK CCMP / WPA3 = SAFE (SECURE)
+ */
+export function evaluateAirspaceBeacon(params: {
+  ssid: string;
+  bssid: string;
+  capabilities: string;
+  level: number;
+  frequency: number;
+}): NearbyHotspotBeacon {
+  const rawSsid = (params.ssid || '').trim();
+  const ssid = rawSsid.length > 0 ? rawSsid : '[Hidden Airspace Beacon]';
+  const bssid = params.bssid || '00:00:00:00:00:00';
+  const { encryption, pmfEnabled, cipher } = parseCapabilities(params.capabilities);
+  const { frequency, channel } = calculateFrequencyAndChannel(params.frequency);
+
+  let threatVerdict: 'CRITICAL_THREAT' | 'HIGH_RISK' | 'MODERATE' | 'SECURE';
+  let threatScore: number;
+  let threatTag: string;
+  let predictedCrimes: string[];
+  let preventionAdvise: string;
+  let isRogueAp = false;
+
+  if (encryption === 'OPEN') {
+    threatVerdict = 'CRITICAL_THREAT';
+    threatScore = 95;
+    threatTag = 'UNENCRYPTED AIRSPACE (DANGER)';
+    predictedCrimes = [
+      'Unencrypted broadcast airspace. Any attacker in radio proximity can sniff cleartext traffic, cookies, and tokens.',
+      'Vulnerable to Evil Twin AP honeypots and captive portal credential interception.',
+    ];
+    preventionAdvise = 'DANGER: Do NOT connect. Never transmit credentials on unencrypted wireless airspace.';
+    isRogueAp = true;
+  } else if (encryption === 'WEP') {
+    threatVerdict = 'CRITICAL_THREAT';
+    threatScore = 92;
+    threatTag = 'BROKEN WEP ENCRYPTION (DANGER)';
+    predictedCrimes = [
+      'Deprecated 64/128-bit RC4 cipher with known keystream IV reuse vulnerabilities. Cracked in seconds.',
+    ];
+    preventionAdvise = 'DANGER: Treat this network as completely open and unencrypted.';
+    isRogueAp = true;
+  } else if (cipher === 'TKIP' || encryption === 'WPA') {
+    threatVerdict = 'MODERATE';
+    threatScore = 65;
+    threatTag = 'LEGACY TKIP CIPHER (WARNING)';
+    predictedCrimes = [
+      'Legacy TKIP cipher prone to packet injection and Michael MIC key recovery attacks.',
+    ];
+    preventionAdvise = 'WARNING: Upgrade access point security configuration to AES-CCMP or WPA3.';
+  } else if (encryption === 'WPA3') {
+    threatVerdict = 'SECURE';
+    threatScore = 8;
+    threatTag = 'WPA3-SAE ENCRYPTED (SAFE)';
+    predictedCrimes = [];
+    preventionAdvise = 'Protected by Simultaneous Authentication of Equals (SAE) with forward secrecy.';
+  } else {
+    // WPA2 with AES-CCMP
+    threatVerdict = 'SECURE';
+    threatScore = 20;
+    threatTag = 'WPA2-CCMP ENCRYPTED (SAFE)';
+    predictedCrimes = [];
+    preventionAdvise = 'Standard robust AES-CCMP encryption. Ensure complex passphrase is in use.';
+  }
+
+  return {
+    id: `beacon-${bssid.replace(/:/g, '').toLowerCase()}`,
+    ssid,
+    bssid,
+    channel,
+    frequency,
+    signalDbm: params.level,
+    encryption,
+    pmfEnabled,
+    vendor: getVendorFromBssid(bssid),
+    threatVerdict,
+    threatScore,
+    threatTag,
+    predictedCrimes,
+    preventionAdvise,
+    isRogueAp,
+  };
+}
+
 export function calculateFrequencyAndChannel(freqMhz: number): {
   frequency: '2.4 GHz' | '5.0 GHz' | '6.0 GHz';
   channel: number;
@@ -560,7 +669,7 @@ export async function scanNearbyWifiAirspace(): Promise<WifiAirspaceScanResult> 
       ipAddress = ip;
     }
   } catch {
-    // Graceful handling if network state cannot be inspected
+    // Graceful handling
   }
 
   const isWifi =
@@ -572,10 +681,6 @@ export async function scanNearbyWifiAirspace(): Promise<WifiAirspaceScanResult> 
 
   const isCellular = isConnected && !isWifi && (type === 'CELLULAR' || type === 'NetworkStateType.CELLULAR' || type === '1');
 
-  // Retrieve user custom presentation hotspot & saved beacons
-  const savedPresentationHotspot = await getPresentationHotspot();
-  const savedBeacons = await getSavedWifiBeacons();
-
   const activeConnectionData = {
     isConnected,
     type: isWifi ? 'WIFI' : isCellular ? 'CELLULAR' : type,
@@ -584,14 +689,9 @@ export async function scanNearbyWifiAirspace(): Promise<WifiAirspaceScanResult> 
 
   // 1. iOS Sandboxing Check
   if (Platform.OS === 'ios') {
-    const ambient: NearbyHotspotBeacon[] = [];
-    if (savedPresentationHotspot) ambient.push(savedPresentationHotspot);
-    for (const sb of savedBeacons) {
-      if (!ambient.some((a) => a.ssid === sb.ssid)) ambient.push(sb);
-    }
     return {
       activeConnection: activeConnectionData,
-      beacons: ambient,
+      beacons: [],
       isIosRestricted: true,
       statusMessage:
         'iOS Privacy Sandboxing: Apple restricts ambient Wi-Fi BSSID radio scanning. Audit your active network or use manual network testing.',
@@ -603,14 +703,9 @@ export async function scanNearbyWifiAirspace(): Promise<WifiAirspaceScanResult> 
   if (Platform.OS === 'android') {
     const permResult = await requestWifiScanPermissions();
     if (!permResult.granted) {
-      const ambient: NearbyHotspotBeacon[] = [];
-      if (savedPresentationHotspot) ambient.push(savedPresentationHotspot);
-      for (const sb of savedBeacons) {
-        if (!ambient.some((a) => a.ssid === sb.ssid)) ambient.push(sb);
-      }
       return {
         activeConnection: activeConnectionData,
-        beacons: ambient,
+        beacons: [],
         permissionDenied: true,
         canAskAgain: permResult.canAskAgain,
         statusMessage:
@@ -621,14 +716,9 @@ export async function scanNearbyWifiAirspace(): Promise<WifiAirspaceScanResult> 
 
     const locationOn = isDeviceLocationEnabled();
     if (!locationOn) {
-      const ambient: NearbyHotspotBeacon[] = [];
-      if (savedPresentationHotspot) ambient.push(savedPresentationHotspot);
-      for (const sb of savedBeacons) {
-        if (!ambient.some((a) => a.ssid === sb.ssid)) ambient.push(sb);
-      }
       return {
         activeConnection: activeConnectionData,
-        beacons: ambient,
+        beacons: [],
         locationDisabled: true,
         statusMessage:
           'Device Location Services (GPS) are turned OFF. Android OS returns 0 nearby Wi-Fi networks when Location is disabled in device settings.',
@@ -637,14 +727,15 @@ export async function scanNearbyWifiAirspace(): Promise<WifiAirspaceScanResult> 
     }
   }
 
-  // 3. Native Hardware Sweep via WifiScannerModule
-  const ambientBeacons: NearbyHotspotBeacon[] = [];
+  // 3. Native Live Hardware Airspace Scan via WifiManager
+  const liveAirspaceBeacons: NearbyHotspotBeacon[] = [];
   let nativeActiveInfo: NativeCurrentWifiInfo | null = null;
   let usedNativeModule = false;
 
   if (WifiScannerModule) {
     try {
       usedNativeModule = true;
+      // Trigger native hardware scan
       await WifiScannerModule.startScan().catch(() => false);
 
       const [nativeScanList, curInfo] = await Promise.all([
@@ -658,125 +749,35 @@ export async function scanNearbyWifiAirspace(): Promise<WifiAirspaceScanResult> 
 
       if (Array.isArray(nativeScanList) && nativeScanList.length > 0) {
         for (const scan of nativeScanList) {
-          const ssid = (scan.ssid || '').trim();
-          if (!ssid) continue;
-
-          const { encryption, pmfEnabled } = parseCapabilities(scan.capabilities);
-          const { frequency, channel } = calculateFrequencyAndChannel(scan.frequency);
-
-          ambientBeacons.push(
-            evaluatePreConnectionHotspot({
-              ssid,
+          liveAirspaceBeacons.push(
+            evaluateAirspaceBeacon({
+              ssid: scan.ssid,
               bssid: scan.bssid,
-              encryption,
-              pmfEnabled,
-              signalDbm: scan.level,
-              channel,
+              capabilities: scan.capabilities,
+              level: scan.level,
+              frequency: scan.frequency,
             })
           );
         }
       }
     } catch {
-      // Native module error fallback
+      // Native module error
     }
   }
 
-  // Fallback to API Gateway scan (developer workstation testing if phone is tethered)
-  if (ambientBeacons.length === 0 && !usedNativeModule) {
-    try {
-      const scanResponse = await Promise.race([
-        ApiClient.scanRealWifi(),
-        new Promise<{ activeConnection?: any; networks: any[] }>((resolve) =>
-          setTimeout(() => resolve({ networks: [] }), 2000)
-        ),
-      ]);
-      if (scanResponse && Array.isArray(scanResponse.networks) && scanResponse.networks.length > 0) {
-        ambientBeacons.push(...scanResponse.networks);
-      }
-    } catch {}
-  }
+  // Pure parameter-based sorting: strongest signal first
+  liveAirspaceBeacons.sort((a, b) => b.signalDbm - a.signalDbm);
 
-  // 4. Configure Active Connection Beacon with verified hardware data
-  let activeBeacon: NearbyHotspotBeacon | null = null;
-  const jitter = Math.floor(Math.random() * 3) - 1;
-
-  if (isWifi) {
-    const activeSsid =
-      nativeActiveInfo?.ssid ||
-      savedPresentationHotspot?.ssid ||
-      (ipAddress ? `Connected Wi-Fi (${ipAddress})` : 'Connected Wi-Fi');
-
-    const activeBssid =
-      nativeActiveInfo?.bssid ||
-      savedPresentationHotspot?.bssid ||
-      '12:bc:c6:20:69:0b';
-
-    const activeEncryption: WifiEncryption =
-      savedPresentationHotspot?.encryption || 'WPA2';
-
-    const activeChannel =
-      nativeActiveInfo?.frequency ? calculateFrequencyAndChannel(nativeActiveInfo.frequency).channel : 6;
-
-    const activeSignal =
-      nativeActiveInfo?.level !== undefined
-        ? nativeActiveInfo.level
-        : -45 + jitter;
-
-    activeBeacon = evaluatePreConnectionHotspot({
-      ssid: activeSsid,
-      bssid: activeBssid,
-      encryption: activeEncryption,
-      pmfEnabled: activeEncryption === 'WPA3' || (savedPresentationHotspot?.pmfEnabled ?? false),
-      signalDbm: activeSignal,
-      channel: activeChannel,
-    });
-    activeBeacon.id = 'active-current-wifi';
-    activeBeacon.isCurrentConnection = true;
-    activeBeacon.ipAddress = nativeActiveInfo?.ipAddress || ipAddress;
-  } else if (isCellular) {
-    activeBeacon = {
-      id: 'active-cellular',
-      ssid: 'Cellular Mobile Data (LTE / 5G)',
-      bssid: 'carrier-apn',
-      channel: 0,
-      frequency: '5.0 GHz',
-      signalDbm: -55 + jitter,
-      encryption: 'WPA3',
-      pmfEnabled: true,
-      vendor: 'Carrier Baseband Encrypted Radio',
-      threatVerdict: 'SECURE',
-      threatScore: 5,
-      threatTag: 'CARRIER ENCRYPTED CELLULAR DATA',
-      predictedCrimes: [
-        'Cellular data is encrypted at the mobile baseband level, protecting against local 802.11 rogue honeypots.',
-      ],
-      preventionAdvise: 'Safe from Wi-Fi rogue hotspot and deauth frame attacks while on mobile data.',
-      isRogueAp: false,
-      isCurrentConnection: true,
-      ipAddress: ipAddress,
-    };
-  }
-
-  // Include saved custom audited beacons
-  for (const sb of savedBeacons) {
-    if (!ambientBeacons.some((a) => a.ssid === sb.ssid)) {
-      ambientBeacons.push(sb);
-    }
-  }
-
-  if (savedPresentationHotspot && !ambientBeacons.some((a) => a.ssid === savedPresentationHotspot.ssid)) {
-    ambientBeacons.unshift(savedPresentationHotspot);
-  }
-
-  // Deduplicate against activeBeacon
-  const finalBeacons: NearbyHotspotBeacon[] = [];
-  if (activeBeacon) {
-    finalBeacons.push(activeBeacon);
-  }
-
-  for (const b of ambientBeacons) {
-    if (!finalBeacons.some((f) => f.ssid.toLowerCase() === b.ssid.toLowerCase())) {
-      finalBeacons.push(b);
+  // Mark currently connected network if present
+  if (nativeActiveInfo && nativeActiveInfo.ssid) {
+    const activeMatch = liveAirspaceBeacons.find(
+      (b) =>
+        (nativeActiveInfo?.bssid && b.bssid.toLowerCase() === nativeActiveInfo.bssid.toLowerCase()) ||
+        b.ssid === nativeActiveInfo?.ssid
+    );
+    if (activeMatch) {
+      activeMatch.isCurrentConnection = true;
+      activeMatch.ipAddress = nativeActiveInfo.ipAddress || ipAddress;
     }
   }
 
@@ -784,15 +785,15 @@ export async function scanNearbyWifiAirspace(): Promise<WifiAirspaceScanResult> 
     activeConnection: {
       isConnected,
       type: isWifi ? 'WIFI' : isCellular ? 'CELLULAR' : type,
-      ipAddress: activeBeacon?.ipAddress || ipAddress,
-      ssid: activeBeacon?.ssid,
-      bssid: activeBeacon?.bssid,
+      ipAddress: nativeActiveInfo?.ipAddress || ipAddress,
+      ssid: nativeActiveInfo?.ssid,
+      bssid: nativeActiveInfo?.bssid,
     },
-    beacons: finalBeacons,
-    scanSource: usedNativeModule ? 'ANDROID_HARDWARE_WIFIMANAGER' : 'API_GATEWAY',
+    beacons: liveAirspaceBeacons, // ONLY LIVE NEARBY BEACONS! ZERO saved/configured networks!
+    scanSource: usedNativeModule ? 'ANDROID_HARDWARE_WIFIMANAGER' : 'OFFLINE_SANDBOX',
     statusMessage:
-      finalBeacons.length === 0
-        ? 'No ambient Wi-Fi access points detected in physical vicinity.'
+      liveAirspaceBeacons.length === 0
+        ? 'No ambient Wi-Fi access points detected in physical vicinity. Ensure Wi-Fi radio is toggled ON.'
         : undefined,
   };
 }

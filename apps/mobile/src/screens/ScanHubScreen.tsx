@@ -201,14 +201,18 @@ export const ScanHubScreen: React.FC<ScanHubScreenProps> = ({ isDark = true }) =
                     ? 'DANGER'
                     : scanResult.verdict === 'SUSPICIOUS'
                     ? 'CAUTION'
-                    : 'SAFE'
+                    : scanResult.verdict === 'SAFE'
+                    ? 'SAFE'
+                    : 'CAUTION'
                 }
                 title={
                   scanResult.verdict === 'MALICIOUS'
                     ? 'Dangerous Phishing Link Detected'
                     : scanResult.verdict === 'SUSPICIOUS'
                     ? 'Suspicious Link Anomalies Found'
-                    : 'Verified Safe to Open'
+                    : scanResult.verdict === 'SAFE'
+                    ? 'Verified Safe to Open'
+                    : 'Unverified Link · Caution Advised'
                 }
                 target={scanResult.target}
                 explanation={scanResult.plainLanguageExplanation}

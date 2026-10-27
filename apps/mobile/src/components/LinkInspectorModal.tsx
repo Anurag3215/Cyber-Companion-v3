@@ -59,17 +59,26 @@ export const LinkInspectorModal: React.FC<LinkInspectorModalProps> = ({
       const threatRes = await ApiClient.inspectUrl(input.trim());
       const isMalicious = threatRes.verdict === 'MALICIOUS';
       const isSuspicious = threatRes.verdict === 'SUSPICIOUS';
+      const isSafe = threatRes.verdict === 'SAFE';
+      const displayVerdict: 'MALICIOUS' | 'SUSPICIOUS' | 'SAFE' =
+        isMalicious ? 'MALICIOUS' : isSuspicious ? 'SUSPICIOUS' : isSafe ? 'SAFE' : 'SUSPICIOUS';
 
       addHistoryRecord({
         type: 'link',
         icon: '🔗',
         title: input.trim(),
-        subtext: `Inspection: ${isMalicious ? 'MALICIOUS' : isSuspicious ? 'SUSPICIOUS' : 'SAFE'} (${threatRes.confidenceScore}/100)`,
-        verdict: isMalicious ? 'dangerous' : isSuspicious ? 'warning' : 'safe',
-        verdictLabel: isMalicious ? 'Malicious' : isSuspicious ? 'Caution' : 'Safe',
+        subtext: `Inspection: ${displayVerdict} (${threatRes.confidenceScore}/100)`,
+        verdict: isMalicious ? 'dangerous' : isSuspicious ? 'warning' : isSafe ? 'safe' : 'warning',
+        verdictLabel: isMalicious ? 'Malicious' : isSuspicious ? 'Caution' : isSafe ? 'Safe' : 'Caution',
         details: {
-          threatTitle: isMalicious ? 'High-Risk Threat Intercepted' : isSuspicious ? 'Suspicious Link Anomalies' : 'Verified Safe Link',
-          consensusText: isMalicious ? 'Verdict: MALICIOUS' : isSuspicious ? 'Verdict: SUSPICIOUS' : 'Verdict: SAFE',
+          threatTitle: isMalicious
+            ? 'High-Risk Threat Intercepted'
+            : isSuspicious
+            ? 'Suspicious Link Anomalies'
+            : isSafe
+            ? 'Verified Safe Link'
+            : 'Unverified Link Warning',
+          consensusText: `Verdict: ${displayVerdict}`,
           explanation: threatRes.plainLanguageExplanation,
           findings: threatRes.heuristicsTriggered,
         },
@@ -77,21 +86,22 @@ export const LinkInspectorModal: React.FC<LinkInspectorModalProps> = ({
 
       setResult({
         url: threatRes.target || input.trim(),
-        verdict: isMalicious ? 'MALICIOUS' : isSuspicious ? 'SUSPICIOUS' : 'SAFE',
+        verdict: displayVerdict,
         riskScore: threatRes.confidenceScore,
         title: isMalicious
           ? "Don't open this link · High Risk Threat"
           : isSuspicious
           ? 'Caution Advised · Suspicious Destination'
-          : 'Clean & Verified Destination',
+          : isSafe
+          ? 'Clean & Verified Destination'
+          : 'Caution Advised · Unverified Destination',
         explanation: threatRes.plainLanguageExplanation,
         indicators:
           threatRes.heuristicsTriggered && threatRes.heuristicsTriggered.length > 0
             ? threatRes.heuristicsTriggered
             : [
-                'Verified DNS reputation',
-                'Active TLS encryption',
-                'Clean across global threat feeds',
+                'Unverified external destination',
+                'Zero-trust verification warning',
               ],
         recommendation: threatRes.recommendation,
       });
@@ -99,24 +109,28 @@ export const LinkInspectorModal: React.FC<LinkInspectorModalProps> = ({
       const fallback = evaluateAutonomousUrlHeuristics(input.trim());
       const isMalicious = fallback.verdict === 'MALICIOUS';
       const isSuspicious = fallback.verdict === 'SUSPICIOUS';
+      const isSafe = fallback.verdict === 'SAFE';
+      const displayVerdict: 'MALICIOUS' | 'SUSPICIOUS' | 'SAFE' =
+        isMalicious ? 'MALICIOUS' : isSuspicious ? 'SUSPICIOUS' : isSafe ? 'SAFE' : 'SUSPICIOUS';
 
       setResult({
         url: fallback.target || input.trim(),
-        verdict: isMalicious ? 'MALICIOUS' : isSuspicious ? 'SUSPICIOUS' : 'SAFE',
+        verdict: displayVerdict,
         riskScore: fallback.confidenceScore,
         title: isMalicious
           ? "Don't open this link · High Risk Threat"
           : isSuspicious
           ? 'Caution Advised · Suspicious Destination'
-          : 'Clean & Verified Destination',
+          : isSafe
+          ? 'Clean & Verified Destination'
+          : 'Caution Advised · Unverified Destination',
         explanation: fallback.plainLanguageExplanation,
         indicators:
           fallback.heuristicsTriggered && fallback.heuristicsTriggered.length > 0
             ? fallback.heuristicsTriggered
             : [
-                'Verified DNS reputation',
-                'Active TLS encryption',
-                'Clean across global threat feeds',
+                'Unverified external destination',
+                'Zero-trust verification warning',
               ],
         recommendation: fallback.recommendation,
       });
