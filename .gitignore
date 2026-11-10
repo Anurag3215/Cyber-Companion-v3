@@ -29,16 +29,13 @@ web-build/
 .metro-health-check*
 
 # Android
-apps/mobile/android/.gradle/
-apps/mobile/android/app/build/
-apps/mobile/android/build/
+apps/mobile/android/
 *.apk
 *.aab
 local.properties
 
 # iOS
-apps/mobile/ios/Pods/
-apps/mobile/ios/build/
+apps/mobile/ios/
 *.xcworkspace
 *.pbxuser
 
@@ -53,3 +50,11 @@ apps/mobile/ios/build/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# Python Caches & Artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.idsig
+.kotlin/
+
